@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RomAuditDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RomAuditDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -34,11 +34,10 @@
 #include "RomAuditDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-RomAuditDialog::RomAuditDialog(OSystem* osystem, DialogContainer* parent,
+RomAuditDialog::RomAuditDialog(OSystem& osystem, DialogContainer& parent,
                                const GUI::Font& font, int max_w, int max_h)
-  : Dialog(osystem, parent, 0, 0, 0, 0),
-    myBrowser(NULL),
-    myConfirmMsg(NULL),
+  : Dialog(osystem, parent),
+    myConfirmMsg(nullptr),
     myMaxWidth(max_w),
     myMaxHeight(max_h)
 {
@@ -93,13 +92,12 @@ RomAuditDialog::RomAuditDialog(OSystem* osystem, DialogContainer* parent,
   addBGroupToFocusList(wid);
 
   // Create file browser dialog
-  myBrowser = new BrowserDialog(this, font, myMaxWidth, myMaxHeight);
+  myBrowser = make_ptr<BrowserDialog>(this, font, myMaxWidth, myMaxHeight);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 RomAuditDialog::~RomAuditDialog()
 {
-  delete myBrowser;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -129,14 +127,14 @@ void RomAuditDialog::auditRoms()
 
   // Create a progress dialog box to show the progress of processing
   // the ROMs, since this is usually a time-consuming operation
-  ProgressDialog progress(this, instance().font(),
+  ProgressDialog progress(this, instance().frameBuffer().font(),
                           "Auditing ROM files ...");
-  progress.setRange(0, files.size() - 1, 5);
+  progress.setRange(0, (int)files.size() - 1, 5);
 
   // Create a entry for the GameList for each file
   Properties props;
   int renamed = 0, notfound = 0;
-  for(unsigned int idx = 0; idx < files.size(); idx++)
+  for(uInt32 idx = 0; idx < files.size(); idx++)
   {
     string extension;
     if(files[idx].isFile() &&
@@ -186,10 +184,9 @@ void RomAuditDialog::handleCommand(CommandSender* sender, int cmd,
         msg.push_back("");
         msg.push_back("If you're sure you want to proceed with the");
         msg.push_back("audit, click 'OK', otherwise click 'Cancel'.");
-        myConfirmMsg =
-          new GUI::MessageBox(this, instance().font(), msg,
-                              myMaxWidth, myMaxHeight,
-                              kConfirmAuditCmd);
+        myConfirmMsg = make_ptr<GUI::MessageBox>
+                          (this, instance().frameBuffer().font(), msg,
+                          myMaxWidth, myMaxHeight, kConfirmAuditCmd);
       }
       myConfirmMsg->show();
       break;

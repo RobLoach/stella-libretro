@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DataGridOpsWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DataGridOpsWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "DataGridOpsWidget.hxx"
@@ -24,13 +24,13 @@ DataGridOpsWidget::DataGridOpsWidget(GuiObject* boss, const GUI::Font& font,
                                      int x, int y)
   : Widget(boss, font, x, y, 16, 16),
     CommandSender(boss),
-    _zeroButton(NULL),
-    _invButton(NULL),
-    _negButton(NULL),
-    _incButton(NULL),
-    _decButton(NULL),
-    _shiftLeftButton(NULL),
-    _shiftRightButton(NULL)
+    _zeroButton(nullptr),
+    _invButton(nullptr),
+    _negButton(nullptr),
+    _incButton(nullptr),
+    _decButton(nullptr),
+    _shiftLeftButton(nullptr),
+    _shiftRightButton(nullptr)
 {
   const int bwidth  = _font.getMaxCharWidth() * 4,
             bheight = _font.getFontHeight() + 3,

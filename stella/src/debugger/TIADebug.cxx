@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TIADebug.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TIADebug.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Base.hxx"
@@ -326,7 +326,7 @@ bool TIADebug::priorityPF(int newVal)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool TIADebug::collision(int collID, int newVal)
 {
-  unsigned int mask = 1 << collID;
+  uInt32 mask = 1 << collID;
 
   if(newVal > -1)
   {
@@ -657,31 +657,31 @@ uInt8 TIADebug::hmBL(int newVal)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int TIADebug::frameCount()
+int TIADebug::frameCount() const
 {
   return myTIA.myFrameCounter;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int TIADebug::scanlines()
+int TIADebug::scanlines() const
 {
   return myTIA.scanlines();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int TIADebug::clocksThisLine()
+int TIADebug::clocksThisLine() const
 {
   return myTIA.clocksThisLine();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool TIADebug::vsync()
+bool TIADebug::vsync() const
 {
   return (myTIA.myVSYNC & 2) == 2;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool TIADebug::vblank()
+bool TIADebug::vblank() const
 {
   return (myTIA.myVBLANK & 2) == 2;
 }

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TiaZoomWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TiaZoomWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -31,8 +31,7 @@
 TiaZoomWidget::TiaZoomWidget(GuiObject* boss, const GUI::Font& font,
                              int x, int y, int w, int h)
   : Widget(boss, font, x, y, 16, 16),
-    CommandSender(boss),
-    myMenu(NULL)
+    CommandSender(boss)
 {
   _flags = WIDGET_ENABLED | WIDGET_CLEARBG |
            WIDGET_RETAIN_FOCUS | WIDGET_TRACK_MOUSE;
@@ -55,16 +54,15 @@ TiaZoomWidget::TiaZoomWidget(GuiObject* boss, const GUI::Font& font,
 
   // Create context menu for zoom levels
   VariantList l;
-  l.push_back("2x zoom", "2");
-  l.push_back("4x zoom", "4");
-  l.push_back("8x zoom", "8");
-  myMenu = new ContextMenu(this, font, l);
+  VarList::push_back(l, "2x zoom", "2");
+  VarList::push_back(l, "4x zoom", "4");
+  VarList::push_back(l, "8x zoom", "8");
+  myMenu = make_ptr<ContextMenu>(this, font, l);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 TiaZoomWidget::~TiaZoomWidget()
 {
-  delete myMenu;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

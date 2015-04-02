@@ -8,30 +8,24 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CpuDebug.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CpuDebug.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CPU_DEBUG_HXX
 #define CPU_DEBUG_HXX
 
-class EquateList;
-
-#include "Array.hxx"
 #include "M6502.hxx"
 #include "System.hxx"
 #include "DebuggerSystem.hxx"
 
-// pointer types for CpuDebug instance methods
-typedef int (CpuDebug::*CPUDEBUG_INT_METHOD)();
-
-// call the pointed-to method on the (global) CPU debugger object.
-#define CALL_CPUDEBUG_METHOD(method) ( ( Debugger::debugger().cpuDebug().*method)() )
+// Function type for CpuDebug instance methods
+using CpuMethod = int (CpuDebug::*)() const;
 
 class CpuState : public DebuggerState
 {
@@ -50,25 +44,25 @@ class CpuDebug : public DebuggerSystem
     const DebuggerState& getOldState() { return myOldState; }
 
     void saveOldState();
-    string toString() { return ""; } // Not needed, since CPU stuff is always visible
+    string toString() { return EmptyString; } // Not needed, since CPU stuff is always visible
 
     // I know, we ain't supposed to do this...
-    M6502& m6502() { return mySystem.m6502(); }
+    M6502& m6502() const { return mySystem.m6502(); }
 
-    int pc() { return mySystem.m6502().PC; }
-    int sp() { return mySystem.m6502().SP; }
-    int a()  { return mySystem.m6502().A;  }
-    int x()  { return mySystem.m6502().X;  }
-    int y()  { return mySystem.m6502().Y;  }
+    int pc() const { return mySystem.m6502().PC; }
+    int sp() const { return mySystem.m6502().SP; }
+    int a()  const { return mySystem.m6502().A;  }
+    int x()  const { return mySystem.m6502().X;  }
+    int y()  const { return mySystem.m6502().Y;  }
 
     // These return int, not boolean!
-    int n() { return mySystem.m6502().N;     }
-    int v() { return mySystem.m6502().V;     }
-    int b() { return mySystem.m6502().B;     }
-    int d() { return mySystem.m6502().D;     }
-    int i() { return mySystem.m6502().I;     }
-    int z() { return !mySystem.m6502().notZ; }
-    int c() { return mySystem.m6502().C;     }
+    int n() const { return mySystem.m6502().N;     }
+    int v() const { return mySystem.m6502().V;     }
+    int b() const { return mySystem.m6502().B;     }
+    int d() const { return mySystem.m6502().D;     }
+    int i() const { return mySystem.m6502().I;     }
+    int z() const { return !mySystem.m6502().notZ; }
+    int c() const { return mySystem.m6502().C;     }
 
     void setPC(int pc);
     void setSP(int sp);

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartDebugWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartDebugWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CART_DEBUG_WIDGET_HXX
@@ -45,7 +45,8 @@ class CartDebugWidget : public Widget, public CommandSender
         myFontWidth(lfont.getMaxCharWidth()),
         myFontHeight(lfont.getFontHeight()),
         myLineHeight(lfont.getLineHeight()),
-        myButtonHeight(myLineHeight + 4)    { }
+        myButtonHeight(myLineHeight + 4),
+        myDesc(nullptr)   { }
 
     virtual ~CartDebugWidget() { };
 
@@ -55,7 +56,7 @@ class CartDebugWidget : public Widget, public CommandSender
     {
       const int lwidth = _font.getStringWidth("Manufacturer: "),
                 fwidth = _w - lwidth - 20;
-      EditTextWidget* w = 0;
+      EditTextWidget* w = nullptr;
       ostringstream buf;
 
       int x = 10, y = 10;
@@ -79,9 +80,9 @@ class CartDebugWidget : public Widget, public CommandSender
       w->setEditable(false);
       y += myLineHeight + 4;
 
-      StringParser bs(desc, (fwidth - kScrollBarWidth) / myFontWidth);
+      StringParser bs(desc, (fwidth - kScrollBarWidth) / myFontWidth - 4);
       const StringList& sl = bs.stringList();
-      uInt32 lines = sl.size();
+      uInt32 lines = (uInt32)sl.size();
       if(lines < 3) lines = 3;
       if(lines > maxlines) lines = maxlines;
 
@@ -113,7 +114,21 @@ class CartDebugWidget : public Widget, public CommandSender
     // Query internal state of the cart (usually just bankswitching info)
     virtual string bankState() { return "0 (non-bankswitched)"; }
 
+    // To make the Cartridge RAM show up in the debugger, implement
+    // the following 8 functions for cartridges with internal RAM
+    virtual uInt32 internalRamSize() { return 0; }
+    virtual uInt32 internalRamRPort(int start) { return 0; }
+    virtual string internalRamDescription() { return EmptyString; }
+    virtual const ByteArray& internalRamOld(int start, int count) { return myRamOld; }
+    virtual const ByteArray& internalRamCurrent(int start, int count) { return myRamCurrent; }
+    virtual void internalRamSetValue(int addr, uInt8 value) { };
+    virtual uInt8 internalRamGetValue(int addr) { return 0; };
+    virtual string internalRamLabel(int addr) { return "Not available/applicable"; }
+
   protected:
+    // Arrays used to hold current and previous internal RAM values
+    ByteArray myRamOld, myRamCurrent;
+
     // Font used for 'normal' text; _font is for 'label' text
     const GUI::Font& _nfont;
 

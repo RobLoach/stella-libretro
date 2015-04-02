@@ -8,17 +8,17 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SettingsMACOSX.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SettingsMACOSX.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SETTINGS_MAC_OSX_HXX
-#define SETTINGS_MAX_OSX_HXX
+#define SETTINGS_MAC_OSX_HXX
 
 class OSystem;
 
@@ -28,7 +28,7 @@ class OSystem;
   This class defines Macintosh OSX system specific settings.
 
   @author  Mark Grebe
-  @version $Id: SettingsMACOSX.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: SettingsMACOSX.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class SettingsMACOSX : public Settings
 {
@@ -36,7 +36,7 @@ class SettingsMACOSX : public Settings
     /**
       Create a new UNIX settings object
     */
-    SettingsMACOSX(OSystem* osystem);
+    SettingsMACOSX(OSystem& osystem);
 
     /**
       Destructor
@@ -44,16 +44,15 @@ class SettingsMACOSX : public Settings
     virtual ~SettingsMACOSX();
 
   public:
-	
     /**
       This method should be called to load the current settings from the 
-	  standard Mac preferences.
+      standard Mac preferences.
     */
     void loadConfig();
 
     /**
       This method should be called to save the current settings to the
-	  standard Mac preferences.
+      standard Mac preferences.
     */
     void saveConfig();
 };

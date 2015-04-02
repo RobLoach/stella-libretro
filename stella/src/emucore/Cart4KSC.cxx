@@ -8,16 +8,15 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cart4KSC.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Cart4KSC.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
-#include <cassert>
 #include <cstring>
 
 #include "System.hxx"
@@ -30,9 +29,6 @@ Cartridge4KSC::Cartridge4KSC(const uInt8* image, uInt32 size, const Settings& se
   // Copy the ROM image into my buffer
   memcpy(myImage, image, BSPF_min(4096u, size));
   createCodeAccessBase(4096);
-
-  // This cart contains 128 bytes extended RAM @ 0x1000
-  registerRamArea(0x1000, 128, 0x80, 0x00);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -56,39 +52,34 @@ void Cartridge4KSC::reset()
 void Cartridge4KSC::install(System& system)
 {
   mySystem = &system;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
 
-  // Make sure the system we're being installed in has a page size that'll work
-  assert(((0x1080 & mask) == 0) && ((0x1100 & mask) == 0));
-
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
+  System::PageAccess access(this, System::PA_READ);
 
   // Set the page accessing method for the RAM writing pages
   access.type = System::PA_WRITE;
-  for(uInt32 j = 0x1000; j < 0x1080; j += (1 << shift))
+  for(uInt32 j = 0x1000; j < 0x1080; j += (1 << System::PAGE_SHIFT))
   {
     access.directPokeBase = &myRAM[j & 0x007F];
     access.codeAccessBase = &myCodeAccessBase[j & 0x007F];
-    mySystem->setPageAccess(j >> shift, access);
+    mySystem->setPageAccess(j >> System::PAGE_SHIFT, access);
   }
 
   // Set the page accessing method for the RAM reading pages
   access.directPokeBase = 0;
   access.type = System::PA_READ;
-  for(uInt32 k = 0x1080; k < 0x1100; k += (1 << shift))
+  for(uInt32 k = 0x1080; k < 0x1100; k += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myRAM[k & 0x007F];
     access.codeAccessBase = &myCodeAccessBase[0x80 + (k & 0x007F)];
-    mySystem->setPageAccess(k >> shift, access);
+    mySystem->setPageAccess(k >> System::PAGE_SHIFT, access);
   }
 
   // Map ROM image into the system
-  for(uInt32 address = 0x1100; address < 0x2000; address += (1 << shift))
+  for(uInt32 address = 0x1100; address < 0x2000; address += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myImage[address & 0x0FFF];
     access.codeAccessBase = &myCodeAccessBase[address & 0x0FFF];
-    mySystem->setPageAccess(address >> mySystem->pageShift(), access);
+    mySystem->setPageAccess(address >> System::PAGE_SHIFT, access);
   }
 }
 
@@ -122,25 +113,6 @@ bool Cartridge4KSC::poke(uInt16 address, uInt8)
   // should never be called for RAM because of the way page accessing
   // has been setup
   return false;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Cartridge4KSC::bank(uInt16 bank)
-{ 
-  // Doesn't support bankswitching
-  return false;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 Cartridge4KSC::bank() const
-{
-  return 0;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 Cartridge4KSC::bankCount() const
-{
-  return 1;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

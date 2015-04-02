@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: MessageBox.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: MessageBox.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Dialog.hxx"
@@ -31,7 +31,7 @@ namespace GUI {
 MessageBox::MessageBox(GuiObject* boss, const GUI::Font& font,
                        const StringList& text, int max_w, int max_h, int cmd,
                        const string& okText, const string& cancelText)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, max_w, max_h),
+  : Dialog(boss->instance(), boss->parent(), 0, 0, max_w, max_h),
     CommandSender(boss),
     myCmd(cmd)
 {
@@ -46,7 +46,7 @@ MessageBox::MessageBox(GuiObject* boss, const GUI::Font& font,
 MessageBox::MessageBox(GuiObject* boss, const GUI::Font& font,
                        const string& text, int max_w, int max_h, int cmd,
                        const string& okText, const string& cancelText)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, max_w, max_h),
+  : Dialog(boss->instance(), boss->parent(), 0, 0, max_w, max_h),
     CommandSender(boss),
     myCmd(cmd)
 {
@@ -73,16 +73,16 @@ void MessageBox::addText(const GUI::Font& font, const StringList& text)
 
   // Set real dimensions
   int str_w = 0;
-  for(uInt32 i = 0; i < text.size(); ++i)
-    str_w = BSPF_max((int)text[i].length(), str_w);
+  for(const auto& s: text)
+    str_w = BSPF_max((int)s.length(), str_w);
   _w = BSPF_min(str_w * fontWidth + 20, _w);
-  _h = BSPF_min(((text.size() + 2) * lineHeight + 20), (uInt32)_h);
+  _h = BSPF_min((uInt32)((text.size() + 2) * lineHeight + 20), (uInt32)_h);
 
   xpos = 10;  ypos = 10;
-  for(uInt32 i = 0; i < text.size(); ++i)
+  for(const auto& s: text)
   {
     new StaticTextWidget(this, font, xpos, ypos, _w - 20,
-                         fontHeight, text[i], kTextAlignLeft);
+                         fontHeight, s, kTextAlignLeft);
     ypos += fontHeight;
   }
 }

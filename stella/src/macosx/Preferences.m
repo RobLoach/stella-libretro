@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Preferences.m 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Preferences.m 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #import <Cocoa/Cocoa.h>
@@ -52,7 +52,7 @@ static Preferences *sharedInstance = nil;
   return(self);
 }
 
-- (void)setString:(const char *)key:(const char *)value
+- (void)setString:(const char *)key : (const char *)value
 {
   NSString* theKey   = [NSString stringWithCString:key encoding:NSASCIIStringEncoding];
   NSString* theValue = [NSString stringWithCString:value encoding:NSASCIIStringEncoding];
@@ -62,7 +62,7 @@ static Preferences *sharedInstance = nil;
   [theValue release];
 }
 
-- (void)getString:(const char *)key:(char *)value:(int)size
+- (void)getString:(const char *)key : (char *)value : (int)size
 {
   NSString* theKey   = [NSString stringWithCString:key encoding:NSASCIIStringEncoding];
   NSString* theValue = [defaults objectForKey:theKey];

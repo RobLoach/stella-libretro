@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Launcher.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Launcher.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef LAUNCHER_HXX
@@ -31,7 +31,7 @@ class FilesystemNode;
   The base dialog for the ROM launcher in Stella.
 
   @author  Stephen Anthony
-  @version $Id: Launcher.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Launcher.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Launcher : public DialogContainer
 {
@@ -39,7 +39,7 @@ class Launcher : public DialogContainer
     /**
       Create a new menu stack
     */
-    Launcher(OSystem* osystem);
+    Launcher(OSystem& osystem);
 
     /**
       Destructor

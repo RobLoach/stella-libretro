@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: LoggerDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: LoggerDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <fstream>
@@ -35,10 +35,10 @@
 #include "LoggerDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-LoggerDialog::LoggerDialog(OSystem* osystem, DialogContainer* parent,
+LoggerDialog::LoggerDialog(OSystem& osystem, DialogContainer& parent,
                            const GUI::Font& font, int max_w, int max_h)
-  : Dialog(osystem, parent, 0, 0, 0, 0),
-    myLogInfo(NULL)
+  : Dialog(osystem, parent),
+    myLogInfo(nullptr)
 {
   const int lineHeight   = font.getLineHeight(),
             buttonWidth  = font.getStringWidth("Save log to disk") + 20,
@@ -48,14 +48,15 @@ LoggerDialog::LoggerDialog(OSystem* osystem, DialogContainer* parent,
 
   // Set real dimensions
   // This is one dialog that can take as much space as is available
-  _w = BSPF_min(max_w, 480);
-  _h = BSPF_min(max_h, 380);
+  _w = max_w;
+  _h = max_h;
 
   // Test listing of the log output
   xpos = 10;  ypos = 10;
-  myLogInfo = new StringListWidget(this, instance().infoFont(), xpos, ypos,
-                                   _w - 2 * xpos, _h - buttonHeight - ypos - 20 -
-                                   2 * lineHeight, false);
+  myLogInfo = new StringListWidget(this, instance().frameBuffer().infoFont(),
+                                   xpos, ypos, _w - 2 * xpos,
+                                   _h - buttonHeight - ypos - 20 - 2 * lineHeight,
+                                   false);
   myLogInfo->setEditable(false);
   wid.push_back(myLogInfo);
   ypos += myLogInfo->getHeight() + 8;
@@ -63,10 +64,9 @@ LoggerDialog::LoggerDialog(OSystem* osystem, DialogContainer* parent,
   // Level of logging (how much info to print)
   xpos += 20;
   VariantList items;
-  items.clear();
-  items.push_back("None", "0");
-  items.push_back("Basic", "1");
-  items.push_back("Verbose", "2");
+  VarList::push_back(items, "None", "0");
+  VarList::push_back(items, "Basic", "1");
+  VarList::push_back(items, "Verbose", "2");
   myLogLevel =
     new PopUpWidget(this, font, xpos, ypos, font.getStringWidth("Verbose"),
                     lineHeight, items, "Log level: ",

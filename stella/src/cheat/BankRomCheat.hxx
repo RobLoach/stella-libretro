@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: BankRomCheat.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: BankRomCheat.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef BANK_ROM_CHEAT_HXX
@@ -25,13 +25,12 @@
 class BankRomCheat : public Cheat
 {
   public:
-    BankRomCheat(OSystem* os, const string& name, const string& code);
-    ~BankRomCheat();
+    BankRomCheat(OSystem& os, const string& name, const string& code);
+    virtual ~BankRomCheat() { }
 
-    virtual bool enable();
-    virtual bool disable();
-
-    virtual void evaluate();
+    bool enable();
+    bool disable();
+    void evaluate();
 
   private:
     uInt8  savedRom[16];

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SettingsUNIX.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SettingsUNIX.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SETTINGS_UNIX_HXX
@@ -22,13 +22,13 @@
 
 class OSystem;
 
-#include "bspf.hxx"
+#include "Settings.hxx"
 
 /**
   This class defines UNIX-like OS's (Linux) system specific settings.
 
   @author  Stephen Anthony
-  @version $Id: SettingsUNIX.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: SettingsUNIX.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class SettingsUNIX : public Settings
 {
@@ -36,7 +36,7 @@ class SettingsUNIX : public Settings
     /**
       Create a new UNIX settings object
     */
-    SettingsUNIX(OSystem* osystem);
+    SettingsUNIX(OSystem& osystem);
 
     /**
       Destructor

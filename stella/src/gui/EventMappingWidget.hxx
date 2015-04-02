@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: EventMappingWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: EventMappingWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef EVENT_MAPPING_WIDGET_HXX
@@ -46,7 +46,7 @@ class EventMappingWidget : public Widget, public CommandSender
                        const StringList& actions, EventMode mode);
     ~EventMappingWidget();
 
-    bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
+    bool handleKeyDown(StellaKey key, StellaMod mod);
     void handleJoyDown(int stick, int button);
     void handleJoyAxis(int stick, int axis, int value);
     bool handleJoyHat(int stick, int hat, int value);

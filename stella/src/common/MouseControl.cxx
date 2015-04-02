@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: MouseControl.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: MouseControl.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Console.hxx"
@@ -26,8 +26,8 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 MouseControl::MouseControl(Console& console, const string& mode)
   : myProps(console.properties()),
-    myLeftController(console.controller(Controller::Left)),
-    myRightController(console.controller(Controller::Right)),
+    myLeftController(console.leftController()),
+    myRightController(console.rightController()),
     myCurrentModeNum(0)
 {
   if(BSPF_equalsIgnoreCase(mode, "none"))
@@ -162,14 +162,9 @@ MouseControl::MouseControl(Console& console, const string& mode)
     myModeList.push_back(MouseMode("Mouse not used for current controllers"));
 
 #if 0
-  for(unsigned int i = 0; i < myModeList.size(); ++i)
-    cerr << myModeList[i] << endl;
+  for(MouseMode m: myModeList)
+    cerr << mode << endl;
 #endif
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-MouseControl::~MouseControl()
-{
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartEF.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartEF.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEEF_HXX
@@ -37,7 +37,7 @@ class System;
   as this scheme doesn't seem to be documented anywhere.
 
   @author  Stephen Anthony
-  @version $Id: CartEF.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: CartEF.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class CartridgeEF : public Cartridge
 {
@@ -82,7 +82,7 @@ class CartridgeEF : public Cartridge
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const;
 
     /**
       Query the number of banks supported by the cartridge.

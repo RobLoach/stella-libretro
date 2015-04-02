@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Stack.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Stack.hxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from ScummVM - Scumm Interpreter
 //   Copyright (C) 2002-2004 The ScummVM project
@@ -30,14 +30,14 @@
  */
 namespace Common {
 
-template <class T, int MAX_SIZE = 10>
+template <class T, int MAX_SIZE = 50>
 class FixedStack
 {
   public:
     FixedStack<T, MAX_SIZE>() : _size(0) {}
-	
+
     bool empty() const { return _size <= 0; }
-    bool full() const {return _size >= MAX_SIZE; }
+    bool full() const  { return _size >= MAX_SIZE; }
     void clear() { _size = 0; }
     void push(const T& x)
     {
@@ -53,10 +53,8 @@ class FixedStack
     }
     T pop()
     {
-      T tmp;
       assert(_size > 0);
-      tmp = _stack[--_size];
-      return tmp;
+      return std::move(_stack[--_size]);
     }
     int size() const { return _size; }
     T operator [](int i) const

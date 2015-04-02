@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DebuggerDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DebuggerDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef DEBUGGER_DIALOG_HXX
@@ -34,6 +34,7 @@ class TiaInfoWidget;
 class TiaOutputWidget;
 class TiaZoomWidget;
 class CartDebugWidget;
+class CartRamWidget;
 
 #include "Dialog.hxx"
 #include "MessageBox.hxx"
@@ -48,9 +49,9 @@ class DebuggerDialog : public Dialog
       kLargeFontMinW  = 1300, kLargeFontMinH  = 940
     };
 
-    DebuggerDialog(OSystem* osystem, DialogContainer* parent,
+    DebuggerDialog(OSystem& osystem, DialogContainer& parent,
                    int x, int y, int w, int h);
-    ~DebuggerDialog();
+    virtual ~DebuggerDialog();
 
     const GUI::Font& lfont() const     { return *myLFont;        }
     const GUI::Font& nfont() const     { return *myNFont;        }
@@ -60,6 +61,7 @@ class DebuggerDialog : public Dialog
     TiaZoomWidget& tiaZoom() const     { return *myTiaZoom;      }
     RomWidget& rom() const             { return *myRom;          }
     CartDebugWidget& cartDebug() const { return *myCartDebug;    }
+    CartRamWidget& cartRam() const     { return *myCartRam;      }
     EditTextWidget& message() const    { return *myMessageBox;   }
     ButtonWidget& rewindButton() const { return *myRewindButton; }
 
@@ -67,7 +69,7 @@ class DebuggerDialog : public Dialog
 
   private:
     void loadConfig();
-    void handleKeyDown(StellaKey key, StellaMod mod, char ascii);
+    void handleKeyDown(StellaKey key, StellaMod mod);
     void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
     void doStep();
@@ -102,8 +104,6 @@ class DebuggerDialog : public Dialog
 
     TabWidget *myTab, *myRomTab;
 
-    GUI::Font*       myLFont;    // used for labels
-    GUI::Font*       myNFont;    // used for normal text
     PromptWidget*    myPrompt;
     TiaInfoWidget*   myTiaInfo;
     TiaOutputWidget* myTiaOutput;
@@ -112,9 +112,13 @@ class DebuggerDialog : public Dialog
     RamWidget*       myRam;
     RomWidget*       myRom;
     CartDebugWidget* myCartDebug;
+    CartRamWidget*   myCartRam;
     EditTextWidget*  myMessageBox;
     ButtonWidget*    myRewindButton;
-    GUI::MessageBox* myFatalError;
+    unique_ptr<GUI::MessageBox> myFatalError;
+
+    unique_ptr<GUI::Font> myLFont;  // used for labels
+    unique_ptr<GUI::Font> myNFont;  // used for normal text
 };
 
 #endif

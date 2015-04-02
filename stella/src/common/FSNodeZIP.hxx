@@ -8,19 +8,19 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: FSNodeZIP.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: FSNodeZIP.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef FS_NODE_ZIP_HXX
 #define FS_NODE_ZIP_HXX
 
-#include "StringList.hxx"
+#include "ZipHandler.hxx"
 #include "FSNode.hxx"
 
 /*
@@ -49,11 +49,11 @@ class FilesystemNodeZIP : public AbstractFSNode
     FilesystemNodeZIP(const string& path);
 
     bool exists() const      { return _realNode && _realNode->exists(); }
-    const string& getName() const { return _virtualFile; }
-    const string& getPath() const { return _path;        }
-    string getShortPath() const   { return _shortPath;   }
-    bool isDirectory() const { return _numFiles > 1;  }
-    bool isFile() const      { return _numFiles == 1; }
+    const string& getName() const { return _name;      }
+    const string& getPath() const { return _path;      }
+    string getShortPath() const   { return _shortPath; }
+    bool isDirectory() const { return _isDirectory; }
+    bool isFile() const      { return _isFile;      }
     bool isReadable() const  { return _realNode && _realNode->isReadable(); }
     bool isWritable() const  { return false; }
 
@@ -69,11 +69,20 @@ class FilesystemNodeZIP : public AbstractFSNode
     uInt32 read(uInt8*& image) const;
 
   private:
-    FilesystemNodeZIP(const string& zipfile, const string& virtualfile,
-        Common::SharedPtr<AbstractFSNode> realnode);
+    FilesystemNodeZIP(const string& zipfile, const string& virtualpath,
+        shared_ptr<AbstractFSNode> realnode, bool isdir);
 
-    void setFlags(const string& zipfile, const string& virtualfile,
-        Common::SharedPtr<AbstractFSNode> realnode);
+    void setFlags(const string& zipfile, const string& virtualpath,
+        shared_ptr<AbstractFSNode> realnode);
+
+    friend ostream& operator<<(ostream& os, const FilesystemNodeZIP& node)
+    {
+      os << "_zipFile:     " << node._zipFile << endl
+         << "_virtualPath: " << node._virtualPath << endl
+         << "_path:        " << node._path << endl
+         << "_shortPath:   " << node._shortPath << endl;
+      return os;
+    }
 
   private:
     /* Error types */
@@ -85,11 +94,36 @@ class FilesystemNodeZIP : public AbstractFSNode
       ZIPERR_NO_ROMS
     };
 
-    Common::SharedPtr<AbstractFSNode> _realNode;
-    string _zipFile, _virtualFile;
-    string _path, _shortPath;
+    shared_ptr<AbstractFSNode> _realNode;
+    string _zipFile, _virtualPath;
+    string _name, _path, _shortPath;
     zip_error _error;
     uInt32 _numFiles;
+
+    bool _isDirectory, _isFile;
+
+    // ZipHandler static reference variable responsible for accessing ZIP files
+    static unique_ptr<ZipHandler> myZipHandler;
+    inline static ZipHandler& open(const string& file)
+    {
+      myZipHandler->open(file);
+      return *myZipHandler;
+    }
+
+    // Get last component of path
+    static const char* lastPathComponent(const string& str)
+    {
+      if(str.empty())
+        return "";
+
+      const char* start = str.c_str();
+      const char* cur = start + str.size() - 2;
+
+      while (cur >= start && !(*cur == '/' || *cur == '\\'))
+        --cur;
+
+      return cur + 1;
+    }
 };
 
 #endif

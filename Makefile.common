@@ -1,7 +1,7 @@
 INCFLAGS := -I. -I$(CORE_DIR) -I$(CORE_DIR)/src -I$(CORE_DIR)/stubs -I$(CORE_DIR)/src/emucore -I$(CORE_DIR)/src/common -I$(CORE_DIR)/src/common/tv_filters -I$(CORE_DIR)/src/gui
 
 SOURCES_CXX := $(CORE_DIR)/src/common/Base.cxx \
-	$(CORE_DIR)/src/common/SoundSDL.cxx \
+	$(CORE_DIR)/src/common/SoundSDL2.cxx \
 	$(CORE_DIR)/src/emucore/AtariVox.cxx \
 	$(CORE_DIR)/src/emucore/Booster.cxx \
 	$(CORE_DIR)/src/emucore/Cart.cxx \
@@ -18,6 +18,7 @@ SOURCES_CXX := $(CORE_DIR)/src/common/Base.cxx \
 	$(CORE_DIR)/src/emucore/CartCM.cxx \
 	$(CORE_DIR)/src/emucore/CartCTY.cxx \
 	$(CORE_DIR)/src/emucore/CartCV.cxx \
+	$(CORE_DIR)/src/emucore/CartDASH.cxx \
 	$(CORE_DIR)/src/emucore/CartDF.cxx \
 	$(CORE_DIR)/src/emucore/CartDFSC.cxx \
 	$(CORE_DIR)/src/emucore/CartDPC.cxx \
@@ -37,8 +38,10 @@ SOURCES_CXX := $(CORE_DIR)/src/common/Base.cxx \
 	$(CORE_DIR)/src/emucore/CartFA2.cxx \
 	$(CORE_DIR)/src/emucore/CartFE.cxx \
 	$(CORE_DIR)/src/emucore/CartMC.cxx \
+	$(CORE_DIR)/src/emucore/CartMDM.cxx \
 	$(CORE_DIR)/src/emucore/CartSB.cxx \
 	$(CORE_DIR)/src/emucore/CartUA.cxx \
+	$(CORE_DIR)/src/emucore/CartWD.cxx \
 	$(CORE_DIR)/src/emucore/CartX07.cxx \
 	$(CORE_DIR)/src/emucore/CompuMate.cxx \
 	$(CORE_DIR)/src/emucore/Console.cxx \

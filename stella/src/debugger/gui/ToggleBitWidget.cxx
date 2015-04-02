@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ToggleBitWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ToggleBitWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -22,7 +22,6 @@
 #include "Dialog.hxx"
 #include "Debugger.hxx"
 #include "FrameBuffer.hxx"
-#include "StringList.hxx"
 #include "ToggleBitWidget.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -61,7 +60,7 @@ void ToggleBitWidget::setList(const StringList& off, const StringList& on)
   _onList.clear();
   _onList = on;
 
-  int size = _offList.size();  // assume _onList is the same size
+  int size = (int)_offList.size();  // assume _onList is the same size
   assert(size == _rows * _cols);
 }
 

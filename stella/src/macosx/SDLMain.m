@@ -4,7 +4,7 @@
 
     Feel free to customize this file to suit your needs
 */
-/* $Id: SDLMain.m 2007 2010-04-13 12:32:08Z stephena $ */
+/* $Id: SDLMain.m 2869 2014-03-08 00:44:30Z stephena $ */
 
 #import "SDL.h"
 #import "SDLMain.h"
@@ -343,9 +343,9 @@ static void CustomApplicationMain (int argc, char **argv)
 
 - (NSString *)stringByReplacingRange:(NSRange)aRange with:(NSString *)aString
 {
-    unsigned int bufferSize;
-    unsigned int selfLen = [self length];
-    unsigned int aStringLen = [aString length];
+    NSUInteger bufferSize;
+    NSUInteger selfLen = [self length];
+    NSUInteger aStringLen = [aString length];
     unichar *buffer;
     NSRange localRange;
     NSString *result;

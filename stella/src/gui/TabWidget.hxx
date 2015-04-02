@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TabWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TabWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef TAB_WIDGET_HXX
@@ -22,7 +22,6 @@
 
 #include "bspf.hxx"
 
-#include "Array.hxx"
 #include "Command.hxx"
 #include "Widget.hxx"
 
@@ -45,7 +44,7 @@ class TabWidget : public Widget, public CommandSender
     //void removeTab(int tabID);
 // Setting the active tab:
     void setActiveTab(int tabID, bool show = false);
-    void disableTab(int tabID);
+//    void disableTab(int tabID);
     void activateTabs();
     void cycleTab(int direction);
 // setActiveTab changes the value of _firstWidget. This means Widgets added afterwards
@@ -73,10 +72,11 @@ class TabWidget : public Widget, public CommandSender
       Widget* parentWidget;
       bool enabled;
 
-      Tab(const string& t = "", Widget* first = 0, Widget* parent = 0, bool e = true)
+      Tab(const string& t = "", Widget* first = nullptr, Widget* parent = nullptr,
+          bool e = true)
         : title(t), firstWidget(first), parentWidget(parent), enabled(e) { }
     };
-    typedef Common::Array<Tab> TabList;
+    using TabList = vector<Tab>;
 
     TabList _tabs;
     int     _tabWidth;

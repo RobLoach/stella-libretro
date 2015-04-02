@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: GameList.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: GameList.cxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from KStella - Stella frontend
 //   Copyright (C) 2003-2005 Stephen Anthony
@@ -26,51 +26,31 @@
 #include "GameList.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-GameList::GameList()
-{
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-GameList::~GameList()
-{
-  clear();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void GameList::appendGame(const string& name, const string& path,
-                          const string& md5, bool isDir)
-{
-  myArray.push_back(Entry(name, path, md5, isDir));
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void GameList::sortByName()
 {
-  if(myArray.size() <= 1)
+  if(myArray.size() < 2)
     return;
 
-  sort(myArray.begin(), myArray.end());
-}
+  auto cmp = [](const Entry& a, const Entry& b)
+  {
+    auto it1 = a._name.begin(), it2 = b._name.begin();
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool GameList::Entry::operator< (const Entry& g) const
-{
-  string::const_iterator it1 = _name.begin();
-  string::const_iterator it2 = g._name.begin();
+    // Account for ending ']' character in directory entries
+    auto end1 = a._isdir ? a._name.end() - 1 : a._name.end();
+    auto end2 = b._isdir ? b._name.end() - 1 : b._name.end();
 
-  // Account for ending ']' character in directory entries
-  string::const_iterator end1 = _isdir ? _name.end() - 1 : _name.end();
-  string::const_iterator end2 = g._isdir ? g._name.end() - 1 : g._name.end();
+    // Stop when either string's end has been reached
+    while((it1 != end1) && (it2 != end2)) 
+    { 
+      if(toupper(*it1) != toupper(*it2)) // letters differ?
+        return toupper(*it1) < toupper(*it2);
 
-  // Stop when either string's end has been reached
-  while((it1 != end1) && (it2 != end2)) 
-  { 
-    if(toupper(*it1) != toupper(*it2)) // letters differ?
-      return toupper(*it1) < toupper(*it2);
+      // proceed to the next character in each string
+      ++it1;
+      ++it2;
+    }
+    return a._name.size() < b._name.size();
+  };
 
-    // proceed to the next character in each string
-    ++it1;
-    ++it2;
-  }
-  return _name.size() < g._name.size();
+  sort(myArray.begin(), myArray.end(), cmp);
 }

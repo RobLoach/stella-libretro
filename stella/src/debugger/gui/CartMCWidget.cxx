@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartMCWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartMCWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartMC.hxx"
@@ -51,13 +51,13 @@ CartridgeMCWidget::CartridgeMCWidget(
   for(uInt32 i = 0x80; i <= 0xFF; ++i)
   {
     const string& b = Variant(i).toString();
-    items.push_back(b + " (ROM)", b);
+    VarList::push_back(items, b + " (ROM)", b);
   }
   // Add 64 512B 'RAM' blocks
   for(uInt32 i = 0x00; i <= 0x3F; ++i)
   {
     const string& b = Variant(i).toString();
-    items.push_back(b + " (RAM)", b);
+    VarList::push_back(items, b + " (RAM)", b);
   }
 
   const int lwidth = _font.getStringWidth("Set slice for segment X ($3X): "),

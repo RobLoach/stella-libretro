@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartDFWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartDFWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartDF.hxx"
@@ -47,38 +47,38 @@ CartridgeDFWidget::CartridgeDFWidget(
       ypos = addBaseInformation(size, "CPUWIZ", info.str()) + myLineHeight;
 
   VariantList items;
-  items.push_back(" 0 ($FC0)");
-  items.push_back(" 1 ($FC1)");
-  items.push_back(" 2 ($FC2)");
-  items.push_back(" 3 ($FC3)");
-  items.push_back(" 4 ($FC4)");
-  items.push_back(" 5 ($FC5)");
-  items.push_back(" 6 ($FC6)");
-  items.push_back(" 7 ($FC7)");
-  items.push_back(" 8 ($FC8)");
-  items.push_back(" 9 ($FC9)");
-  items.push_back("10 ($FCA)");
-  items.push_back("11 ($FCB)");
-  items.push_back("12 ($FCC)");
-  items.push_back("13 ($FCD)");
-  items.push_back("14 ($FCE)");
-  items.push_back("15 ($FCF)");
-  items.push_back("16 ($FD0)");
-  items.push_back("17 ($FD1)");
-  items.push_back("18 ($FD2)");
-  items.push_back("19 ($FD3)");
-  items.push_back("20 ($FD4)");
-  items.push_back("21 ($FD5)");
-  items.push_back("22 ($FD6)");
-  items.push_back("23 ($FD7)");
-  items.push_back("24 ($FD8)");
-  items.push_back("25 ($FD9)");
-  items.push_back("26 ($FDA)");
-  items.push_back("27 ($FDB)");
-  items.push_back("28 ($FDC)");
-  items.push_back("29 ($FDD)");
-  items.push_back("30 ($FDE)");
-  items.push_back("31 ($FDF)");
+  VarList::push_back(items, " 0 ($FC0)");
+  VarList::push_back(items, " 1 ($FC1)");
+  VarList::push_back(items, " 2 ($FC2)");
+  VarList::push_back(items, " 3 ($FC3)");
+  VarList::push_back(items, " 4 ($FC4)");
+  VarList::push_back(items, " 5 ($FC5)");
+  VarList::push_back(items, " 6 ($FC6)");
+  VarList::push_back(items, " 7 ($FC7)");
+  VarList::push_back(items, " 8 ($FC8)");
+  VarList::push_back(items, " 9 ($FC9)");
+  VarList::push_back(items, "10 ($FCA)");
+  VarList::push_back(items, "11 ($FCB)");
+  VarList::push_back(items, "12 ($FCC)");
+  VarList::push_back(items, "13 ($FCD)");
+  VarList::push_back(items, "14 ($FCE)");
+  VarList::push_back(items, "15 ($FCF)");
+  VarList::push_back(items, "16 ($FD0)");
+  VarList::push_back(items, "17 ($FD1)");
+  VarList::push_back(items, "18 ($FD2)");
+  VarList::push_back(items, "19 ($FD3)");
+  VarList::push_back(items, "20 ($FD4)");
+  VarList::push_back(items, "21 ($FD5)");
+  VarList::push_back(items, "22 ($FD6)");
+  VarList::push_back(items, "23 ($FD7)");
+  VarList::push_back(items, "24 ($FD8)");
+  VarList::push_back(items, "25 ($FD9)");
+  VarList::push_back(items, "26 ($FDA)");
+  VarList::push_back(items, "27 ($FDB)");
+  VarList::push_back(items, "28 ($FDC)");
+  VarList::push_back(items, "29 ($FDD)");
+  VarList::push_back(items, "30 ($FDE)");
+  VarList::push_back(items, "31 ($FDF)");
  
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth("31 ($FDF) "),

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SaveKey.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SaveKey.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SAVEKEY_HXX
@@ -32,10 +32,12 @@ class MT24LC256;
   driver code.
 
   @author  Stephen Anthony
-  @version $Id: SaveKey.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: SaveKey.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class SaveKey : public Controller
 {
+  friend class SaveKeyWidget;
+
   public:
     /**
       Create a new SaveKey controller plugged into the specified jack
@@ -89,7 +91,7 @@ class SaveKey : public Controller
 
   private:
     // The EEPROM used in the SaveKey
-    MT24LC256* myEEPROM;
+    unique_ptr<MT24LC256> myEEPROM;
 };
 
 #endif

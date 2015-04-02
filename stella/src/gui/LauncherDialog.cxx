@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: LauncherDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: LauncherDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -38,7 +38,6 @@
 #include "PropsSet.hxx"
 #include "RomInfoWidget.hxx"
 #include "Settings.hxx"
-#include "StringList.hxx"
 #include "StringListWidget.hxx"
 #include "Widget.hxx"
 
@@ -46,30 +45,24 @@
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
+LauncherDialog::LauncherDialog(OSystem& osystem, DialogContainer& parent,
                                int x, int y, int w, int h)
-  : Dialog(osystem, parent, x, y, w, h, true),  // use base surface
-    myStartButton(NULL),
-    myPrevDirButton(NULL),
-    myOptionsButton(NULL),
-    myQuitButton(NULL),
-    myList(NULL),
-    myGameList(NULL),
-    myRomInfoWidget(NULL),
-    myMenu(NULL),
-    myGlobalProps(NULL),
-    myFilters(NULL),
-    myFirstRunMsg(NULL),
-    myRomDir(NULL),
+  : Dialog(osystem, parent, x, y, w, h),
+    myStartButton(nullptr),
+    myPrevDirButton(nullptr),
+    myOptionsButton(nullptr),
+    myQuitButton(nullptr),
+    myList(nullptr),
+    myRomInfoWidget(nullptr),
     mySelectedItem(0)
 {
-  const GUI::Font& font = instance().launcherFont();
+  const GUI::Font& font = instance().frameBuffer().launcherFont();
 
   const int fontWidth = font.getMaxCharWidth(),
             fontHeight = font.getFontHeight(),
             bwidth  = (_w - 2 * 10 - 8 * (4 - 1)) / 4,
             bheight = font.getLineHeight() + 4;
-  int xpos = 0, ypos = 0, lwidth = 0, lwidth2 = 0, fwidth = 0;
+  int xpos = 0, ypos = 0, lwidth = 0, lwidth2 = 0;
   WidgetArray wid;
 
   // Show game name
@@ -88,7 +81,7 @@ LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
   // It has to fit between both labels
   if(w >= 640)
   {
-    fwidth = BSPF_min(15 * fontWidth, xpos - 20 - lwidth);
+    int fwidth = BSPF_min(15 * fontWidth, xpos - 20 - lwidth);
     xpos -= fwidth + 5;
     myPattern = new EditTextWidget(this, font, xpos, ypos,
                                    fwidth, fontHeight, "");
@@ -115,9 +108,10 @@ LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
   if(romWidth > 0)
   {
     xpos += myList->getWidth() + 5;
-    myRomInfoWidget =
-      new RomInfoWidget(this, romWidth < 660 ? instance().smallFont() : instance().infoFont(),
-                        xpos, ypos, romWidth, myList->getHeight());
+    myRomInfoWidget = new RomInfoWidget(this,
+        romWidth < 660 ? instance().frameBuffer().smallFont() :
+                         instance().frameBuffer().infoFont(),
+        xpos, ypos, romWidth, myList->getHeight());
   }
 
   // Add note textwidget to show any notes for the currently selected ROM
@@ -133,7 +127,7 @@ LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
 
   // Add four buttons at the bottom
   xpos = 10;  ypos += myDir->getHeight() + 4;
-#ifndef MAC_OSX
+#ifndef BSPF_MAC_OSX
   myStartButton = new ButtonWidget(this, font, xpos, ypos, bwidth, bheight,
                                   "Select", kLoadROMCmd);
   wid.push_back(myStartButton);
@@ -149,7 +143,6 @@ LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
   myQuitButton = new ButtonWidget(this, font, xpos, ypos, bwidth, bheight,
                                   "Quit", kQuitCmd);
   wid.push_back(myQuitButton);
-    xpos += bwidth + 8;
 #else
   myQuitButton = new ButtonWidget(this, font, xpos, ypos, bwidth, bheight,
                                   "Quit", kQuitCmd);
@@ -166,32 +159,32 @@ LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
   myStartButton = new ButtonWidget(this, font, xpos, ypos, bwidth, bheight,
                                    "Select", kLoadROMCmd);
   wid.push_back(myStartButton);
-    xpos += bwidth + 8;
 #endif
   mySelectedItem = 0;  // Highlight 'Rom Listing'
 
   // Create an options dialog, similar to the in-game one
-  myOptions = new OptionsDialog(osystem, parent, this, int(w * 0.8), int(h * 0.8), true);
+  myOptions = make_ptr<OptionsDialog>(osystem, parent, this,
+                  int(w * 0.8), int(h * 0.8), true);
 
   // Create a game list, which contains all the information about a ROM that
   // the launcher needs
-  myGameList = new GameList();
+  myGameList = make_ptr<GameList>();
 
   addToFocusList(wid);
 
   // Create context menu for ROM list options
   VariantList l;
-  l.push_back("Power-on options", "override");
-  l.push_back("Filter listing", "filter");
-  l.push_back("Reload listing", "reload");
-  myMenu = new ContextMenu(this, osystem->font(), l);
+  VarList::push_back(l, "Power-on options", "override");
+  VarList::push_back(l, "Filter listing", "filter");
+  VarList::push_back(l, "Reload listing", "reload");
+  myMenu = make_ptr<ContextMenu>(this, osystem.frameBuffer().font(), l);
 
   // Create global props dialog, which is used to temporarily overrride
   // ROM properties
-  myGlobalProps = new GlobalPropsDialog(this, osystem->font());
+  myGlobalProps = make_ptr<GlobalPropsDialog>(this, osystem.frameBuffer().font());
 
   // Create dialog whereby the files shown in the ROM listing can be customized
-  myFilters = new LauncherFilterDialog(this, osystem->font());
+  myFilters = make_ptr<LauncherFilterDialog>(this, osystem.frameBuffer().font());
 
   // Figure out which filters are needed for the ROM listing
   setListFilters();
@@ -200,12 +193,6 @@ LauncherDialog::LauncherDialog(OSystem* osystem, DialogContainer* parent,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 LauncherDialog::~LauncherDialog()
 {
-  delete myOptions;
-  delete myGameList;
-  delete myMenu;
-  delete myGlobalProps;
-  delete myFilters;
-  delete myRomDir;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -247,15 +234,16 @@ void LauncherDialog::loadConfig()
       msg.push_back("");
       msg.push_back("Click 'OK' to select a default ROM directory,");
       msg.push_back("or 'Cancel' to browse the filesystem manually.");
-      myFirstRunMsg = new GUI::MessageBox(this, instance().font(), msg,
-                                          _w, _h, kFirstRunMsgChosenCmd);
+      myFirstRunMsg = make_ptr<GUI::MessageBox>
+                          (this, instance().frameBuffer().font(),
+                          msg, _w, _h, kFirstRunMsgChosenCmd);
     }
     myFirstRunMsg->show();
   }
 
   // Assume that if the list is empty, this is the first time that loadConfig()
   // has been called (and we should reload the list)
-  if(myList->getList().isEmpty())
+  if(myList->getList().empty())
   {
     myPrevDirButton->setEnabled(false);
     myCurrentNode = FilesystemNode(romdir == "" ? "~" : romdir);
@@ -268,15 +256,6 @@ void LauncherDialog::loadConfig()
 
   if(myRomInfoWidget)
     myRomInfoWidget->loadConfig();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void LauncherDialog::enableButtons(bool enable)
-{
-  myStartButton->setEnabled(enable);
-  myPrevDirButton->setEnabled(enable);
-  myOptionsButton->setEnabled(enable);
-  myQuitButton->setEnabled(enable);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -328,11 +307,10 @@ void LauncherDialog::loadDirListing()
 
   // Now add the directory entries
   bool domatch = myPattern && myPattern->getText() != "";
-  for(unsigned int idx = 0; idx < files.size(); idx++)
+  for(const auto& f: files)
   {
-    bool isDir = files[idx].isDirectory();
-    const string& name = isDir ? (" [" + files[idx].getName() + "]")
-                               : files[idx].getName();
+    bool isDir = f.isDirectory();
+    const string& name = isDir ? (" [" + f.getName() + "]") : f.getName();
 
     // Honour the filtering settings
     // Showing only certain ROM extensions is determined by the extension
@@ -349,7 +327,7 @@ void LauncherDialog::loadDirListing()
     if(domatch && !isDir && !matchPattern(name, myPattern->getText()))
       continue;
 
-    myGameList->appendGame(name, files[idx].getPath(), "", isDir);
+    myGameList->appendGame(name, f.getPath(), "", isDir);
   }
 
   // Sort the list by rom name (since that's what we see in the listview)
@@ -420,7 +398,7 @@ bool LauncherDialog::matchPattern(const string& s, const string& pattern) const
   const char* haystack = s.c_str();
   const char* needle = pattern.c_str();
 
-  unsigned char b = tolower((unsigned char) *needle);
+  uInt8 b = tolower((uInt8) *needle);
 
   needle++;
   for (;; haystack++)
@@ -429,7 +407,7 @@ bool LauncherDialog::matchPattern(const string& s, const string& pattern) const
       return false;
 
     /* The first character matches */
-    if (tolower ((unsigned char) *haystack) == b)
+    if (tolower ((uInt8) *haystack) == b)
     {
       const char* rhaystack = haystack + 1;
       const char* rneedle = needle;
@@ -442,8 +420,8 @@ bool LauncherDialog::matchPattern(const string& s, const string& pattern) const
           return false;
 
         /* Nothing in this round */
-        if (tolower ((unsigned char) *rhaystack)
-            != tolower ((unsigned char) *rneedle))
+        if (tolower ((uInt8) *rhaystack)
+            != tolower ((uInt8) *rneedle))
           break;
       }
     }
@@ -452,14 +430,14 @@ bool LauncherDialog::matchPattern(const string& s, const string& pattern) const
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void LauncherDialog::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+void LauncherDialog::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Grab the key before passing it to the actual dialog and check for
   // Control-R (reload ROM listing)
-  if(instance().eventHandler().kbdControl(mod) && key == KBDK_r)
+  if(instance().eventHandler().kbdControl(mod) && key == KBDK_R)
     updateListing();
   else
-    Dialog::handleKeyDown(key, mod, ascii);
+    Dialog::handleKeyDown(key, mod);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -542,7 +520,7 @@ void LauncherDialog::handleCommand(CommandSender* sender, int cmd,
     case kFirstRunMsgChosenCmd:
       // Show a file browser, starting from the users' home directory
       if(!myRomDir)
-        myRomDir = new BrowserDialog(this, instance().font(), _w, _h);
+        myRomDir = make_ptr<BrowserDialog>(this, instance().frameBuffer().font(), _w, _h);
 
       myRomDir->show("Select ROM directory:", "~",
                      BrowserDialog::Directories, kStartupRomDirChosenCmd);

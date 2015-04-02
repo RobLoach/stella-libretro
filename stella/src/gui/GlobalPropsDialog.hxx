@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: GlobalPropsDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: GlobalPropsDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef GLOBAL_PROPS_DIALOG_HXX
@@ -42,7 +42,7 @@ class GlobalPropsDialog : public Dialog, public CommandSender
     void saveConfig();
     void setDefaults();
 
-    virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
+    void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
   private:
     enum {

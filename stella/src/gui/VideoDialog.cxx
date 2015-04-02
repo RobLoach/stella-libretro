@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: VideoDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: VideoDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -30,18 +30,16 @@
 #include "Console.hxx"
 #include "TIA.hxx"
 #include "Settings.hxx"
-#include "StringList.hxx"
 #include "Widget.hxx"
 #include "TabWidget.hxx"
-#include "FrameBufferGL.hxx"
 #include "NTSCFilter.hxx"
 
 #include "VideoDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-VideoDialog::VideoDialog(OSystem* osystem, DialogContainer* parent,
+VideoDialog::VideoDialog(OSystem& osystem, DialogContainer& parent,
                          const GUI::Font& font, int max_w, int max_h)
-  : Dialog(osystem, parent, 0, 0, 0, 0)
+  : Dialog(osystem, parent)
 {
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
@@ -49,9 +47,8 @@ VideoDialog::VideoDialog(OSystem* osystem, DialogContainer* parent,
             buttonWidth  = font.getStringWidth("Defaults") + 20,
             buttonHeight = font.getLineHeight() + 4;
   int xpos, ypos, tabID;
-  int lwidth = font.getStringWidth("GL Aspect (P): "),
-      pwidth = font.getStringWidth("1920x1200"),
-      fwidth = font.getStringWidth("Renderer: ");
+  int lwidth = font.getStringWidth("NTSC Aspect: "),
+      pwidth = font.getStringWidth("XXXXxXXXX");
   WidgetArray wid;
   VariantList items;
 
@@ -66,170 +63,132 @@ VideoDialog::VideoDialog(OSystem* osystem, DialogContainer* parent,
 
   //////////////////////////////////////////////////////////
   // 1) General options
-  wid.clear();
   tabID = myTab->addTab(" General ");
 
   // Video renderer
-  new StaticTextWidget(myTab, font, xpos + (lwidth-fwidth), ypos, fwidth,
-                       fontHeight, "Renderer:", kTextAlignLeft);
-  myRenderer = new StaticTextWidget(myTab, font, xpos+lwidth, ypos,
-                                  fwidth, fontHeight, "", kTextAlignLeft);
-  ypos += lineHeight + 4;
-
-  items.clear();
-  items.push_back("Software", "soft");
-#ifdef DISPLAY_OPENGL
-  items.push_back("OpenGL", "gl");
-#endif
-  myRendererPopup = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
-                                    items, "(*) ", lwidth);
-  wid.push_back(myRendererPopup);
+  myRenderer = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
+                               instance().frameBuffer().supportedRenderers(),
+                               "Renderer: ", lwidth);
+  wid.push_back(myRenderer);
   ypos += lineHeight + 4;
 
   // TIA filters (will be dynamically filled later)
-  items.clear();
-  myTIAFilterPopup = new PopUpWidget(myTab, font, xpos, ypos, pwidth,
-                                     lineHeight, items, "TIA Filter: ", lwidth);
-  wid.push_back(myTIAFilterPopup);
+  myTIAZoom = new PopUpWidget(myTab, font, xpos, ypos, pwidth,
+                              lineHeight, items, "TIA Zoom: ", lwidth);
+  wid.push_back(myTIAZoom);
   ypos += lineHeight + 4;
 
   // TIA Palette
   items.clear();
-  items.push_back("Standard", "standard");
-  items.push_back("Z26", "z26");
-  items.push_back("User", "user");
-  myTIAPalettePopup = new PopUpWidget(myTab, font, xpos, ypos, pwidth,
-                                      lineHeight, items, "TIA Palette: ", lwidth);
-  wid.push_back(myTIAPalettePopup);
+  VarList::push_back(items, "Standard", "standard");
+  VarList::push_back(items, "Z26", "z26");
+  VarList::push_back(items, "User", "user");
+  myTIAPalette = new PopUpWidget(myTab, font, xpos, ypos, pwidth,
+                                 lineHeight, items, "TIA Palette: ", lwidth);
+  wid.push_back(myTIAPalette);
   ypos += lineHeight + 4;
 
-  // Fullscreen resolution
+  // TIA interpolation
   items.clear();
-  items.push_back("Auto", "auto");
-  for(uInt32 i = 0; i < instance().supportedResolutions().size(); ++i)
-    items.push_back(instance().supportedResolutions()[i].name,
-                    instance().supportedResolutions()[i].name);
-  myFSResPopup = new PopUpWidget(myTab, font, xpos, ypos, pwidth,
-                                 lineHeight, items, "Fullscrn Res: ", lwidth);
-  wid.push_back(myFSResPopup);
+  VarList::push_back(items, "Linear", "linear");
+  VarList::push_back(items, "Nearest", "nearest");
+  myTIAInterpolate = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
+                                     items, "TIA Inter: ", lwidth);
+  wid.push_back(myTIAInterpolate);
   ypos += lineHeight + 4;
 
   // Timing to use between frames
   items.clear();
-  items.push_back("Sleep", "sleep");
-  items.push_back("Busy-wait", "busy");
-  myFrameTimingPopup = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
-                                       items, "Timing (*): ", lwidth);
-  wid.push_back(myFrameTimingPopup);
+  VarList::push_back(items, "Sleep", "sleep");
+  VarList::push_back(items, "Busy-wait", "busy");
+  myFrameTiming = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
+                                  items, "Timing (*): ", lwidth);
+  wid.push_back(myFrameTiming);
   ypos += lineHeight + 4;
 
-  // GL Video filter
-  items.clear();
-  items.push_back("Linear", "linear");
-  items.push_back("Nearest", "nearest");
-  myGLFilterPopup = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
-                                  items, "GL Filter: ", lwidth);
-  wid.push_back(myGLFilterPopup);
-  ypos += lineHeight + 4;
-
-  // GL aspect ratio (NTSC mode)
-  myNAspectRatioSlider =
+  // Aspect ratio (NTSC mode)
+  myNAspectRatio =
     new SliderWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
-                     "GL Aspect (N): ", lwidth, kNAspectRatioChanged);
-  myNAspectRatioSlider->setMinValue(80); myNAspectRatioSlider->setMaxValue(120);
-  wid.push_back(myNAspectRatioSlider);
+                     "NTSC Aspect: ", lwidth, kNAspectRatioChanged);
+  myNAspectRatio->setMinValue(80); myNAspectRatio->setMaxValue(120);
+  wid.push_back(myNAspectRatio);
   myNAspectRatioLabel =
-    new StaticTextWidget(myTab, font, xpos + myNAspectRatioSlider->getWidth() + 4,
+    new StaticTextWidget(myTab, font, xpos + myNAspectRatio->getWidth() + 4,
                          ypos + 1, fontWidth * 3, fontHeight, "", kTextAlignLeft);
   myNAspectRatioLabel->setFlags(WIDGET_CLEARBG);
   ypos += lineHeight + 4;
 
-  // GL aspect ratio (PAL mode)
-  myPAspectRatioSlider =
+  // Aspect ratio (PAL mode)
+  myPAspectRatio =
     new SliderWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
-                     "GL Aspect (P): ", lwidth, kPAspectRatioChanged);
-  myPAspectRatioSlider->setMinValue(80); myPAspectRatioSlider->setMaxValue(120);
-  wid.push_back(myPAspectRatioSlider);
+                     "PAL Aspect: ", lwidth, kPAspectRatioChanged);
+  myPAspectRatio->setMinValue(80); myPAspectRatio->setMaxValue(120);
+  wid.push_back(myPAspectRatio);
   myPAspectRatioLabel =
-    new StaticTextWidget(myTab, font, xpos + myPAspectRatioSlider->getWidth() + 4,
+    new StaticTextWidget(myTab, font, xpos + myPAspectRatio->getWidth() + 4,
                          ypos + 1, fontWidth * 3, fontHeight, "", kTextAlignLeft);
   myPAspectRatioLabel->setFlags(WIDGET_CLEARBG);
   ypos += lineHeight + 4;
 
   // Framerate
-  myFrameRateSlider =
+  myFrameRate =
     new SliderWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
                      "Framerate: ", lwidth, kFrameRateChanged);
-  myFrameRateSlider->setMinValue(0); myFrameRateSlider->setMaxValue(300);
-  myFrameRateSlider->setStepValue(10);
-  wid.push_back(myFrameRateSlider);
+  myFrameRate->setMinValue(0); myFrameRate->setMaxValue(300);
+  myFrameRate->setStepValue(10);
+  wid.push_back(myFrameRate);
   myFrameRateLabel =
-    new StaticTextWidget(myTab, font, xpos + myFrameRateSlider->getWidth() + 4,
+    new StaticTextWidget(myTab, font, xpos + myFrameRate->getWidth() + 4,
                          ypos + 1, fontWidth * 4, fontHeight, "", kTextAlignLeft);
   myFrameRateLabel->setFlags(WIDGET_CLEARBG);
 
   // Add message concerning usage
-  const GUI::Font& infofont = instance().infoFont();
+  const GUI::Font& infofont = instance().frameBuffer().infoFont();
   ypos = myTab->getHeight() - 5 - fontHeight - infofont.getFontHeight() - 10;
   new StaticTextWidget(myTab, infofont, 10, ypos,
         font.getStringWidth("(*) Requires application restart"), fontHeight,
         "(*) Requires application restart", kTextAlignLeft);
 
   // Move over to the next column
-  xpos += myNAspectRatioSlider->getWidth() + myNAspectRatioLabel->getWidth() + 14;
+  xpos += myNAspectRatio->getWidth() + myNAspectRatioLabel->getWidth() + 30;
   ypos = 10;
 
   // Fullscreen
-  items.clear();
-  items.push_back("On", "1");
-  items.push_back("Off", "0");
-  items.push_back("Never", "-1");
-  lwidth = font.getStringWidth("Fullscreen: ");
-  pwidth = font.getStringWidth("Never"),
-  myFullscreenPopup =
-    new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight,
-                    items, "Fullscreen: ", lwidth, kFullScrChanged);
-  wid.push_back(myFullscreenPopup);
+  myFullscreen = new CheckboxWidget(myTab, font, xpos, ypos, "Fullscreen");
+  wid.push_back(myFullscreen);
   ypos += lineHeight + 4;
 
-  // GL FS stretch
-  myGLStretchCheckbox = new CheckboxWidget(myTab, font, xpos, ypos,
-                                           "GL FS Stretch");
-  wid.push_back(myGLStretchCheckbox);
+  // FS stretch
+  myUseStretch = new CheckboxWidget(myTab, font, xpos, ypos, "Fullscreen Fill");
+  wid.push_back(myUseStretch);
   ypos += lineHeight + 4;
 
-  // Use sync to vblank in OpenGL
-  myUseVSyncCheckbox = new CheckboxWidget(myTab, font, xpos, ypos,
-                                          "GL VSync");
-  wid.push_back(myUseVSyncCheckbox);
+  // Use sync to vblank
+  myUseVSync = new CheckboxWidget(myTab, font, xpos, ypos, "VSync");
+  wid.push_back(myUseVSync);
   ypos += lineHeight + 4;
 
   ypos += lineHeight;
 
   // PAL color-loss effect
-  myColorLossCheckbox = new CheckboxWidget(myTab, font, xpos, ypos,
-                                           "PAL color-loss");
-  wid.push_back(myColorLossCheckbox);
+  myColorLoss = new CheckboxWidget(myTab, font, xpos, ypos, "PAL color-loss");
+  wid.push_back(myColorLoss);
   ypos += lineHeight + 4;
 
   // Skip progress load bars for SuperCharger ROMs
   // Doesn't really belong here, but I couldn't find a better place for it
-  myFastSCBiosCheckbox = new CheckboxWidget(myTab, font, xpos, ypos,
-                                            "Fast SC/AR BIOS");
-  wid.push_back(myFastSCBiosCheckbox);
+  myFastSCBios = new CheckboxWidget(myTab, font, xpos, ypos, "Fast SC/AR BIOS");
+  wid.push_back(myFastSCBios);
   ypos += lineHeight + 4;
 
   // Show UI messages onscreen
-  myUIMessagesCheckbox = new CheckboxWidget(myTab, font, xpos, ypos,
-                                            "Show UI messages");
-  wid.push_back(myUIMessagesCheckbox);
+  myUIMessages = new CheckboxWidget(myTab, font, xpos, ypos, "Show UI messages");
+  wid.push_back(myUIMessages);
   ypos += lineHeight + 4;
 
   // Center window (in windowed mode)
-  myCenterCheckbox = new CheckboxWidget(myTab, font, xpos, ypos,
-                                        "Center window");
-  wid.push_back(myCenterCheckbox);
-  ypos += lineHeight + 4;
+  myCenter = new CheckboxWidget(myTab, font, xpos, ypos, "Center window");
+  wid.push_back(myCenter);
 
   // Add items for tab 0
   addToFocusList(wid, myTab, tabID);
@@ -242,12 +201,12 @@ VideoDialog::VideoDialog(OSystem* osystem, DialogContainer* parent,
 
   // TV Mode
   items.clear();
-  items.push_back("Disabled", NTSCFilter::PRESET_OFF);
-  items.push_back("Composite", NTSCFilter::PRESET_COMPOSITE);
-  items.push_back("S-Video", NTSCFilter::PRESET_SVIDEO);
-  items.push_back("RGB", NTSCFilter::PRESET_RGB);
-  items.push_back("Bad adjust", NTSCFilter::PRESET_BAD);
-  items.push_back("Custom", NTSCFilter::PRESET_CUSTOM);
+  VarList::push_back(items, "Disabled", NTSCFilter::PRESET_OFF);
+  VarList::push_back(items, "Composite", NTSCFilter::PRESET_COMPOSITE);
+  VarList::push_back(items, "S-Video", NTSCFilter::PRESET_SVIDEO);
+  VarList::push_back(items, "RGB", NTSCFilter::PRESET_RGB);
+  VarList::push_back(items, "Bad adjust", NTSCFilter::PRESET_BAD);
+  VarList::push_back(items, "Custom", NTSCFilter::PRESET_CUSTOM);
   lwidth = font.getStringWidth("TV Mode: ");
   pwidth = font.getStringWidth("Bad adjust"),
   myTVMode =
@@ -337,54 +296,9 @@ VideoDialog::VideoDialog(OSystem* osystem, DialogContainer* parent,
   addBGroupToFocusList(wid);
 
   // Disable certain functions when we know they aren't present
-#ifndef DISPLAY_OPENGL
-  myGLFilterPopup->clearFlags(WIDGET_ENABLED);
-  myNAspectRatioSlider->clearFlags(WIDGET_ENABLED);
-  myNAspectRatioLabel->clearFlags(WIDGET_ENABLED);
-  myPAspectRatioSlider->clearFlags(WIDGET_ENABLED);
-  myPAspectRatioLabel->clearFlags(WIDGET_ENABLED);
-  myGLStretchCheckbox->clearFlags(WIDGET_ENABLED);
-  myUseVSyncCheckbox->clearFlags(WIDGET_ENABLED);
-
-  myTVMode->clearFlags(WIDGET_ENABLED);
-  myTVSharp->clearFlags(WIDGET_ENABLED);
-  myTVSharpLabel->clearFlags(WIDGET_ENABLED);
-  myTVHue->clearFlags(WIDGET_ENABLED);
-  myTVHueLabel->clearFlags(WIDGET_ENABLED);
-  myTVRes->clearFlags(WIDGET_ENABLED);
-  myTVResLabel->clearFlags(WIDGET_ENABLED);
-  myTVArtifacts->clearFlags(WIDGET_ENABLED);
-  myTVArtifactsLabel->clearFlags(WIDGET_ENABLED);
-  myTVFringe->clearFlags(WIDGET_ENABLED);
-  myTVFringeLabel->clearFlags(WIDGET_ENABLED);
-  myTVBleed->clearFlags(WIDGET_ENABLED);
-  myTVBleedLabel->clearFlags(WIDGET_ENABLED);
-  myTVBright->clearFlags(WIDGET_ENABLED);
-  myTVBrightLabel->clearFlags(WIDGET_ENABLED);
-  myTVContrast->clearFlags(WIDGET_ENABLED);
-  myTVContrastLabel->clearFlags(WIDGET_ENABLED);
-  myTVSatur->clearFlags(WIDGET_ENABLED);
-  myTVSaturLabel->clearFlags(WIDGET_ENABLED);
-  myTVGamma->clearFlags(WIDGET_ENABLED);
-  myTVGammaLabel->clearFlags(WIDGET_ENABLED);
-
-  myTVScanLabel->clearFlags(WIDGET_ENABLED);
-  myTVScanIntense->clearFlags(WIDGET_ENABLED);
-  myTVScanIntenseLabel->clearFlags(WIDGET_ENABLED);
-  myTVScanInterpolate->clearFlags(WIDGET_ENABLED);
-
-  myCloneComposite->clearFlags(WIDGET_ENABLED);
-  myCloneSvideo->clearFlags(WIDGET_ENABLED);
-  myCloneRGB->clearFlags(WIDGET_ENABLED);
-  myCloneBad->clearFlags(WIDGET_ENABLED);
-  myCloneCustom->clearFlags(WIDGET_ENABLED);
-#endif
 #ifndef WINDOWED_SUPPORT
   myFullscreenCheckbox->clearFlags(WIDGET_ENABLED);
-  myCenterCheckbox->clearFlags(WIDGET_ENABLED);
-#endif
-#if !(defined(BSPF_WIN32) || (defined(BSPF_UNIX) && defined(HAVE_X11)))
-  myCenterCheckbox->clearFlags(WIDGET_ENABLED);
+  myCenter->clearFlags(WIDGET_ENABLED);
 #endif
 }
 
@@ -396,94 +310,75 @@ VideoDialog::~VideoDialog()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void VideoDialog::loadConfig()
 {
-  bool gl = (instance().frameBuffer().type() == kDoubleBuffer);
-
   // Renderer settings
-  myRenderer->setLabel(gl ? "OpenGL" : "Software");
-  myRendererPopup->setSelected(
-    instance().settings().getString("video"), "soft");
+  myRenderer->setSelected(instance().settings().getString("video"), "default");
 
   // TIA Filter
   // These are dynamically loaded, since they depend on the size of
   // the desktop and which renderer we're using
-  const VariantList& items =
-    instance().frameBuffer().supportedTIAFilters(gl ? "gl" : "soft");
-  myTIAFilterPopup->addItems(items);
-  myTIAFilterPopup->setSelected(instance().settings().getString("tia_filter"),
-    instance().desktopWidth() < 640 ? "zoom1x" : "zoom2x");
+  const VariantList& items = instance().frameBuffer().supportedTIAZoomLevels();
+  myTIAZoom->addItems(items);
+  myTIAZoom->setSelected(instance().settings().getString("tia.zoom"), "2");
 
   // TIA Palette
-  myTIAPalettePopup->setSelected(
+  myTIAPalette->setSelected(
     instance().settings().getString("palette"), "standard");
 
-  // Fullscreen resolution
-  myFSResPopup->setSelected(
-    instance().settings().getString("fullres"), "auto");
+  // TIA interpolation
+  const string& tia_inter = instance().settings().getBool("tia.inter") ?
+                           "linear" : "nearest";
+  myTIAInterpolate->setSelected(tia_inter, "nearest");
 
   // Wait between frames
-  myFrameTimingPopup->setSelected(
+  myFrameTiming->setSelected(
     instance().settings().getString("timing"), "sleep");
 
-  // GL Filter setting
-  const string& gl_inter = instance().settings().getBool("gl_inter") ?
-                           "linear" : "nearest";
-  myGLFilterPopup->setSelected(gl_inter, "nearest");
-  myGLFilterPopup->setEnabled(gl);
-
-  // GL aspect ratio setting (NTSC and PAL)
-  myNAspectRatioSlider->setValue(instance().settings().getInt("gl_aspectn"));
-  myNAspectRatioSlider->setEnabled(gl);
-  myNAspectRatioLabel->setLabel(instance().settings().getString("gl_aspectn"));
-  myNAspectRatioLabel->setEnabled(gl);
-  myPAspectRatioSlider->setValue(instance().settings().getInt("gl_aspectp"));
-  myPAspectRatioSlider->setEnabled(gl);
-  myPAspectRatioLabel->setLabel(instance().settings().getString("gl_aspectp"));
-  myPAspectRatioLabel->setEnabled(gl);
+  // Aspect ratio setting (NTSC and PAL)
+  myNAspectRatio->setValue(instance().settings().getInt("tia.aspectn"));
+  myNAspectRatioLabel->setLabel(instance().settings().getString("tia.aspectn"));
+  myPAspectRatio->setValue(instance().settings().getInt("tia.aspectp"));
+  myPAspectRatioLabel->setLabel(instance().settings().getString("tia.aspectp"));
 
   // Framerate (0 or -1 means automatic framerate calculation)
   int rate = instance().settings().getInt("framerate");
-  myFrameRateSlider->setValue(rate < 0 ? 0 : rate);
+  myFrameRate->setValue(rate < 0 ? 0 : rate);
   myFrameRateLabel->setLabel(rate <= 0 ? "Auto" :
     instance().settings().getString("framerate"));
 
   // Fullscreen
-  const string& fullscreen = instance().settings().getString("fullscreen");
-  myFullscreenPopup->setSelected(fullscreen, "0");
-  handleFullscreenChange(fullscreen == "0" || fullscreen == "1");
+  myFullscreen->setState(instance().settings().getBool("fullscreen"));
+
+  // Fullscreen stretch setting
+  myUseStretch->setState(instance().settings().getBool("tia.fsfill"));
+
+  // Use sync to vertical blank
+  myUseVSync->setState(instance().settings().getBool("vsync"));
 
   // PAL color-loss effect
-  myColorLossCheckbox->setState(instance().settings().getBool("colorloss"));
-
-  // GL stretch setting (GL mode only)
-  myGLStretchCheckbox->setState(instance().settings().getBool("gl_fsscale"));
-  myGLStretchCheckbox->setEnabled(gl);
-
-  // Use sync to vertical blank (GL mode only)
-  myUseVSyncCheckbox->setState(instance().settings().getBool("gl_vsync"));
-  myUseVSyncCheckbox->setEnabled(gl);
+  myColorLoss->setState(instance().settings().getBool("colorloss"));
 
   // Show UI messages
-  myUIMessagesCheckbox->setState(instance().settings().getBool("uimessages"));
+  myUIMessages->setState(instance().settings().getBool("uimessages"));
 
   // Center window
-  myCenterCheckbox->setState(instance().settings().getBool("center"));
+  myCenter->setState(instance().settings().getBool("center"));
 
   // Fast loading of Supercharger BIOS
-  myFastSCBiosCheckbox->setState(instance().settings().getBool("fastscbios"));
+  myFastSCBios->setState(instance().settings().getBool("fastscbios"));
 
   // TV Mode
   myTVMode->setSelected(
-    instance().settings().getString("tv_filter"), "0");
-  int preset = instance().settings().getInt("tv_filter");
+    instance().settings().getString("tv.filter"), "0");
+  int preset = instance().settings().getInt("tv.filter");
   handleTVModeChange((NTSCFilter::Preset)preset);
 
   // TV Custom adjustables
   loadTVAdjustables(NTSCFilter::PRESET_CUSTOM);
 
   // TV scanline intensity and interpolation
-  myTVScanIntense->setValue(instance().settings().getInt("tv_scanlines"));
-  myTVScanIntenseLabel->setLabel(instance().settings().getString("tv_scanlines"));
-  myTVScanInterpolate->setState(instance().settings().getBool("tv_scaninter"));
+  myTVScanIntense->setValue(instance().settings().getInt("tv.scanlines"));
+  myTVScanIntenseLabel->setLabel(instance().settings().getString("tv.scanlines"));
+  myTVScanInterpolate->setState(instance().settings().getBool("tv.scaninter"));
 
   myTab->loadConfig();
 }
@@ -493,36 +388,32 @@ void VideoDialog::saveConfig()
 {
   // Renderer setting
   instance().settings().setValue("video",
-    myRendererPopup->getSelectedTag().toString());
+    myRenderer->getSelectedTag().toString());
 
   // TIA Filter
-  instance().settings().setValue("tia_filter",
-    myTIAFilterPopup->getSelectedTag().toString());
+  instance().settings().setValue("tia.zoom",
+    myTIAZoom->getSelectedTag().toString());
 
   // TIA Palette
   instance().settings().setValue("palette",
-    myTIAPalettePopup->getSelectedTag().toString());
-
-  // Fullscreen resolution
-  instance().settings().setValue("fullres",
-    myFSResPopup->getSelectedTag().toString());
+    myTIAPalette->getSelectedTag().toString());
 
   // Wait between frames
   instance().settings().setValue("timing",
-    myFrameTimingPopup->getSelectedTag().toString());
+    myFrameTiming->getSelectedTag().toString());
 
-  // GL Filter setting
-  instance().settings().setValue("gl_inter",
-    myGLFilterPopup->getSelectedTag().toString() == "linear" ? true : false);
+  // TIA interpolation
+  instance().settings().setValue("tia.inter",
+    myTIAInterpolate->getSelectedTag().toString() == "linear" ? true : false);
 
-  // GL aspect ratio setting (NTSC and PAL)
-  instance().settings().setValue("gl_aspectn", myNAspectRatioLabel->getLabel());
-  instance().settings().setValue("gl_aspectp", myPAspectRatioLabel->getLabel());
+  // Aspect ratio setting (NTSC and PAL)
+  instance().settings().setValue("tia.aspectn", myNAspectRatioLabel->getLabel());
+  instance().settings().setValue("tia.aspectp", myPAspectRatioLabel->getLabel());
 
   // Framerate
-  int i = myFrameRateSlider->getValue();
+  int i = myFrameRate->getValue();
   instance().settings().setValue("framerate", i);
-  if(&instance().console())
+  if(instance().hasConsole())
   {
     // Make sure auto-frame calculation is only enabled when necessary
     instance().console().tia().enableAutoFrame(i <= 0);
@@ -530,31 +421,30 @@ void VideoDialog::saveConfig()
   }
 
   // Fullscreen
-  instance().settings().setValue("fullscreen",
-    myFullscreenPopup->getSelectedTag().toString());
+  instance().settings().setValue("fullscreen", myFullscreen->getState());
 
   // PAL color-loss effect
-  instance().settings().setValue("colorloss", myColorLossCheckbox->getState());
-  if(&instance().console())
-    instance().console().toggleColorLoss(myColorLossCheckbox->getState());
+  instance().settings().setValue("colorloss", myColorLoss->getState());
+  if(instance().hasConsole())
+    instance().console().toggleColorLoss(myColorLoss->getState());
 
-  // GL stretch setting
-  instance().settings().setValue("gl_fsscale", myGLStretchCheckbox->getState());
+  // Fullscreen stretch setting
+  instance().settings().setValue("tia.fsfill", myUseStretch->getState());
 
-  // Use sync to vertical blank (GL mode only)
-  instance().settings().setValue("gl_vsync", myUseVSyncCheckbox->getState());
+  // Use sync to vertical blank
+  instance().settings().setValue("vsync", myUseVSync->getState());
 
   // Show UI messages
-  instance().settings().setValue("uimessages", myUIMessagesCheckbox->getState());
+  instance().settings().setValue("uimessages", myUIMessages->getState());
 
   // Center window
-  instance().settings().setValue("center", myCenterCheckbox->getState());
+  instance().settings().setValue("center", myCenter->getState());
 
   // Fast loading of Supercharger BIOS
-  instance().settings().setValue("fastscbios", myFastSCBiosCheckbox->getState());
+  instance().settings().setValue("fastscbios", myFastSCBios->getState());
 
   // TV Mode
-  instance().settings().setValue("tv_filter",
+  instance().settings().setValue("tv.filter",
     myTVMode->getSelectedTag().toString());
 
   // TV Custom adjustables
@@ -569,11 +459,11 @@ void VideoDialog::saveConfig()
   adj.artifacts   = myTVArtifacts->getValue();
   adj.fringing    = myTVFringe->getValue();
   adj.bleed       = myTVBleed->getValue();
-  instance().frameBuffer().ntsc().setCustomAdjustables(adj);
+  instance().frameBuffer().tiaSurface().ntsc().setCustomAdjustables(adj);
 
   // TV scanline intensity and interpolation
-  instance().settings().setValue("tv_scanlines", myTVScanIntenseLabel->getLabel());
-  instance().settings().setValue("tv_scaninter", myTVScanInterpolate->getState());
+  instance().settings().setValue("tv.scanlines", myTVScanIntenseLabel->getLabel());
+  instance().settings().setValue("tv.scaninter", myTVScanInterpolate->getState());
 
   // Finally, issue a complete framebuffer re-initialization
   instance().createFrameBuffer();
@@ -586,27 +476,25 @@ void VideoDialog::setDefaults()
   {
     case 0:  // General
     {
-      myRendererPopup->setSelected("soft", "");
-      myTIAFilterPopup->setSelected(
-        instance().desktopWidth() < 640 ? "zoom1x" : "zoom2x", "");
-      myTIAPalettePopup->setSelected("standard", "");
-      myFSResPopup->setSelected("auto", "");
-      myFrameTimingPopup->setSelected("sleep", "");
-      myGLFilterPopup->setSelected("nearest", "");
-      myNAspectRatioSlider->setValue(90);
+      myRenderer->setSelected("soft", "");
+      myTIAZoom->setSelected("2", "");
+      myTIAPalette->setSelected("standard", "");
+      myFrameTiming->setSelected("sleep", "");
+      myTIAInterpolate->setSelected("nearest", "");
+      myNAspectRatio->setValue(90);
       myNAspectRatioLabel->setLabel("90");
-      myPAspectRatioSlider->setValue(100);
+      myPAspectRatio->setValue(100);
       myPAspectRatioLabel->setLabel("100");
-      myFrameRateSlider->setValue(0);
+      myFrameRate->setValue(0);
       myFrameRateLabel->setLabel("Auto");
 
-      myFullscreenPopup->setSelected("0", "");
-      myColorLossCheckbox->setState(true);
-      myGLStretchCheckbox->setState(true);
-      myUseVSyncCheckbox->setState(true);
-      myUIMessagesCheckbox->setState(true);
-      myCenterCheckbox->setState(false);
-      myFastSCBiosCheckbox->setState(false);
+      myFullscreen->setState(false);
+      myUseStretch->setState(true);
+      myUseVSync->setState(true);
+      myColorLoss->setState(true);
+      myUIMessages->setState(true);
+      myCenter->setState(false);
+      myFastSCBios->setState(false);
       break;
     }
 
@@ -620,7 +508,6 @@ void VideoDialog::setDefaults()
       myTVScanInterpolate->setState(true);
 
       // Make sure that mutually-exclusive items are not enabled at the same time
-      handleFullscreenChange(true);
       handleTVModeChange(NTSCFilter::PRESET_OFF);
       loadTVAdjustables(NTSCFilter::PRESET_CUSTOM);
       break;
@@ -631,28 +518,10 @@ void VideoDialog::setDefaults()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void VideoDialog::handleFullscreenChange(bool enable)
-{
-#ifdef WINDOWED_SUPPORT
-  myFSResPopup->setEnabled(enable);
-  _dirty = true;
-#endif
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void VideoDialog::handleTVModeChange(NTSCFilter::Preset preset)
 {
-  bool enable = true, scanenable = true;
-  if(!instance().frameBuffer().type() == kDoubleBuffer)
-  {
-    enable = scanenable = false;
-    myTVMode->setEnabled(enable);
-  }
-  else
-  {
-    enable = preset == NTSCFilter::PRESET_CUSTOM;
-    scanenable = preset != NTSCFilter::PRESET_OFF;
-  }
+  bool enable = preset == NTSCFilter::PRESET_CUSTOM;
+  bool scanenable = preset != NTSCFilter::PRESET_OFF;
 
   myTVSharp->setEnabled(enable);
   myTVSharpLabel->setEnabled(enable);
@@ -692,7 +561,8 @@ void VideoDialog::handleTVModeChange(NTSCFilter::Preset preset)
 void VideoDialog::loadTVAdjustables(NTSCFilter::Preset preset)
 {
   NTSCFilter::Adjustable adj;
-  instance().frameBuffer().ntsc().getAdjustables(adj, (NTSCFilter::Preset)preset);
+  instance().frameBuffer().tiaSurface().ntsc().getAdjustables(
+      adj, (NTSCFilter::Preset)preset);
   myTVSharp->setValue(adj.sharpness);
   myTVSharpLabel->setValue(adj.sharpness);
   myTVHue->setValue(adj.hue);
@@ -731,22 +601,18 @@ void VideoDialog::handleCommand(CommandSender* sender, int cmd,
       break;
 
     case kNAspectRatioChanged:
-      myNAspectRatioLabel->setValue(myNAspectRatioSlider->getValue());
+      myNAspectRatioLabel->setValue(myNAspectRatio->getValue());
       break;
 
     case kPAspectRatioChanged:
-      myPAspectRatioLabel->setValue(myPAspectRatioSlider->getValue());
+      myPAspectRatioLabel->setValue(myPAspectRatio->getValue());
       break;
 
     case kFrameRateChanged:
-      if(myFrameRateSlider->getValue() == 0)
+      if(myFrameRate->getValue() == 0)
         myFrameRateLabel->setLabel("Auto");
       else
-        myFrameRateLabel->setValue(myFrameRateSlider->getValue());
-      break;
-
-    case kFullScrChanged:
-      handleFullscreenChange(myFullscreenPopup->getSelectedTag().toString() != "-1");
+        myFrameRateLabel->setValue(myFrameRate->getValue());
       break;
 
     case kTVModeChanged:

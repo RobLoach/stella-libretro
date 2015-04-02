@@ -127,7 +127,7 @@
     <ClCompile Include="..\..\stella\properties\Props.cpp" />
     <ClCompile Include="..\..\stella\properties\PropsSet.cpp" />
     <ClCompile Include="..\..\stella\Settings.cpp" />
-    <ClCompile Include="..\..\stella\SoundSDL.cpp" />
+    <ClCompile Include="..\..\stella\SoundSDL2.cpp" />
     <ClCompile Include="..\..\stella\system\M6502.cpp" />
     <ClCompile Include="..\..\stella\system\M6532.cpp" />
     <ClCompile Include="..\..\stella\system\NullDev.cpp" />

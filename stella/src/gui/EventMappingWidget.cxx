@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: EventMappingWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: EventMappingWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -94,12 +94,11 @@ EventMappingWidget::EventMappingWidget(GuiObject* boss, const GUI::Font& font,
     myComboButton->setTarget(this);
     addFocusWidget(myComboButton);
 
-    VariantList combolist;
-    instance().eventHandler().getComboList(mode, combolist);
+    VariantList combolist = instance().eventHandler().getComboList(mode);
     myComboDialog = new ComboDialog(boss, font, combolist);
   }
   else
-    myComboButton = NULL;
+    myComboButton = nullptr;
 
   // Show message for currently selected event
   xpos = 10;  ypos = 5 + myActionsList->getHeight() + 5;
@@ -247,7 +246,7 @@ void EventMappingWidget::enableButtons(bool state)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool EventMappingWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+bool EventMappingWidget::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Remap keys in remap mode
   if(myRemapStatus && myActionSelected >= 0)

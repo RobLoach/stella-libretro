@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DiStella.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DiStella.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef DISTELLA_HXX
@@ -23,7 +23,6 @@
 #include <queue>
 #include <sstream>
 
-#include "Array.hxx"
 #include "Base.hxx"
 #include "CartDebug.hxx"
 #include "bspf.hxx"
@@ -33,7 +32,7 @@
   exactly the same, except that generated data is now redirected to a
   DisassemblyList structure rather than being printed.
 
-  All 7800-related stuff has been removed, as well as all commandline options.
+  All 7800-related stuff has been removed, as well as some commandline options.
   Over time, some of the configurability of Distella may be added again.
 
   @author  Stephen Anthony
@@ -44,7 +43,7 @@ class DiStella
     // A list of options that can be applied to the disassembly
     // This will eventually grow to include all options supported by
     // standalone Distella
-    typedef struct {
+    struct Settings{
       Common::Base::Format gfx_format;
       bool resolve_code;    // Attempt to detect code vs. data sections
       bool show_addresses;  // Show PC addresses (always off for external output)
@@ -52,7 +51,7 @@ class DiStella
       bool fflag;  // Forces correct address length (-f in Distella)
       bool rflag;  // Relocate calls out of address range (-r in Distella)
       int bwidth;  // Number of bytes to use per line (with .byte xxx)
-    } Settings;
+    };
     static Settings settings;  // Default settings
 
   public:

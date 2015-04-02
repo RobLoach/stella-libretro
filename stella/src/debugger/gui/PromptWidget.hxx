@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: PromptWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: PromptWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef PROMPT_WIDGET_HXX
@@ -53,12 +53,12 @@ class PromptWidget : public Widget, public CommandSender
     void drawWidget(bool hilite);
     void drawCaret();
     void putcharIntern(int c);
-    void insertIntoPrompt(const char *str);
+//    void insertIntoPrompt(const char *str);
     void updateScrollBuffer();
     void scrollToCurrent();
 
     // Line editing
-    void specialKeys(int keycode);
+    void specialKeys(StellaKey key);
     void nextLine();
     void killChar(int direction);
     void killLine(int direction);
@@ -70,7 +70,8 @@ class PromptWidget : public Widget, public CommandSender
 
     void handleMouseDown(int x, int y, int button, int clickCount);
     void handleMouseWheel(int x, int y, int direction);
-    bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
+    bool handleText(char text);
+    bool handleKeyDown(StellaKey key, StellaMod mod);
     void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
     // Account for the extra width of embedded scrollbar
@@ -118,7 +119,7 @@ class PromptWidget : public Widget, public CommandSender
     bool _firstTime;
     bool _exitedEarly;
 
-    int compareHistory(const char *histLine);
+//    int compareHistory(const char *histLine);
 };
 
 #endif

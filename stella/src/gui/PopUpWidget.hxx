@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: PopUpWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: PopUpWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef POPUP_WIDGET_HXX
@@ -24,10 +24,8 @@ class GUIObject;
 
 #include "bspf.hxx"
 
-#include "Array.hxx"
 #include "Command.hxx"
 #include "ContextMenu.hxx"
-#include "StringList.hxx"
 #include "Widget.hxx"
 
 
@@ -47,10 +45,10 @@ class PopUpWidget : public Widget, public CommandSender
     ~PopUpWidget();
 
     /** Add the given items to the widget. */
+    void addItems(const VariantList& items) { myMenu->addItems(items);     }
 
     /** Various selection methods passed directly to the underlying menu
         See ContextMenu.hxx for more information. */
-    void addItems(const VariantList& items) { myMenu->addItems(items);     }
     void setSelected(const Variant& tag,
                      const Variant& def = EmptyVariant)
                                           { myMenu->setSelected(tag, def); }
@@ -72,7 +70,7 @@ class PopUpWidget : public Widget, public CommandSender
     void drawWidget(bool hilite);
 
   private:
-    ContextMenu* myMenu;
+    unique_ptr<ContextMenu> myMenu;
     int myArrowsY;
     int myTextY;
 

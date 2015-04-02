@@ -24,9 +24,9 @@
 #include "StateManager.hxx"
 #include "PropsSet.hxx"
 #include "Paddles.hxx"
-#include "SoundSDL.hxx"
+#include "SoundSDL2.hxx"
 
-static SoundSDL *vcsSound = 0;
+static SoundSDL2 *vcsSound = 0;
 static uint32_t tiaSamplesPerFrame = 0;
 static int16_t *sampleBuffer[2048];
 static uint32_t frameBuffer[256*160];

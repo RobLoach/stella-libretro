@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TIA.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TIA.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef TIA_HXX
@@ -41,7 +41,7 @@ class Sound;
   be displayed on screen.
 
   @author  Bradford W. Mott
-  @version $Id: TIA.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: TIA.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class TIA : public Device
 {
@@ -220,7 +220,7 @@ class TIA : public Device
       Answers whether this TIA runs at NTSC or PAL scanrates,
       based on how many frames of out the total count are PAL frames.
     */
-    bool isPAL()
+    bool isPAL() const
       { return float(myPALFrameCounter) / myFrameCounter >= (25.0/60.0); }
 
     /**
@@ -230,14 +230,6 @@ class TIA : public Device
     */
     uInt32 clocksThisLine() const
       { return ((mySystem->cycles() * 3) - myClockWhenFrameStarted) % 228; }
-
-    /**
-      Answers the scanline at which the current frame began drawing.
-
-      @return The starting scanline
-    */
-    uInt32 startLine() const
-      { return myStartScanline; }
 
     /**
       Answers the total number of scanlines the TIA generated in producing
@@ -625,10 +617,8 @@ class TIA : public Device
     bool myBitsEnabled, myCollisionsEnabled;
 
   private:
-    // Copy constructor isn't supported by this class so make it private
+    // Copy constructor and assignment operator not supported
     TIA(const TIA&);
-
-    // Assignment operator isn't supported by this class so make it private
     TIA& operator = (const TIA&);
 };
 

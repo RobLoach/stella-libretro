@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TiaInfoWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TiaInfoWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Base.hxx"
@@ -39,12 +39,11 @@ TiaInfoWidget::TiaInfoWidget(GuiObject* boss, const GUI::Font& lfont,
 
   x += 5;
   const int lineHeight = lfont.getLineHeight();
-  int xpos = x, ypos = y;
+  int xpos = x, ypos = y + 10;
   int lwidth = lfont.getStringWidth(longstr ? "Frame Cycle:" : "F. Cycle:");
   int fwidth = 5 * lfont.getMaxCharWidth() + 4;
 
   // Add frame info
-  xpos = x;  ypos = y + 10;
   new StaticTextWidget(boss, lfont, xpos, ypos, lwidth, lineHeight,
                        longstr ? "Frame Count:" : "Frame:",
                        kTextAlignLeft);

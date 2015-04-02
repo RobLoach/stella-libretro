@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartBFWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartBFWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartBF.hxx"
@@ -47,70 +47,70 @@ CartridgeBFWidget::CartridgeBFWidget(
       ypos = addBaseInformation(size, "CPUWIZ", info.str()) + myLineHeight;
 
   VariantList items;
-  items.push_back(" 0 ($F80)");
-  items.push_back(" 1 ($F81)");
-  items.push_back(" 2 ($F82)");
-  items.push_back(" 3 ($F83)");
-  items.push_back(" 4 ($F84)");
-  items.push_back(" 5 ($F85)");
-  items.push_back(" 6 ($F86)");
-  items.push_back(" 7 ($F87)");
-  items.push_back(" 8 ($F88)");
-  items.push_back(" 9 ($F89)");
-  items.push_back("10 ($F8A)");
-  items.push_back("11 ($F8B)");
-  items.push_back("12 ($F8C)");
-  items.push_back("13 ($F8D)");
-  items.push_back("14 ($F8E)");
-  items.push_back("15 ($F8F)");
-  items.push_back("16 ($F90)");
-  items.push_back("17 ($F91)");
-  items.push_back("18 ($F92)");
-  items.push_back("19 ($F93)");
-  items.push_back("20 ($F94)");
-  items.push_back("21 ($F95)");
-  items.push_back("22 ($F96)");
-  items.push_back("23 ($F97)");
-  items.push_back("24 ($F98)");
-  items.push_back("25 ($F99)");
-  items.push_back("26 ($F9A)");
-  items.push_back("27 ($F9B)");
-  items.push_back("28 ($F9C)");
-  items.push_back("29 ($F9D)");
-  items.push_back("30 ($F9E)");
-  items.push_back("31 ($F9F)");
-  items.push_back("32 ($FA0)");
-  items.push_back("33 ($FA1)");
-  items.push_back("34 ($FA2)");
-  items.push_back("35 ($FA3)");
-  items.push_back("36 ($FA4)");
-  items.push_back("37 ($FA5)");
-  items.push_back("38 ($FA6)");
-  items.push_back("39 ($FA7)");
-  items.push_back("40 ($FA8)");
-  items.push_back("41 ($FA9)");
-  items.push_back("42 ($FAA)");
-  items.push_back("43 ($FAB)");
-  items.push_back("44 ($FAC)");
-  items.push_back("45 ($FAD)");
-  items.push_back("46 ($FAE)");
-  items.push_back("47 ($FAF)");
-  items.push_back("48 ($FB0)");
-  items.push_back("49 ($FB1)");
-  items.push_back("50 ($FB2)");
-  items.push_back("51 ($FB3)");
-  items.push_back("52 ($FB4)");
-  items.push_back("53 ($FB5)");
-  items.push_back("54 ($FB6)");
-  items.push_back("55 ($FB7)");
-  items.push_back("56 ($FB8)");
-  items.push_back("57 ($FB9)");
-  items.push_back("58 ($FBA)");
-  items.push_back("59 ($FBB)");
-  items.push_back("60 ($FBC)");
-  items.push_back("61 ($FBD)");
-  items.push_back("62 ($FBE)");
-  items.push_back("63 ($FBF)");
+  VarList::push_back(items, " 0 ($F80)");
+  VarList::push_back(items, " 1 ($F81)");
+  VarList::push_back(items, " 2 ($F82)");
+  VarList::push_back(items, " 3 ($F83)");
+  VarList::push_back(items, " 4 ($F84)");
+  VarList::push_back(items, " 5 ($F85)");
+  VarList::push_back(items, " 6 ($F86)");
+  VarList::push_back(items, " 7 ($F87)");
+  VarList::push_back(items, " 8 ($F88)");
+  VarList::push_back(items, " 9 ($F89)");
+  VarList::push_back(items, "10 ($F8A)");
+  VarList::push_back(items, "11 ($F8B)");
+  VarList::push_back(items, "12 ($F8C)");
+  VarList::push_back(items, "13 ($F8D)");
+  VarList::push_back(items, "14 ($F8E)");
+  VarList::push_back(items, "15 ($F8F)");
+  VarList::push_back(items, "16 ($F90)");
+  VarList::push_back(items, "17 ($F91)");
+  VarList::push_back(items, "18 ($F92)");
+  VarList::push_back(items, "19 ($F93)");
+  VarList::push_back(items, "20 ($F94)");
+  VarList::push_back(items, "21 ($F95)");
+  VarList::push_back(items, "22 ($F96)");
+  VarList::push_back(items, "23 ($F97)");
+  VarList::push_back(items, "24 ($F98)");
+  VarList::push_back(items, "25 ($F99)");
+  VarList::push_back(items, "26 ($F9A)");
+  VarList::push_back(items, "27 ($F9B)");
+  VarList::push_back(items, "28 ($F9C)");
+  VarList::push_back(items, "29 ($F9D)");
+  VarList::push_back(items, "30 ($F9E)");
+  VarList::push_back(items, "31 ($F9F)");
+  VarList::push_back(items, "32 ($FA0)");
+  VarList::push_back(items, "33 ($FA1)");
+  VarList::push_back(items, "34 ($FA2)");
+  VarList::push_back(items, "35 ($FA3)");
+  VarList::push_back(items, "36 ($FA4)");
+  VarList::push_back(items, "37 ($FA5)");
+  VarList::push_back(items, "38 ($FA6)");
+  VarList::push_back(items, "39 ($FA7)");
+  VarList::push_back(items, "40 ($FA8)");
+  VarList::push_back(items, "41 ($FA9)");
+  VarList::push_back(items, "42 ($FAA)");
+  VarList::push_back(items, "43 ($FAB)");
+  VarList::push_back(items, "44 ($FAC)");
+  VarList::push_back(items, "45 ($FAD)");
+  VarList::push_back(items, "46 ($FAE)");
+  VarList::push_back(items, "47 ($FAF)");
+  VarList::push_back(items, "48 ($FB0)");
+  VarList::push_back(items, "49 ($FB1)");
+  VarList::push_back(items, "50 ($FB2)");
+  VarList::push_back(items, "51 ($FB3)");
+  VarList::push_back(items, "52 ($FB4)");
+  VarList::push_back(items, "53 ($FB5)");
+  VarList::push_back(items, "54 ($FB6)");
+  VarList::push_back(items, "55 ($FB7)");
+  VarList::push_back(items, "56 ($FB8)");
+  VarList::push_back(items, "57 ($FB9)");
+  VarList::push_back(items, "58 ($FBA)");
+  VarList::push_back(items, "59 ($FBB)");
+  VarList::push_back(items, "60 ($FBC)");
+  VarList::push_back(items, "61 ($FBD)");
+  VarList::push_back(items, "62 ($FBE)");
+  VarList::push_back(items, "63 ($FBF)");
  
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth("64 ($FBF) "),

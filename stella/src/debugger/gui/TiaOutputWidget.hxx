@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TiaOutputWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TiaOutputWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef TIA_OUTPUT_WIDGET_HXX
@@ -22,6 +22,7 @@
 
 class GuiObject;
 class ContextMenu;
+class FBSurface;
 class TiaZoomWidget;
 
 #include "Widget.hxx"
@@ -38,14 +39,16 @@ class TiaOutputWidget : public Widget, public CommandSender
     void loadConfig();
     void setZoomWidget(TiaZoomWidget* w) { myZoom = w; }
 
+    void saveSnapshot();
+
 // Eventually, these methods will enable access to the onscreen TIA image
 // For example, clicking an area may cause an action
 // (fill to this scanline, etc).
 /*
     virtual void handleMouseUp(int x, int y, int button, int clickCount);
     virtual void handleMouseWheel(int x, int y, int direction);
-    virtual bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
-    virtual bool handleKeyUp(StellaKey key, StellaMod mod, char ascii);
+    virtual bool handleKeyDown(StellaKey key, StellaMod mod);
+    virtual bool handleKeyUp(StellaKey key, StellaMod mod);
 */
 
   protected:
@@ -56,7 +59,7 @@ class TiaOutputWidget : public Widget, public CommandSender
     bool wantsFocus() { return false; }
 
   private:
-    ContextMenu*   myMenu;
+    unique_ptr<ContextMenu> myMenu;
     TiaZoomWidget* myZoom;
 
     int myClickX, myClickY;

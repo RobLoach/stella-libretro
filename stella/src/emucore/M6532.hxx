@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: M6532.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: M6532.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef M6532_HXX
@@ -37,7 +37,7 @@ class Settings;
     - A1 to enable/disable interrupt from PA7 to IRQ
 
   @author  Bradford W. Mott and Stephen Anthony
-  @version $Id: M6532.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: M6532.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class M6532 : public Device
 {
@@ -206,10 +206,8 @@ class M6532 : public Device
     uInt8 myOutTimer[4];
 
   private:
-    // Copy constructor isn't supported by this class so make it private
+    // Copy constructor and assignment operator not supported
     M6532(const M6532&);
- 
-    // Assignment operator isn't supported by this class so make it private
     M6532& operator = (const M6532&);
 };
 

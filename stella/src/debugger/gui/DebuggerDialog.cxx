@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DebuggerDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DebuggerDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Widget.hxx"
@@ -31,6 +31,7 @@
 #include "RomWidget.hxx"
 #include "TiaWidget.hxx"
 #include "CartDebugWidget.hxx"
+#include "CartRamWidget.hxx"
 #include "DataGridOpsWidget.hxx"
 #include "EditTextWidget.hxx"
 #include "MessageBox.hxx"
@@ -44,14 +45,12 @@
 #include "DebuggerDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-DebuggerDialog::DebuggerDialog(OSystem* osystem, DialogContainer* parent,
+DebuggerDialog::DebuggerDialog(OSystem& osystem, DialogContainer& parent,
                                int x, int y, int w, int h)
-  : Dialog(osystem, parent, x, y, w, h, true),  // use base surface
-    myTab(NULL),
-    myRomTab(NULL),
-    myLFont(NULL),
-    myNFont(NULL),
-    myFatalError(NULL)
+  : Dialog(osystem, parent, x, y, w, h),
+    myTab(nullptr),
+    myRomTab(nullptr),
+    myFatalError(nullptr)
 {
   createFont();  // Font is sized according to available space
 
@@ -67,8 +66,6 @@ DebuggerDialog::DebuggerDialog(OSystem* osystem, DialogContainer* parent,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 DebuggerDialog::~DebuggerDialog()
 {
-  delete myLFont;
-  delete myNFont;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -86,35 +83,32 @@ void DebuggerDialog::loadConfig()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void DebuggerDialog::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+void DebuggerDialog::handleKeyDown(StellaKey key, StellaMod mod)
 {
-  bool handled = instance().eventHandler().kbdAlt(mod);
-  if(handled)
+  if(instance().eventHandler().kbdControl(mod))
   {
-    switch(ascii)
+    switch(key)
     {
-      case 's':
-        doStep();
-        break;
-      case 't':
-        doTrace();
-        break;
-      case 'f':
-        doAdvance();
-        break;
-      case 'l':
-        doScanlineAdvance();
-        break;
-      case 'r':
+      case KBDK_R:
         doRewind();
         break;
+      case KBDK_S:
+        doStep();
+        break;
+      case KBDK_T:
+        doTrace();
+        break;
+      case KBDK_L:
+        doScanlineAdvance();
+        break;
+      case KBDK_F:
+        doAdvance();
+        break;
       default:
-        handled = false;
         break;
     }
   }
-  if(!handled)
-    Dialog::handleKeyDown(key, mod, ascii);
+  Dialog::handleKeyDown(key, mod);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -154,7 +148,8 @@ void DebuggerDialog::handleCommand(CommandSender* sender, int cmd,
       break;
 
     case RomWidget::kInvalidateListing:
-      myRom->invalidate();
+      // Only do a full redraw if the disassembly tab is actually showing
+      myRom->invalidate(myRomTab->getActiveTab() == 0);
       break;
 
     default:
@@ -213,53 +208,53 @@ void DebuggerDialog::createFont()
   if(_w >= kLargeFontMinW && _h >= kLargeFontMinH)
   {
     // Large font doesn't use fontstyle at all
-    myLFont = new GUI::Font(GUI::stellaMediumDesc);
-    myNFont = new GUI::Font(GUI::stellaMediumDesc);
+    myLFont = make_ptr<GUI::Font>(GUI::stellaMediumDesc);
+    myNFont = make_ptr<GUI::Font>(GUI::stellaMediumDesc);
   }
   else if(_w >= kMediumFontMinW && _h >= kMediumFontMinH)
   {
     if(fontstyle == 1)
     {
-      myLFont = new GUI::Font(GUI::consoleMediumBDesc);
-      myNFont = new GUI::Font(GUI::consoleMediumDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleMediumBDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleMediumDesc);
     }
     else if(fontstyle == 2)
     {
-      myLFont = new GUI::Font(GUI::consoleMediumDesc);
-      myNFont = new GUI::Font(GUI::consoleMediumBDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleMediumDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleMediumBDesc);
     }
     else if(fontstyle == 3)
     {
-      myLFont = new GUI::Font(GUI::consoleMediumBDesc);
-      myNFont = new GUI::Font(GUI::consoleMediumBDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleMediumBDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleMediumBDesc);
     }
     else  // default to zero
     {
-      myLFont = new GUI::Font(GUI::consoleMediumDesc);
-      myNFont = new GUI::Font(GUI::consoleMediumDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleMediumDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleMediumDesc);
     }
   }
   else
   {
     if(fontstyle == 1)
     {
-      myLFont = new GUI::Font(GUI::consoleBDesc);
-      myNFont = new GUI::Font(GUI::consoleDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleBDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleDesc);
     }
     else if(fontstyle == 2)
     {
-      myLFont = new GUI::Font(GUI::consoleDesc);
-      myNFont = new GUI::Font(GUI::consoleBDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleBDesc);
     }
     else if(fontstyle == 3)
     {
-      myLFont = new GUI::Font(GUI::consoleBDesc);
-      myNFont = new GUI::Font(GUI::consoleBDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleBDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleBDesc);
     }
     else  // default to zero
     {
-      myLFont = new GUI::Font(GUI::consoleDesc);
-      myNFont = new GUI::Font(GUI::consoleDesc);
+      myLFont = make_ptr<GUI::Font>(GUI::consoleDesc);
+      myNFont = make_ptr<GUI::Font>(GUI::consoleDesc);
     }
   }
 }
@@ -267,10 +262,8 @@ void DebuggerDialog::createFont()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void DebuggerDialog::showFatalMessage(const string& msg)
 {
-  delete myFatalError;
-  myFatalError =
-    new GUI::MessageBox(this, *myLFont, msg, _w/2, _h/2, kDDExitFatalCmd,
-                        "Exit ROM", "Continue");
+  myFatalError = make_ptr<GUI::MessageBox>(this, *myLFont, msg, _w/2, _h/2,
+                          kDDExitFatalCmd, "Exit ROM", "Continue");
   myFatalError->show();
 }
 
@@ -436,6 +429,19 @@ void DebuggerDialog::addRomArea()
   {
     myRomTab->setParentWidget(tabID, myCartDebug);
     addToFocusList(myCartDebug->getFocusList(), myRomTab, tabID);
+    
+    // The cartridge RAM tab
+    if (myCartDebug->internalRamSize() > 0)
+    {
+      tabID = myRomTab->addTab(" Cartridge RAM ");
+      myCartRam = new CartRamWidget(myRomTab, *myLFont, *myNFont, 2, 2, tabWidth - 1,
+                                    tabHeight - myRomTab->getTabHeight() - 2, *myCartDebug);
+      if(myCartRam)  // TODO - make this always non-null
+      {
+        myRomTab->setParentWidget(tabID, myCartRam);
+        addToFocusList(myCartRam->getFocusList(), myRomTab, tabID);
+      }
+    }
   }
 
   myRomTab->setActiveTab(0);

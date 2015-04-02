@@ -8,23 +8,26 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: NTSCFilter.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: NTSCFilter.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef NTSC_FILTER_HXX
 #define NTSC_FILTER_HXX
 
-class FrameBuffer;
+class TIASurface;
 class Settings;
 
 #include "bspf.hxx"
-#include "atari_ntsc.h"
+#include "atari_ntsc.hxx"
+
+#define SCALE_FROM_100(x) ((x/50.0)-1.0)
+#define SCALE_TO_100(x) (uInt32)(50*(x+1.0))
 
 /**
   This class is based on the Blargg NTSC filter code from Atari800,
@@ -39,7 +42,6 @@ class NTSCFilter
 {
   public:
     NTSCFilter();
-    virtual ~NTSCFilter();
 
   public:
     // Set one of the available preset adjustments (Composite, S-Video, RGB, etc)
@@ -64,7 +66,7 @@ class NTSCFilter
        uses this as a baseline for calculating its own internal palette
        in YIQ format.
     */
-    void setTIAPalette(const FrameBuffer& fb, const uInt32* palette);
+    void setTIAPalette(const TIASurface& tiaSurface, const uInt32* palette);
 
     // The following are meant to be used strictly for toggling from the GUI
     string setPreset(Preset preset);
@@ -82,7 +84,7 @@ class NTSCFilter
     // Get adjustables for the given preset
     // Values will be scaled to 0 - 100 range, independent of how
     // they're actually stored internally
-    void getAdjustables(Adjustable& adjustable, Preset preset);
+    void getAdjustables(Adjustable& adjustable, Preset preset) const;
 
     // Set custom adjustables to given values
     // Values will be scaled to 0 - 100 range, independent of how

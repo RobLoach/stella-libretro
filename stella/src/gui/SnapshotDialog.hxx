@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SnapshotDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SnapshotDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SNAPSHOT_DIALOG_HXX
@@ -36,10 +36,10 @@ class StaticTextWidget;
 class SnapshotDialog : public Dialog
 {
   public:
-    SnapshotDialog(OSystem* osystem, DialogContainer* parent,
+    SnapshotDialog(OSystem& osystem, DialogContainer& parent,
                    const GUI::Font& font, GuiObject* boss,
                    int max_w, int max_h);
-    ~SnapshotDialog();
+    virtual ~SnapshotDialog();
 
     void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
@@ -56,7 +56,7 @@ class SnapshotDialog : public Dialog
       kSnapLoadDirChosenCmd = 'snlc'  // snap chosen (load files)
     };
 
-    BrowserDialog* myBrowser;
+    unique_ptr<BrowserDialog> myBrowser;
 
     // Config paths
     EditTextWidget* mySnapSavePath;

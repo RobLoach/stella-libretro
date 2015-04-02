@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RomAuditDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RomAuditDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef ROM_AUDIT_DIALOG_HXX
@@ -35,17 +35,16 @@ class StaticTextWidget;
 class RomAuditDialog : public Dialog
 {
   public:
-    RomAuditDialog(OSystem* osystem, DialogContainer* parent,
+    RomAuditDialog(OSystem& osystem, DialogContainer& parent,
                    const GUI::Font& font, int max_w, int max_h);
-    ~RomAuditDialog();
-
-    void handleCommand(CommandSender* sender, int cmd, int data, int id);
+    virtual ~RomAuditDialog();
 
   private:
     void loadConfig();
     void auditRoms();
     void openBrowser(const string& title, const string& startpath,
                      FilesystemNode::ListMode mode, int cmd);
+    void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
   private:
     enum {
@@ -54,6 +53,9 @@ class RomAuditDialog : public Dialog
       kConfirmAuditCmd   = 'RAcf'  // confirm rom audit
     };
 
+    // Select a new ROM audit path
+    unique_ptr<BrowserDialog> myBrowser;
+
     // ROM audit path
     EditTextWidget* myRomPath;
 
@@ -61,11 +63,8 @@ class RomAuditDialog : public Dialog
     StaticTextWidget* myResults1;
     StaticTextWidget* myResults2;
 
-    // Select a new ROM audit path
-    BrowserDialog* myBrowser;
-
     // Show a message about the dangers of using this function
-    GUI::MessageBox* myConfirmMsg;
+    unique_ptr<GUI::MessageBox> myConfirmMsg;
 
     // Maximum width and height for this dialog
     int myMaxWidth, myMaxHeight;

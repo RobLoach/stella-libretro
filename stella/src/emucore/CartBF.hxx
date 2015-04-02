@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartBF.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartBF.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEBF_HXX
@@ -30,11 +30,11 @@ class System;
 
 /**
   Update of EF cartridge class used for Homestar Runner by Paul Slocum.
-  There are 32 4K banks (total of 128K ROM).
-  Accessing $1FC0 - $1FDF switches to each bank.
+  There are 64 4K banks (total of 256K ROM).
+  Accessing $1F80 - $1FBF switches to each bank.
 
   @author  Mike Saarna
-  @version $Id: CartBF.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: CartBF.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class CartridgeBF : public Cartridge
 {
@@ -79,7 +79,7 @@ class CartridgeBF : public Cartridge
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const;
 
     /**
       Query the number of banks supported by the cartridge.
@@ -159,8 +159,8 @@ class CartridgeBF : public Cartridge
     // Indicates which bank is currently active
     uInt16 myCurrentBank;
 
-    // The 64K ROM image of the cartridge
-    uInt8 myImage[262144];
+    // The 256K ROM image of the cartridge
+    uInt8 myImage[64 * 4096];
 };
 
 #endif

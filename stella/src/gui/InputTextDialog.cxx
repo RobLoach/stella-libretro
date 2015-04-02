@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: InputTextDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: InputTextDialog.cxx 3146 2015-02-09 17:14:28Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -31,7 +31,7 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 InputTextDialog::InputTextDialog(GuiObject* boss, const GUI::Font& font,
                                  const StringList& labels)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 16, 16),
+  : Dialog(boss->instance(), boss->parent()),
     CommandSender(boss),
     myEnableCenter(false),
     myErrorFlag(false),
@@ -45,7 +45,7 @@ InputTextDialog::InputTextDialog(GuiObject* boss, const GUI::Font& font,
 InputTextDialog::InputTextDialog(GuiObject* boss, const GUI::Font& lfont,
                                  const GUI::Font& nfont,
                                  const StringList& labels)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 16, 16),
+  : Dialog(boss->instance(), boss->parent()),
     CommandSender(boss),
     myEnableCenter(false),
     myErrorFlag(false),
@@ -58,7 +58,6 @@ InputTextDialog::InputTextDialog(GuiObject* boss, const GUI::Font& lfont,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 InputTextDialog::~InputTextDialog()
 {
-  myInput.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -68,19 +67,19 @@ void InputTextDialog::initialize(const GUI::Font& lfont, const GUI::Font& nfont,
   const int fontWidth  = lfont.getMaxCharWidth(),
             fontHeight = lfont.getFontHeight(),
             lineHeight = lfont.getLineHeight();
-  unsigned int xpos, ypos, i, lwidth = 0, maxIdx = 0;
+  uInt32 xpos, ypos, i, lwidth = 0, maxIdx = 0;
   WidgetArray wid;
 
   // Calculate real dimensions
-  _w = fontWidth * 30;
-  _h = lineHeight * 4 + labels.size() * (lineHeight + 5);
+  _w = fontWidth * 35;
+  _h = lineHeight * 4 + (int)labels.size() * (lineHeight + 5);
 
   // Determine longest label
   for(i = 0; i < labels.size(); ++i)
   {
     if(labels[i].length() > lwidth)
     {
-      lwidth = labels[i].length();
+      lwidth = (int)labels[i].length();
       maxIdx = i;
     }
   }
@@ -148,7 +147,7 @@ void InputTextDialog::center()
     if(x + _w > tx) x -= (x + _w - tx);
     if(y + _h > ty) y -= (y + _h - ty);
 
-    surface().setPos(x, y);
+    surface().setDstPos(x, y);
   }
   else
     Dialog::center();
@@ -164,7 +163,7 @@ void InputTextDialog::setTitle(const string& title)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const string& InputTextDialog::getResult(int idx)
 {
-  if((unsigned int)idx < myInput.size())
+  if((uInt32)idx < myInput.size())
     return myInput[idx]->getText();
   else
     return EmptyString;
@@ -173,14 +172,21 @@ const string& InputTextDialog::getResult(int idx)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void InputTextDialog::setText(const string& str, int idx)
 {
-  if((unsigned int)idx < myInput.size())
+  if((uInt32)idx < myInput.size())
     myInput[idx]->setText(str);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void InputTextDialog::setTextFilter(EditableWidget::TextFilter& f, int idx)
+{
+  if((uInt32)idx < myInput.size())
+    myInput[idx]->setTextFilter(f);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void InputTextDialog::setFocus(int idx)
 {
-  if((unsigned int)idx < myInput.size())
+  if((uInt32)idx < myInput.size())
     Dialog::setFocus(getFocusList()[idx]);
 }
 

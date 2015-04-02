@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ProgressDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ProgressDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -28,12 +28,13 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ProgressDialog::ProgressDialog(GuiObject* boss, const GUI::Font& font,
                                const string& message)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 16, 16),
-    myMessage(NULL),
-    mySlider(NULL),
+  : Dialog(boss->instance(), boss->parent()),
+    myMessage(nullptr),
+    mySlider(nullptr),
     myStart(0),
     myFinish(0),
-    myStep(0)
+    myStep(0),
+    myCurrentStep(0)
 {
   const int fontWidth  = font.getMaxCharWidth(),
             fontHeight = font.getFontHeight(),

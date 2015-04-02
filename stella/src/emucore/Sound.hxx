@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Sound.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Sound.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SOUND_HXX
@@ -30,7 +30,7 @@ class OSystem;
   It has no functionality whatsoever.
 
   @author Stephen Anthony
-  @version $Id: Sound.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Sound.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Sound : public Serializable
 {
@@ -39,7 +39,7 @@ class Sound : public Serializable
       Create a new sound object.  The init method must be invoked before
       using the object.
     */
-    Sound(OSystem* osystem) { myOSystem = osystem; }
+    Sound(OSystem& osystem) : myOSystem(osystem) { }
 
     /**
       Destructor
@@ -129,7 +129,7 @@ class Sound : public Serializable
 
   protected:
     // The OSystem for this sound object
-    OSystem* myOSystem;
+    OSystem& myOSystem;
 };
 
 #endif

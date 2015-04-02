@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: OptionsDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: OptionsDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef OPTIONS_DIALOG_HXX
@@ -43,27 +43,27 @@ class OSystem;
 class OptionsDialog : public Dialog
 {
   public:
-    OptionsDialog(OSystem* osystem, DialogContainer* parent, GuiObject* boss,
+    OptionsDialog(OSystem& osystem, DialogContainer& parent, GuiObject* boss,
                   int max_w, int max_h, bool global);
     virtual ~OptionsDialog();
 
   private:
     void loadConfig();
-    virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
+    void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
   private:
-    VideoDialog*      myVideoDialog;
-    AudioDialog*      myAudioDialog;
-    InputDialog*      myInputDialog;
-    UIDialog*         myUIDialog;
-    SnapshotDialog*   mySnapshotDialog;
-    ConfigPathDialog* myConfigPathDialog;
-    RomAuditDialog*   myRomAuditDialog;
-    GameInfoDialog*   myGameInfoDialog;
-    CheatCodeDialog*  myCheatCodeDialog;
-    LoggerDialog*     myLoggerDialog;
-    HelpDialog*       myHelpDialog;
-    AboutDialog*      myAboutDialog;
+    unique_ptr<VideoDialog>      myVideoDialog;
+    unique_ptr<AudioDialog>      myAudioDialog;
+    unique_ptr<InputDialog>      myInputDialog;
+    unique_ptr<UIDialog>         myUIDialog;
+    unique_ptr<SnapshotDialog>   mySnapshotDialog;
+    unique_ptr<ConfigPathDialog> myConfigPathDialog;
+    unique_ptr<RomAuditDialog>   myRomAuditDialog;
+    unique_ptr<GameInfoDialog>   myGameInfoDialog;
+    unique_ptr<CheatCodeDialog>  myCheatCodeDialog;
+    unique_ptr<LoggerDialog>     myLoggerDialog;
+    unique_ptr<HelpDialog>       myHelpDialog;
+    unique_ptr<AboutDialog>      myAboutDialog;
 
     ButtonWidget* myRomAuditButton;
     ButtonWidget* myGameInfoButton;

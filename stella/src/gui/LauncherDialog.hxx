@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: LauncherDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: LauncherDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef LAUNCHER_DIALOG_HXX
@@ -40,7 +40,6 @@ class StringListWidget;
 
 #include "Dialog.hxx"
 #include "FSNode.hxx"
-#include "StringList.hxx"
 #include "Stack.hxx"
 #include "MessageBox.hxx"
 
@@ -56,9 +55,9 @@ class LauncherDialog : public Dialog
     };
 
   public:
-    LauncherDialog(OSystem* osystem, DialogContainer* parent,
+    LauncherDialog(OSystem& osystem, DialogContainer& parent,
                    int x, int y, int w, int h);
-    ~LauncherDialog();
+    virtual ~LauncherDialog();
 
     /**
       Get MD5sum for the currently selected file
@@ -80,15 +79,14 @@ class LauncherDialog : public Dialog
     void reload() { updateListing(); }
 
   protected:
-    virtual void handleKeyDown(StellaKey key, StellaMod mod, char ascii);
-    virtual void handleMouseDown(int x, int y, int button, int clickCount);
-    virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
+    void handleKeyDown(StellaKey key, StellaMod mod);
+    void handleMouseDown(int x, int y, int button, int clickCount);
+    void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
     void loadConfig();
     void updateListing(const string& nameToSelect = "");
 
   private:
-    void enableButtons(bool enable);
     void loadDirListing();
     void loadRomInfo();
     void handleContextMenu();
@@ -96,6 +94,14 @@ class LauncherDialog : public Dialog
     bool matchPattern(const string& s, const string& pattern) const;
 
   private:
+    unique_ptr<OptionsDialog> myOptions;
+    unique_ptr<GameList> myGameList;
+    unique_ptr<ContextMenu> myMenu;
+    unique_ptr<GlobalPropsDialog> myGlobalProps;
+    unique_ptr<LauncherFilterDialog> myFilters;
+    unique_ptr<BrowserDialog> myRomDir;
+    unique_ptr<GUI::MessageBox> myFirstRunMsg;
+
     ButtonWidget* myStartButton;
     ButtonWidget* myPrevDirButton;
     ButtonWidget* myOptionsButton;
@@ -106,17 +112,8 @@ class LauncherDialog : public Dialog
     StaticTextWidget* myDir;
     StaticTextWidget* myRomCount;
     EditTextWidget*   myPattern;
-    GameList*         myGameList;
 
-    OptionsDialog* myOptions;
     RomInfoWidget* myRomInfoWidget;
-
-    ContextMenu*          myMenu;
-    GlobalPropsDialog*    myGlobalProps;
-    LauncherFilterDialog* myFilters;
-
-    GUI::MessageBox* myFirstRunMsg;
-    BrowserDialog*   myRomDir;
 
     int mySelectedItem;
     FilesystemNode myCurrentNode;

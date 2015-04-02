@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: VideoDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: VideoDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef VIDEO_DIALOG_HXX
@@ -35,9 +35,9 @@ class OSystem;
 class VideoDialog : public Dialog
 {
   public:
-    VideoDialog(OSystem* osystem, DialogContainer* parent, const GUI::Font& font,
+    VideoDialog(OSystem& osystem, DialogContainer& parent, const GUI::Font& font,
                 int max_w, int max_h);
-    ~VideoDialog();
+    virtual ~VideoDialog();
 
   private:
     void loadConfig();
@@ -53,27 +53,25 @@ class VideoDialog : public Dialog
     TabWidget* myTab;
 
     // General options
-    StaticTextWidget* myRenderer;
-    PopUpWidget*      myRendererPopup;
-    PopUpWidget*      myTIAFilterPopup;
-    PopUpWidget*      myTIAPalettePopup;
-    PopUpWidget*      myFSResPopup;
-    PopUpWidget*      myFrameTimingPopup;
-    PopUpWidget*      myGLFilterPopup;
-    SliderWidget*     myNAspectRatioSlider;
+    PopUpWidget*      myRenderer;
+    PopUpWidget*      myTIAZoom;
+    PopUpWidget*      myTIAPalette;
+    PopUpWidget*      myFrameTiming;
+    PopUpWidget*      myTIAInterpolate;
+    SliderWidget*     myNAspectRatio;
     StaticTextWidget* myNAspectRatioLabel;
-    SliderWidget*     myPAspectRatioSlider;
+    SliderWidget*     myPAspectRatio;
     StaticTextWidget* myPAspectRatioLabel;
 
-    SliderWidget*     myFrameRateSlider;
+    SliderWidget*     myFrameRate;
     StaticTextWidget* myFrameRateLabel;
-    PopUpWidget*      myFullscreenPopup;
-    CheckboxWidget*   myColorLossCheckbox;
-    CheckboxWidget*   myGLStretchCheckbox;
-    CheckboxWidget*   myUseVSyncCheckbox;
-    CheckboxWidget*   myUIMessagesCheckbox;
-    CheckboxWidget*   myCenterCheckbox;
-    CheckboxWidget*   myFastSCBiosCheckbox;
+    CheckboxWidget*   myFullscreen;
+    CheckboxWidget*   myUseStretch;
+    CheckboxWidget*   myUseVSync;
+    CheckboxWidget*   myColorLoss;
+    CheckboxWidget*   myUIMessages;
+    CheckboxWidget*   myCenter;
+    CheckboxWidget*   myFastSCBios;
 
     // TV effects adjustables (custom mode)
     PopUpWidget*      myTVMode;
@@ -115,7 +113,6 @@ class VideoDialog : public Dialog
       kNAspectRatioChanged = 'VDan',
       kPAspectRatioChanged = 'VDap',
       kFrameRateChanged    = 'VDfr',
-      kFullScrChanged      = 'VDfs',
 
       kTVModeChanged       = 'VDtv',
       kTVSharpChanged      = 'TVsh',

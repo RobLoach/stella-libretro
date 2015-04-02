@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RamWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RamWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -139,7 +139,7 @@ RamWidget::RamWidget(GuiObject* boss, const GUI::Font& lfont, const GUI::Font& n
   // Inputbox which will pop up when searching RAM
   StringList labels;
   labels.push_back("Search: ");
-  myInputBox = new InputTextDialog(boss, lfont, nfont, labels);
+  myInputBox = make_ptr<InputTextDialog>(boss, lfont, nfont, labels);
   myInputBox->setTarget(this);
 
   // Start with these buttons disabled
@@ -150,7 +150,6 @@ RamWidget::RamWidget(GuiObject* boss, const GUI::Font& lfont, const GUI::Font& n
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 RamWidget::~RamWidget()
 {
-  delete myInputBox;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -294,7 +293,7 @@ void RamWidget::fillGrid(bool updateOld)
     changed.push_back(state.ram[i] != oldstate.ram[i]);
   }
 
-  myRamGrid->setNumRows(state.ram.size() / 128);
+  myRamGrid->setNumRows((int)state.ram.size() / 128);
   myRamGrid->setList(alist, vlist, changed);
   if(updateOld)
   {
@@ -429,7 +428,7 @@ string RamWidget::doCompare(const string& str)
   for(uInt32 i = 0; i < state.rport.size(); ++i)
     mySearchState.push_back(false);
 
-  for(unsigned int i = 0; i < mySearchAddr.size(); ++i)
+  for(uInt32 i = 0; i < mySearchAddr.size(); ++i)
   {
     if(comparitiveSearch)
     {

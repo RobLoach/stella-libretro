@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ListWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ListWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <cctype>
@@ -68,8 +68,11 @@ ListWidget::~ListWidget()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ListWidget::setSelected(int item)
 {
-  if(item < -1 || item >= (int)_list.size())
+  if(item < 0 || item >= (int)_list.size())
+  {
+    setDirty(); draw();  // Simply redraw and exit
     return;
+  }
 
   if(isEnabled())
   {
@@ -88,21 +91,21 @@ void ListWidget::setSelected(int item)
 void ListWidget::setSelected(const string& item)
 {
   int selected = -1;
-  if(!_list.isEmpty())
+  if(!_list.empty())
   {
     if(item == "")
       selected = 0;
     else
     {
       uInt32 itemToSelect = 0;
-      StringList::const_iterator iter;
-      for(iter = _list.begin(); iter != _list.end(); ++iter, ++itemToSelect)
+      for(const auto& iter: _list)
       {
-        if(item == *iter)
+        if(item == iter)
         {
           selected = itemToSelect;
           break;
         }
+        ++itemToSelect;
       }
       if(itemToSelect > _list.size() || selected == -1)
         selected = 0;
@@ -144,7 +147,7 @@ const string& ListWidget::getSelectedString() const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ListWidget::scrollTo(int item)
 {
-  int size = _list.size();
+  int size = (int)_list.size();
   if (item >= size)
     item = size - 1;
   if (item < 0)
@@ -160,7 +163,7 @@ void ListWidget::scrollTo(int item)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ListWidget::recalc()
 {
-  int size = _list.size();
+  int size = (int)_list.size();
 
   if (_currentPos >= size)
     _currentPos = size - 1;
@@ -172,7 +175,7 @@ void ListWidget::recalc()
 
   _editMode = false;
 
-  _scrollBar->_numEntries     = _list.size();
+  _scrollBar->_numEntries     = (int)_list.size();
   _scrollBar->_entriesPerPage = _rows;
 
   // Reset to normal data entry
@@ -240,17 +243,12 @@ int ListWidget::findItem(int x, int y) const
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool ListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+bool ListWidget::handleText(char text)
 {
-  // Ignore all Alt-mod keys
-  if(instance().eventHandler().kbdAlt(mod))
-    return true;
-
   bool handled = true;
   int oldSelectedItem = _selectedItem;
 
-  if (!_editMode && _quickSelect &&
-      ((isalnum(ascii)) || isspace(ascii)))
+  if (!_editMode && _quickSelect)
   {
     // Quick selection mode: Go to first list item starting with this key
     // (or a substring accumulated from the last couple key presses).
@@ -259,9 +257,9 @@ bool ListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
     // method "enableQuickSelect()" or so ?
     uInt64 time = instance().getTicks() / 1000;
     if (_quickSelectTime < time)
-      _quickSelectStr = ascii;
+      _quickSelectStr = text;
     else
-      _quickSelectStr += ascii;
+      _quickSelectStr += text;
     _quickSelectTime = time + _QUICK_SELECT_DELAY;
 
     // FIXME: This is bad slow code (it scans the list linearly each time a
@@ -269,9 +267,9 @@ bool ListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
     // quite big lists to deal with -- so for now we can live with this lazy
     // implementation :-)
     int newSelectedItem = 0;
-    for (StringList::const_iterator i = _list.begin(); i != _list.end(); ++i)
+    for(const auto& i: _list)
     {
-      if(BSPF_startsWithIgnoreCase(*i, _quickSelectStr))
+      if(BSPF_startsWithIgnoreCase(i, _quickSelectStr))
       {
         _selectedItem = newSelectedItem;
         break;
@@ -282,11 +280,30 @@ bool ListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
   else if (_editMode)
   {
     // Class EditableWidget handles all text editing related key presses for us
-    handled = EditableWidget::handleKeyDown(key, mod, ascii);
+    handled = EditableWidget::handleText(text);
   }
-  else
+
+  if (_selectedItem != oldSelectedItem)
   {
-    // not editmode
+    _scrollBar->draw();
+    scrollToSelected();
+
+    sendCommand(ListWidget::kSelectionChangedCmd, _selectedItem, _id);
+  }
+
+  return handled;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+bool ListWidget::handleKeyDown(StellaKey key, StellaMod mod)
+{
+  // Ignore all Alt-mod keys
+  if(instance().eventHandler().kbdAlt(mod))
+    return true;
+
+  bool handled = true;
+  if (!_editMode)
+  {
     switch(key)
     {
       case KBDK_SPACE:
@@ -303,20 +320,12 @@ bool ListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
     }
   }
 
-  if (_selectedItem != oldSelectedItem)
-  {
-    _scrollBar->draw();
-    scrollToSelected();
-
-    sendCommand(ListWidget::kSelectionChangedCmd, _selectedItem, _id);
-  }
-
   _currentKeyDown = key;
   return handled;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool ListWidget::handleKeyUp(StellaKey key, StellaMod mod, char ascii)
+bool ListWidget::handleKeyUp(StellaKey key, StellaMod mod)
 {
   if (key == _currentKeyDown)
     _currentKeyDown = KBDK_UNKNOWN;
@@ -363,7 +372,7 @@ bool ListWidget::handleEvent(Event::Type e)
     case Event::UIPgDown:
       _selectedItem += _rows - 1;
       if (_selectedItem >= (int)_list.size() )
-        _selectedItem = _list.size() - 1;
+        _selectedItem = (int)_list.size() - 1;
       break;
 
     case Event::UIHome:
@@ -371,7 +380,7 @@ bool ListWidget::handleEvent(Event::Type e)
       break;
 
     case Event::UIEnd:
-      _selectedItem = _list.size() - 1;
+      _selectedItem = (int)_list.size() - 1;
       break;
 
     case Event::UIPrevDir:
@@ -438,7 +447,7 @@ void ListWidget::scrollToCurrent(int item)
   if (_currentPos < 0 || _rows > (int)_list.size())
     _currentPos = 0;
   else if (_currentPos + _rows > (int)_list.size())
-    _currentPos = _list.size() - _rows;
+    _currentPos = (int)_list.size() - _rows;
 
   int oldScrollPos = _scrollBar->_currentPos;
   _scrollBar->_currentPos = _currentPos;

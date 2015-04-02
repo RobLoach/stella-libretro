@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartCMWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartCMWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartCM.hxx"
@@ -46,10 +46,10 @@ CartridgeCMWidget::CartridgeCMWidget(
       ypos = addBaseInformation(size, "CompuMate", info) + myLineHeight;
 
   VariantList items;
-  items.push_back(" 0 ");
-  items.push_back(" 1 ");
-  items.push_back(" 2 ");
-  items.push_back(" 3 ");
+  VarList::push_back(items, " 0 ");
+  VarList::push_back(items, " 1 ");
+  VarList::push_back(items, " 2 ");
+  VarList::push_back(items, " 3 ");
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth(" 0 "),
                     myLineHeight, items, "Set bank: ",
@@ -150,7 +150,14 @@ CartridgeCMWidget::CartridgeCMWidget(
 void CartridgeCMWidget::saveOldState()
 {
   myOldState.swcha = myCart.mySWCHA;
-  myOldState.column = myCart.myColumn;
+  myOldState.column = myCart.column();
+  
+  myOldState.internalram.clear();
+  
+  for(uInt32 i = 0; i < this->internalRamSize();i++)
+  {
+    myOldState.internalram.push_back(myCart.myRAM[i]);
+  } 
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -173,7 +180,7 @@ void CartridgeCMWidget::loadConfig()
   mySWCHA->setState(newbits, changed);
 
   // Column
-  myColumn->setList(0, myCart.myColumn, myCart.myColumn != myOldState.column);
+  myColumn->setList(0, myCart.column(), myCart.column() != myOldState.column);
 
   // Various bits from SWCHA and INPTx
   myIncrease->setState(swcha & 0x40);
@@ -222,4 +229,64 @@ string CartridgeCMWidget::bankState()
          myCart.mySWCHA & 0x20 ? " Read-only" : " Write-only");
 
   return buf.str();
+}
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeCMWidget::internalRamSize() 
+{
+  return 2048;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeCMWidget::internalRamRPort(int start)
+{
+  return 0xF800 + start;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string CartridgeCMWidget::internalRamDescription() 
+{
+  ostringstream desc;
+  desc << "$F800 - $FFFF used for Exclusive Read\n"
+       << "              or Exclusive Write Access";
+  
+  return desc.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeCMWidget::internalRamOld(int start, int count)
+{
+  myRamOld.clear();
+  for(int i = 0; i < count; i++)
+    myRamOld.push_back(myOldState.internalram[start + i]);
+  return myRamOld;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeCMWidget::internalRamCurrent(int start, int count)
+{
+  myRamCurrent.clear();
+  for(int i = 0; i < count; i++)
+    myRamCurrent.push_back(myCart.myRAM[start + i]);
+  return myRamCurrent;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void CartridgeCMWidget::internalRamSetValue(int addr, uInt8 value)
+{
+  myCart.myRAM[addr] = value;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt8 CartridgeCMWidget::internalRamGetValue(int addr)
+{
+  return myCart.myRAM[addr];
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string CartridgeCMWidget::internalRamLabel(int addr) 
+{
+  CartDebug& dbg = instance().debugger().cartDebug();
+  return dbg.getLabel(addr + 0xF800, false);
 }

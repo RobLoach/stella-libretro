@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: HelpDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: HelpDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -26,9 +26,9 @@
 #include "HelpDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-HelpDialog::HelpDialog(OSystem* osystem, DialogContainer* parent,
+HelpDialog::HelpDialog(OSystem& osystem, DialogContainer& parent,
                        const GUI::Font& font)
-  : Dialog(osystem, parent, 0, 0, 0, 0),
+  : Dialog(osystem, parent),
     myPage(1),
     myNumPages(5)
 {
@@ -93,21 +93,25 @@ HelpDialog::~HelpDialog()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void HelpDialog::updateStrings(uInt8 page, uInt8 lines, string& title)
 {
-#define ADD_BIND(k,d) do { myKeyStr[i] = k; myDescStr[i] = d; i++; } while(0)
-#define ADD_TEXT(d) ADD_BIND("",d)
-#define ADD_LINE ADD_BIND("","")
-#ifdef MAC_OSX
+#ifdef BSPF_MAC_OSX
   #define ALT_ "Cmd"
 #else
   #define ALT_ "Alt"
 #endif
 
-  uInt8 i = 0;
+  int i = 0;
+  auto ADD_BIND = [&](const string& k, const string& d)
+  {
+    myKeyStr[i] = k;  myDescStr[i] = d;  i++;
+  };
+  auto ADD_TEXT = [&](const string& d) { ADD_BIND("", d); };
+  auto ADD_LINE = [&]() { ADD_BIND("", ""); };
+
   switch(page)
   {
     case 1:
       title = "Common commands:";
-#ifndef MAC_OSX
+#ifndef BSPF_MAC_OSX
       ADD_BIND("Ctrl Q",    "Quit emulation");
 #else
       ADD_BIND("Cmd Q",     "Quit emulation");
@@ -129,7 +133,7 @@ void HelpDialog::updateStrings(uInt8 page, uInt8 lines, string& title)
       ADD_BIND("Ctrl f", "Switch between NTSC/PAL/SECAM");
       ADD_BIND("Ctrl s", "Save game properties");
       ADD_BIND("",       "  to a new file");
-      ADD_LINE;
+      ADD_LINE();
       ADD_BIND("Ctrl 0", "Toggle controller for Mouse");
       ADD_BIND("Ctrl 1", "Toggle Stelladaptor left/right");
       break;
@@ -151,7 +155,7 @@ void HelpDialog::updateStrings(uInt8 page, uInt8 lines, string& title)
     case 4:
       title = "Developer commands:";
       ADD_BIND("~",         "Enter/exit debugger");
-      ADD_LINE;
+      ADD_LINE();
       ADD_BIND(ALT_" PgUp", "Increase Display.YStart");
       ADD_BIND(ALT_" PgDn", "Decrease Display.YStart");
       ADD_BIND("Ctrl PgUp", "Increase Display.Height");
@@ -160,7 +164,7 @@ void HelpDialog::updateStrings(uInt8 page, uInt8 lines, string& title)
 
     case 5:
       title = "All other commands:";
-      ADD_LINE;
+      ADD_LINE();
       ADD_BIND("Remapped Events", "");
       ADD_TEXT("Most other commands can be");
       ADD_TEXT("remapped.  Please consult the");
@@ -170,7 +174,7 @@ void HelpDialog::updateStrings(uInt8 page, uInt8 lines, string& title)
   }
 
   while(i < lines)
-    ADD_LINE;
+    ADD_LINE();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

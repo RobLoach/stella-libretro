@@ -8,23 +8,19 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Expression.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Expression.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef EXPRESSION_HXX
 #define EXPRESSION_HXX
 
 #include "bspf.hxx"
-
-// define this to count Expression instances. Only useful for debugging
-// Stella itself.
-//#define EXPR_REF_COUNT
 
 /**
   This class provides an implementation of an expression node, which
@@ -33,19 +29,21 @@
   can represent complex expression statements.
 
   @author  Stephen Anthony
-  @version $Id: Expression.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Expression.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Expression
 {
   public:
-    Expression(Expression* lhs, Expression* rhs);
-    virtual ~Expression();
+    Expression(Expression* lhs = nullptr, Expression* rhs = nullptr)
+      : myLHS(lhs), myRHS(rhs) { }
+    virtual ~Expression() { }
 
-    virtual uInt16 evaluate() const = 0;
+    virtual uInt16 evaluate() const { return 0; }
 
   protected:
-    Expression* myLHS;
-    Expression* myRHS;
+    unique_ptr<Expression> myLHS, myRHS;
 };
+
+static const Expression EmptyExpression;
 
 #endif

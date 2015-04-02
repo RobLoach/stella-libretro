@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Thumbulator.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Thumbulator.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 //============================================================================
@@ -162,6 +162,7 @@ uInt32 Thumbulator::fetch16 ( uInt32 addr )
   return fatalError("fetch16", addr, "abort");
 }
 
+#if 0  // Currently not used anywhere in this class
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 uInt32 Thumbulator::fetch32 ( uInt32 addr )
 {
@@ -187,6 +188,7 @@ uInt32 Thumbulator::fetch32 ( uInt32 addr )
   }
   return fatalError("fetch32", addr, "abort");
 }
+#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Thumbulator::write16 ( uInt32 addr, uInt32 data )

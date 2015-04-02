@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ContextMenu.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ContextMenu.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -27,7 +27,7 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ContextMenu::ContextMenu(GuiObject* boss, const GUI::Font& font,
                          const VariantList& items, int cmd)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 16, 16),
+  : Dialog(boss->instance(), boss->parent()),
     CommandSender(boss),
     _rowHeight(font.getLineHeight()),
     _firstEntry(0),
@@ -49,7 +49,6 @@ ContextMenu::ContextMenu(GuiObject* boss, const GUI::Font& font,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ContextMenu::~ContextMenu()
 {
-  _entries.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -60,12 +59,8 @@ void ContextMenu::addItems(const VariantList& items)
 
   // Resize to largest string
   int maxwidth = 0;
-  for(unsigned int i = 0; i < _entries.size(); ++i)
-  {
-    int length = _font.getStringWidth(_entries[i].first);
-    if(length > maxwidth)
-      maxwidth = length;
-  }
+  for(const auto& e: _entries)
+    maxwidth = BSPF_max(maxwidth, _font.getStringWidth(e.first));
 
   _x = _y = 0;
   _w = maxwidth + 10;
@@ -102,7 +97,7 @@ void ContextMenu::center()
   if(x + _w > tx) x -= (x + _w - tx);
   if(y + _h > ty) y -= (y + _h - ty);
 
-  surface().setPos(x, y);
+  surface().setDstPos(x, y);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -110,8 +105,8 @@ void ContextMenu::recalc(const GUI::Rect& image)
 {
   // Now is the time to adjust the height
   // If it's higher than the screen, we need to scroll through
-  int maxentries = BSPF_min(18, (image.height() - 4) / _rowHeight);
-  if((int)_entries.size() > maxentries)
+  uInt32 maxentries = BSPF_min(18u, (image.height() - 4) / _rowHeight);
+  if(_entries.size() > maxentries)
   {
     // We show two less than the max, so we have room for two scroll buttons
     _numEntries = maxentries - 2;
@@ -120,8 +115,8 @@ void ContextMenu::recalc(const GUI::Rect& image)
   }
   else
   {
-    _numEntries = _entries.size();
-    _h = _entries.size() * _rowHeight + 4;
+    _numEntries = (int)_entries.size();
+    _h = (int)_entries.size() * _rowHeight + 4;
     _showScroll = false;
   }
   _isScrolling = false;
@@ -141,7 +136,7 @@ void ContextMenu::setSelected(const Variant& tag, const Variant& defaultTag)
 {
   if(tag != "")  // indicates that the defaultTag should be used instead
   {
-    for(unsigned int item = 0; item < _entries.size(); ++item)
+    for(uInt32 item = 0; item < _entries.size(); ++item)
     { 
       if(BSPF_equalsIgnoreCase(_entries[item].second.toString(), tag.toString()))
       {
@@ -152,7 +147,7 @@ void ContextMenu::setSelected(const Variant& tag, const Variant& defaultTag)
   }
 
   // If we get this far, the value wasn't found; use the default value
-  for(unsigned int item = 0; item < _entries.size(); ++item)
+  for(uInt32 item = 0; item < _entries.size(); ++item)
   {
     if(BSPF_equalsIgnoreCase(_entries[item].second.toString(), defaultTag.toString()))
     {
@@ -165,7 +160,7 @@ void ContextMenu::setSelected(const Variant& tag, const Variant& defaultTag)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ContextMenu::setSelectedMax()
 {
-  setSelectedIndex(_entries.size() - 1);
+  setSelectedIndex((int)_entries.size() - 1);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -231,7 +226,7 @@ bool ContextMenu::sendSelectionLast()
   if(isVisible())
     return false;
 
-  _selectedItem = _entries.size() - 1;
+  _selectedItem = (int)_entries.size() - 1;
   sendCommand(_cmd ? _cmd : ContextMenu::kItemSelectedCmd, _selectedItem, -1);
   return true;
 }
@@ -288,7 +283,7 @@ void ContextMenu::handleMouseWheel(int x, int y, int direction)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void ContextMenu::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+void ContextMenu::handleKeyDown(StellaKey key, StellaMod mod)
 {
   handleEvent(instance().eventHandler().eventForKey(key, kMenuMode));
 }
@@ -467,7 +462,7 @@ void ContextMenu::moveToFirst()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ContextMenu::moveToLast()
 {
-  _firstEntry = _entries.size() - _numEntries;
+  _firstEntry = (int)_entries.size() - _numEntries;
   _scrollUpColor = kScrollColor;
   _scrollDnColor = kColor;
 
@@ -486,7 +481,7 @@ void ContextMenu::moveToSelected()
 
   // Now check if we've gone past the current 'window' size, and scale
   // back accordingly
-  int max_offset = _entries.size() - _numEntries;
+  int max_offset = (int)_entries.size() - _numEntries;
   if(_firstEntry > max_offset)
   {
     offset = _firstEntry - max_offset;
@@ -515,7 +510,7 @@ void ContextMenu::scrollUp(int distance)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ContextMenu::scrollDown(int distance)
 {
-  int max_offset = _entries.size() - _numEntries;
+  int max_offset = (int)_entries.size() - _numEntries;
   if(_firstEntry == max_offset)
     return;
 
@@ -590,10 +585,10 @@ void ContextMenu::drawDialog()
       s.drawBitmap(down_arrow, ((_w-_x)>>1)-4, (_rowHeight>>1)+y-4, _scrollDnColor, 8);
     }
 
-    s.addDirtyRect(_x, _y, _w, _h);
+    s.setDirty();
     _dirty = false;
   }
 
   // Commit surface changes to screen
-  s.update();
+  s.render();
 }

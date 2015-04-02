@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Thumbulator.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Thumbulator.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 //============================================================================
@@ -93,7 +93,7 @@ class Thumbulator
     uInt32 read_register ( uInt32 reg );
     uInt32 write_register ( uInt32 reg, uInt32 data );
     uInt32 fetch16 ( uInt32 addr );
-    uInt32 fetch32 ( uInt32 addr );
+    //uInt32 fetch32 ( uInt32 addr );
     uInt32 read16 ( uInt32 addr );
     uInt32 read32 ( uInt32 );
     void write16 ( uInt32 addr, uInt32 data );

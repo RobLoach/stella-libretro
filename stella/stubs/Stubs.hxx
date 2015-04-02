@@ -7,7 +7,7 @@ OSystem::OSystem()
     myNVRamDir = ".";
     mySettings = 0;
     myFrameBuffer = new FrameBuffer();
-    vcsSound = new SoundSDL(this);
+    vcsSound = new SoundSDL2(this);
     mySound = vcsSound;
     mySerialPort = new SerialPort();
     myEventHandler = new EventHandler(this);

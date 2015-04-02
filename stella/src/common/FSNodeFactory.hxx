@@ -8,23 +8,23 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: FSNodeFactory.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: FSNodeFactory.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef FSNODE_FACTORY_HXX
 #define FSNODE_FACTORY_HXX
 
 class AbstractFSNode;
-#if defined(UNIX) || defined(MAC_OSX)
+#if defined(BSPF_UNIX) || defined(BSPF_MAC_OSX)
   #include "FSNodePOSIX.hxx"
-#elif defined(WIN32)
-  #include "FSNodeWin32.hxx"
+#elif defined(BSPF_WINDOWS)
+  #include "FSNodeWINDOWS.hxx"
 #else
   #error Unsupported platform in FSNodeFactory!
 #endif
@@ -47,10 +47,10 @@ class FilesystemNodeFactory
       switch(type)
       {
         case SYSTEM:
-      #if defined(UNIX) || defined(MAC_OSX)
+      #if defined(BSPF_UNIX) || defined(BSPF_MAC_OSX)
           return new FilesystemNodePOSIX(path);
-      #elif defined(WIN32)
-          return new FilesystemNodeWin32(path);
+      #elif defined(BSPF_WINDOWS)
+          return new FilesystemNodeWINDOWS(path);
       #endif
           break;
         case ZIP:

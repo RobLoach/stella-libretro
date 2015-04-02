@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RomListWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RomListWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef ROM_LIST_WIDGET_HXX
@@ -25,7 +25,6 @@ class ScrollBarWidget;
 class PackedBitArray;
 class CheckListWidget;
 
-#include "Array.hxx"
 #include "Base.hxx"
 #include "CartDebug.hxx"
 #include "EditableWidget.hxx"
@@ -68,8 +67,9 @@ class RomListWidget : public EditableWidget
     void handleMouseDown(int x, int y, int button, int clickCount);
     void handleMouseUp(int x, int y, int button, int clickCount);
     void handleMouseWheel(int x, int y, int direction);
-    bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
-    bool handleKeyUp(StellaKey key, StellaMod mod, char ascii);
+    bool handleText(char text);
+    bool handleKeyDown(StellaKey key, StellaMod mod);
+    bool handleKeyUp(StellaKey key, StellaMod mod);
     bool handleEvent(Event::Type e);
     void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
@@ -91,7 +91,7 @@ class RomListWidget : public EditableWidget
     void scrollToCurrent(int item);
 
   private:
-    RomListSettings* myMenu;
+    unique_ptr<RomListSettings> myMenu;
     ScrollBarWidget* myScrollBar;
 
     int  _labelWidth;
@@ -107,7 +107,7 @@ class RomListWidget : public EditableWidget
 
     const CartDebug::Disassembly* myDisasm;
     const PackedBitArray* myBPState;
-    Common::Array<CheckboxWidget*> myCheckList;
+    vector<CheckboxWidget*> myCheckList;
 };
 
 #endif

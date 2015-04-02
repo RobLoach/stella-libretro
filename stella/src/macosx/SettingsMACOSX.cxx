@@ -8,17 +8,15 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SettingsMACOSX.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SettingsMACOSX.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
-#include "bspf.hxx"
-#include "Settings.hxx"
 #include "SettingsMACOSX.hxx"
 
 extern "C" {
@@ -28,12 +26,9 @@ extern "C" {
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-SettingsMACOSX::SettingsMACOSX(OSystem* osystem)
+SettingsMACOSX::SettingsMACOSX(OSystem& osystem)
   : Settings(osystem)
 {
-  setInternal("video", "gl");        // Use opengl mode by default
-  setInternal("gl_lib", "libGL.so"); // Try this one first, then let the system decide
-  setInternal("gl_vsync", "true");   // OSX almost always supports vsync; let's use it
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -49,7 +44,7 @@ void SettingsMACOSX::loadConfig()
   
   // Read key/value pairs from the plist file
   const SettingsArray& settings = getInternalSettings();
-  for(unsigned int i = 0; i < settings.size(); ++i)
+  for(uInt32 i = 0; i < settings.size(); ++i)
   {
     prefsGetString(settings[i].key.c_str(), cvalue, 4090);
     if(cvalue[0] != 0)
@@ -61,9 +56,8 @@ void SettingsMACOSX::loadConfig()
 void SettingsMACOSX::saveConfig()
 {
   // Write out each of the key and value pairs
-  const SettingsArray& settings = getInternalSettings();
-  for(unsigned int i = 0; i < settings.size(); ++i)
-    prefsSetString(settings[i].key.c_str(), settings[i].value.toCString());
+  for(const auto& s: getInternalSettings())
+    prefsSetString(s.key.c_str(), s.value.toCString());
 
   prefsSave();
 }

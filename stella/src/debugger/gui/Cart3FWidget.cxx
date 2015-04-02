@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cart3FWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Cart3FWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Cart3F.hxx"
@@ -46,7 +46,7 @@ Cartridge3FWidget::Cartridge3FWidget(
 
   VariantList items;
   for(uInt16 i = 0; i < cart.bankCount(); ++i)
-    items.push_back(Variant(i).toString() + " ($3F)");
+      VarList::push_back(items, Variant(i).toString() + " ($3F)");
 
   ostringstream label;
   label << "Set bank ($" << Common::Base::HEX4 << start << " - $" <<

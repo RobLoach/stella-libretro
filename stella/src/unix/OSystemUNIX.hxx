@@ -8,25 +8,25 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: OSystemUNIX.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: OSystemUNIX.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef OSYSTEM_UNIX_HXX
 #define OSYSTEM_UNIX_HXX
 
-#include "bspf.hxx"
+#include "OSystem.hxx"
 
 /**
   This class defines UNIX-like OS's (Linux) system specific settings.
 
   @author  Stephen Anthony
-  @version $Id: OSystemUNIX.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: OSystemUNIX.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class OSystemUNIX : public OSystem
 {
@@ -40,13 +40,6 @@ class OSystemUNIX : public OSystem
       Destructor
     */
     virtual ~OSystemUNIX();
-
-  public:
-    /**
-      Move X11 window to given position.  Width and height are not
-      used (or modified).
-    */
-    void setAppWindowPos(int x, int y, /* not used*/ int, int);
 };
 
 #endif

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: LauncherFilterDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: LauncherFilterDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <algorithm>
@@ -27,7 +27,6 @@
 #include "OSystem.hxx"
 #include "PopUpWidget.hxx"
 #include "Settings.hxx"
-#include "StringList.hxx"
 #include "Widget.hxx"
 #include "LauncherDialog.hxx"
 
@@ -35,7 +34,7 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 LauncherFilterDialog::LauncherFilterDialog(GuiObject* boss, const GUI::Font& font)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 0, 0),
+  : Dialog(boss->instance(), boss->parent()),
     CommandSender(boss)
 {
   const int lineHeight   = font.getLineHeight(),
@@ -53,10 +52,9 @@ LauncherFilterDialog::LauncherFilterDialog(GuiObject* boss, const GUI::Font& fon
   xpos = 10;  ypos = 10;
 
   // Types of files to show
-  items.clear();
-  items.push_back("All files", "allfiles");
-  items.push_back("All roms", "allroms");
-  items.push_back("ROMs ending with", "__EXTS");
+  VarList::push_back(items, "All files", "allfiles");
+  VarList::push_back(items, "All roms", "allroms");
+  VarList::push_back(items, "ROMs ending with", "__EXTS");
   myFileType =
     new PopUpWidget(this, font, xpos, ypos, pwidth, lineHeight, items,
                     "Show: ", lwidth, kFileTypeChanged);
@@ -132,8 +130,8 @@ bool LauncherFilterDialog::isValidRomName(const string& name,
   {
     const char* ext = name.c_str() + idx + 1;
 
-    for(uInt32 i = 0; i < exts.size(); ++i)
-      if(BSPF_equalsIgnoreCase(ext, exts[i]))
+    for(const auto& s: exts)
+      if(BSPF_equalsIgnoreCase(ext, s))
         return true;
   }
 

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SoundNull.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SoundNull.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SOUND_NULL_HXX
@@ -31,7 +31,7 @@ class OSystem;
   is completely disabled.
 
   @author Stephen Anthony
-  @version $Id: SoundNull.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: SoundNull.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class SoundNull : public Sound
 {
@@ -40,7 +40,7 @@ class SoundNull : public Sound
       Create a new sound object.  The init method must be invoked before
       using the object.
     */
-    SoundNull(OSystem* osystem) : Sound(osystem)
+    SoundNull(OSystem& osystem) : Sound(osystem)
     {
       myOSystem->logMessage("Sound disabled.\n", 1);
     }
@@ -48,7 +48,7 @@ class SoundNull : public Sound
     /**
       Destructor
     */
-    virtual ~SoundNull();
+    virtual ~SoundNull() { }
 
   public: 
     /**

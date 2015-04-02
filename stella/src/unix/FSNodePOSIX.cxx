@@ -8,41 +8,16 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: FSNodePOSIX.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: FSNodePOSIX.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "FSNodePOSIX.hxx"
-
-/**
- * Returns the last component of a given path.
- *
- * Examples:
- *			/foo/bar.txt would return /bar.txt
- *			/foo/bar/    would return /bar/
- *
- * @param str String containing the path.
- * @return Pointer to the first char of the last component inside str.
- */
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const char* lastPathComponent(const string& str)
-{
-  if(str.empty())
-    return "";
-
-  const char *start = str.c_str();
-  const char *cur = start + str.size() - 2;
-
-  while (cur >= start && *cur != '/')
-    --cur;
-
-  return cur + 1;
-}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void FilesystemNodePOSIX::setFlags()
@@ -121,8 +96,8 @@ bool FilesystemNodePOSIX::getChildren(AbstractFSList& myList, ListMode mode,
 {
   assert(_isDirectory);
 
-  DIR *dirp = opendir(_path.c_str());
-  struct dirent *dp;
+  DIR* dirp = opendir(_path.c_str());
+  struct dirent* dp;
 
   if (dirp == NULL)
     return false;
@@ -195,7 +170,7 @@ bool FilesystemNodePOSIX::getChildren(AbstractFSList& myList, ListMode mode,
         (mode == FilesystemNode::kListDirectoriesOnly && !entry._isDirectory))
       continue;
 
-    myList.push_back(new FilesystemNodePOSIX(entry));
+    myList.emplace_back(new FilesystemNodePOSIX(entry));
   }
   closedir(dirp);
 
@@ -254,10 +229,10 @@ bool FilesystemNodePOSIX::rename(const string& newfile)
 AbstractFSNode* FilesystemNodePOSIX::getParent() const
 {
   if (_path == "/")
-    return 0;
+    return nullptr;
 
-  const char *start = _path.c_str();
-  const char *end = lastPathComponent(_path);
+  const char* start = _path.c_str();
+  const char* end = lastPathComponent(_path);
 
   return new FilesystemNodePOSIX(string(start, end - start));
 }

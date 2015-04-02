@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ToggleWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ToggleWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -30,6 +30,8 @@ ToggleWidget::ToggleWidget(GuiObject* boss, const GUI::Font& font,
     _cols(cols),
     _currentRow(0),
     _currentCol(0),
+    _rowHeight(0),
+    _colWidth(0),
     _selectedItem(0),
     _editable(true)
 {
@@ -93,7 +95,7 @@ int ToggleWidget::findItem(int x, int y)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool ToggleWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+bool ToggleWidget::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Ignore all mod keys
   if(instance().eventHandler().kbdControl(mod) ||

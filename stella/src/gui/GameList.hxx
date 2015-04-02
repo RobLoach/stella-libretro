@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: GameList.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: GameList.hxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from KStella - Stella frontend
 //   Copyright (C) 2003-2005 Stephen Anthony
@@ -23,7 +23,6 @@
 #ifndef GAME_LIST_HXX
 #define GAME_LIST_HXX
 
-#include <vector>
 #include "bspf.hxx"
 
 /**
@@ -32,8 +31,7 @@
 class GameList
 {
   public:
-    GameList();
-    ~GameList();
+    GameList() { }
 
     const string& name(uInt32 i) const
       { return i < myArray.size() ? myArray[i]._name : EmptyString; }
@@ -47,11 +45,13 @@ class GameList
     void setMd5(uInt32 i, const string& md5)
       { myArray[i]._md5 = md5; }
 
-    int size() const { return myArray.size(); }
+    uInt32 size() const { return (uInt32)myArray.size(); }
     void clear() { myArray.clear(); }
 
     void appendGame(const string& name, const string& path, const string& md5,
-                    bool isDir = false);
+                    bool isDir = false) {
+      myArray.emplace_back(name, path, md5, isDir);
+    };
     void sortByName();
 
   private:
@@ -62,11 +62,7 @@ class GameList
       bool   _isdir;
 
       Entry(string name, string path, string md5, bool isdir)
-      {
-        _name = name;  _path = path;  _md5 = md5;  _isdir = isdir;
-      }
-
-      bool operator < (const Entry& a) const;
+        : _name(name), _path(path), _md5(md5), _isdir(isdir) { }
     };
     vector<Entry> myArray;
 };

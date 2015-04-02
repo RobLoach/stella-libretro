@@ -42,7 +42,7 @@
     <ClCompile Include="..\..\stella\Settings.cpp">
       <Filter>Source Files\stella</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\stella\SoundSDL.cpp">
+    <ClCompile Include="..\..\stella\SoundSDL2.cpp">
       <Filter>Source Files\stella</Filter>
     </ClCompile>
     <ClCompile Include="..\..\stella\cart\Cart.cpp">

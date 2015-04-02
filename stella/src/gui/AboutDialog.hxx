@@ -8,19 +8,17 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: AboutDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: AboutDialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef ABOUT_DIALOG_HXX
 #define ABOUT_DIALOG_HXX
-
-#include "Array.hxx"
 
 class OSystem;
 class DialogContainer;
@@ -32,25 +30,25 @@ class StaticTextWidget;
 class AboutDialog : public Dialog
 {
   public:
-    AboutDialog(OSystem* osystem, DialogContainer* parent,
+    AboutDialog(OSystem& osystem, DialogContainer& parent,
                 const GUI::Font& font);
-    ~AboutDialog();
+    virtual ~AboutDialog();
 
   protected:
     ButtonWidget* myNextButton;
     ButtonWidget* myPrevButton;
 
     StaticTextWidget* myTitle;
-    Common::Array<StaticTextWidget*> myDesc;
-    Common::Array<string> myDescStr;
+    vector<StaticTextWidget*> myDesc;
+    vector<string> myDescStr;
 
     int myPage;
     int myNumPages;
     int myLinesPerPage;
 
   private:
-    virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
-    virtual void updateStrings(int page, int lines, string& title);
+    void handleCommand(CommandSender* sender, int cmd, int data, int id);
+    void updateStrings(int page, int lines, string& title);
     void displayInfo();
 
     void loadConfig() { displayInfo(); }

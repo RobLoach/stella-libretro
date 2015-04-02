@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartFA2Widget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartFA2Widget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartFA2.hxx"
@@ -52,14 +52,14 @@ CartridgeFA2Widget::CartridgeFA2Widget(
                 info.str(), 15) + myLineHeight;
 
   VariantList items;
-  items.push_back("0 ($FF5)");
-  items.push_back("1 ($FF6)");
-  items.push_back("2 ($FF7)");
-  items.push_back("3 ($FF8)");
-  items.push_back("4 ($FF9)");
-  items.push_back("5 ($FFA)");
+  VarList::push_back(items, "0 ($FF5)");
+  VarList::push_back(items, "1 ($FF6)");
+  VarList::push_back(items, "2 ($FF7)");
+  VarList::push_back(items, "3 ($FF8)");
+  VarList::push_back(items, "4 ($FF9)");
+  VarList::push_back(items, "5 ($FFA)");
   if(cart.bankCount() == 7)
-    items.push_back("6 ($FFB)");
+    VarList::push_back(items, "6 ($FFB)");
 
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth("0 ($FFx) "),
@@ -95,6 +95,17 @@ CartridgeFA2Widget::CartridgeFA2Widget(
                      "Save", kFlashSave);
   myFlashSave->setTarget(this);
   addFocusWidget(myFlashSave);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void CartridgeFA2Widget::saveOldState()
+{
+  myOldState.internalram.clear();
+  
+  for(uInt32 i = 0; i < this->internalRamSize();i++)
+  {
+    myOldState.internalram.push_back(myCart.myRAM[i]);
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -144,4 +155,63 @@ string CartridgeFA2Widget::bankState()
       << ", hotspot = " << spot[myCart.myCurrentBank];
 
   return buf.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeFA2Widget::internalRamSize() 
+{
+  return 256;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeFA2Widget::internalRamRPort(int start)
+{
+  return 0xF100 + start;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string CartridgeFA2Widget::internalRamDescription() 
+{
+  ostringstream desc;
+  desc << "$F000 - $F0FF used for Write Access\n"
+       << "$F100 - $F1FF used for Read Access";
+  
+  return desc.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeFA2Widget::internalRamOld(int start, int count)
+{
+  myRamOld.clear();
+  for(int i = 0; i < count; i++)
+    myRamOld.push_back(myOldState.internalram[start + i]);
+  return myRamOld;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeFA2Widget::internalRamCurrent(int start, int count)
+{
+  myRamCurrent.clear();
+  for(int i = 0; i < count; i++)
+    myRamCurrent.push_back(myCart.myRAM[start + i]);
+  return myRamCurrent;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void CartridgeFA2Widget::internalRamSetValue(int addr, uInt8 value)
+{
+  myCart.myRAM[addr] = value;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt8 CartridgeFA2Widget::internalRamGetValue(int addr)
+{
+  return myCart.myRAM[addr];
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string CartridgeFA2Widget::internalRamLabel(int addr) 
+{
+  CartDebug& dbg = instance().debugger().cartDebug();
+  return dbg.getLabel(addr + 0xF100, false);
 }

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ComboDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ComboDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -28,7 +28,6 @@
 #include "OSystem.hxx"
 #include "EditTextWidget.hxx"
 #include "PopUpWidget.hxx"
-#include "StringList.hxx"
 #include "Widget.hxx"
 
 #include "ComboDialog.hxx"
@@ -36,15 +35,9 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ComboDialog::ComboDialog(GuiObject* boss, const GUI::Font& font,
                          const VariantList& combolist)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 0, 0),
+  : Dialog(boss->instance(), boss->parent()),
     myComboEvent(Event::NoType)
 {
-#define ADD_EVENT_POPUP(IDX, LABEL) \
-  myEvents[IDX] = new PopUpWidget(this, font, xpos, ypos,  \
-                    pwidth, lineHeight, combolist, LABEL); \
-  wid.push_back(myEvents[IDX]); \
-  ypos += lineHeight + 4;
-
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
             fontHeight   = font.getFontHeight(),
@@ -60,8 +53,8 @@ ComboDialog::ComboDialog(GuiObject* boss, const GUI::Font& font,
 
   // Get maximum width of popupwidget
   int pwidth = 0;
-  for(uInt32 i = 0; i < combolist.size(); ++i)
-    pwidth = BSPF_max(font.getStringWidth(combolist[i].first), pwidth);
+  for(const auto& s: combolist)
+    pwidth = BSPF_max(font.getStringWidth(s.first), pwidth);
 
   // Label for dialog, indicating which combo is being changed
   myComboName = new StaticTextWidget(this, font, xpos, ypos, _w - xpos - 10,
@@ -69,6 +62,14 @@ ComboDialog::ComboDialog(GuiObject* boss, const GUI::Font& font,
   ypos += (lineHeight + 4) + 5;
 
   // Add event popup for 8 events
+  auto ADD_EVENT_POPUP = [&](int idx, const string& label)
+  {
+    myEvents[idx] = new PopUpWidget(this, font, xpos, ypos,
+                        pwidth, lineHeight, combolist, label);
+    wid.push_back(myEvents[idx]);
+    ypos += lineHeight + 4;
+  };
+
   xpos = 10;
   ADD_EVENT_POPUP(0, "Event 1: ");
   ADD_EVENT_POPUP(1, "Event 2: ");
@@ -111,10 +112,9 @@ void ComboDialog::show(Event::Type event, const string& name)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void ComboDialog::loadConfig()
 {
-  StringList events;
-  instance().eventHandler().getComboListForEvent(myComboEvent, events);
+  StringList events = instance().eventHandler().getComboListForEvent(myComboEvent);
 
-  int size = BSPF_min(events.size(), 8u);
+  int size = BSPF_min((int)events.size(), 8);
   for(int i = 0; i < size; ++i)
     myEvents[i]->setSelected("", events[i]);
 

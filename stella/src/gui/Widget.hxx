@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Widget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Widget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from ScummVM - Scumm Interpreter
 //   Copyright (C) 2002-2004 The ScummVM project
@@ -29,7 +29,6 @@
 
 #include "bspf.hxx"
 
-#include "Array.hxx"
 #include "Event.hxx"
 #include "Font.hxx"
 #include "FrameBuffer.hxx"
@@ -54,7 +53,7 @@ enum {
   This is the base class for all widgets.
   
   @author  Stephen Anthony
-  @version $Id: Widget.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Widget.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Widget : public GuiObject
 {
@@ -67,8 +66,9 @@ class Widget : public GuiObject
     virtual int getAbsX() const  { return _x + _boss->getChildX(); }
     virtual int getAbsY() const  { return _y + _boss->getChildY(); }
 
-    virtual bool handleKeyDown(StellaKey key, StellaMod mod, char ascii) { return false; }
-    virtual bool handleKeyUp(StellaKey key, StellaMod mod, char ascii)   { return false; }
+    virtual bool handleText(char text)                       { return false; }
+    virtual bool handleKeyDown(StellaKey key, StellaMod mod) { return false; }
+    virtual bool handleKeyUp(StellaKey key, StellaMod mod)   { return false; }
     virtual void handleMouseDown(int x, int y, int button, int clickCount) {}
     virtual void handleMouseUp(int x, int y, int button, int clickCount) {}
     virtual void handleMouseEntered(int button) {}
@@ -251,7 +251,7 @@ class CheckboxWidget : public ButtonWidget
 class SliderWidget : public ButtonWidget
 {
   public:
-    SliderWidget(GuiObject *boss, const GUI::Font& font,
+    SliderWidget(GuiObject* boss, const GUI::Font& font,
                  int x, int y, int w, int h, const string& label = "",
                  int labelWidth = 0, int cmd = 0);
 

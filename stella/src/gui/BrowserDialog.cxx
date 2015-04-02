@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: BrowserDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: BrowserDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -39,8 +39,10 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 BrowserDialog::BrowserDialog(GuiObject* boss, const GUI::Font& font,
                              int max_w, int max_h)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 0, 0),
-    CommandSender(boss)
+  : Dialog(boss->instance(), boss->parent()),
+    CommandSender(boss),
+    _cmd(0),
+    _mode(FileSave)
 {
   // Set real dimensions
   _w = max_w;
@@ -92,7 +94,7 @@ BrowserDialog::BrowserDialog(GuiObject* boss, const GUI::Font& font,
                      buttonWidth, buttonHeight, "Base Dir", kBaseDirCmd);
   addFocusWidget(_basedirButton);
 
-#ifndef MAC_OSX
+#ifndef BSPF_MAC_OSX
   b = new ButtonWidget(this, font, _w - 2 * (buttonWidth + 7), _h - buttonHeight - 10,
                        buttonWidth, buttonHeight, "Choose", kChooseCmd);
   addFocusWidget(b);

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cart4A50Widget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Cart4A50Widget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Cart4A50.hxx"
@@ -42,20 +42,20 @@ Cartridge4A50Widget::Cartridge4A50Widget(
 
   VariantList items16, items32, items128, items256;
   for(uInt32 i = 0; i < 16; ++i)
-    items16.push_back(i);
-  items16.push_back("Inactive", "");
+    VarList::push_back(items16, i);
+  VarList::push_back(items16, "Inactive", "");
 
   for(uInt32 i = 0; i < 32; ++i)
-    items32.push_back(i);
-  items32.push_back("Inactive", "");
+    VarList::push_back(items32, i);
+  VarList::push_back(items32, "Inactive", "");
 
   for(uInt32 i = 0; i < 128; ++i)
-    items128.push_back(i);
-  items128.push_back("Inactive", "");
+    VarList::push_back(items128, i);
+  VarList::push_back(items128, "Inactive", "");
 
   for(uInt32 i = 0; i < 256; ++i)
-    items256.push_back(i);
-  items256.push_back("Inactive", "");
+    VarList::push_back(items256, i);
+  VarList::push_back(items256, "Inactive", "");
 
   string lowerlabel  = "Set lower 2K region ($F000 - $F7FF): ";
   string middlelabel = "Set middle 1.5K region ($F800 - $FDFF): ";

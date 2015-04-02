@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartF6SCWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartF6SCWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEF6SC_WIDGET_HXX
@@ -34,15 +34,30 @@ class CartridgeF6SCWidget : public CartDebugWidget
                         CartridgeF6SC& cart);
     virtual ~CartridgeF6SCWidget() { }
 
+    void saveOldState();
     void loadConfig();
     void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
     string bankState();
+  
+    // start of functions for Cartridge RAM tab
+    uInt32 internalRamSize();
+    uInt32 internalRamRPort(int start);
+    string internalRamDescription(); 
+    const ByteArray& internalRamOld(int start, int count);
+    const ByteArray& internalRamCurrent(int start, int count);
+    void internalRamSetValue(int addr, uInt8 value);
+    uInt8 internalRamGetValue(int addr);
+    string internalRamLabel(int addr);
+    // end of functions for Cartridge RAM tab   
 
   private:
+    struct CartState {
+      ByteArray internalram;
+    };  
     CartridgeF6SC& myCart;
     PopUpWidget* myBank;
-
+    CartState myOldState;
     enum { kBankChanged = 'bkCH' };
 };
 

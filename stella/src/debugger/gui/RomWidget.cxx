@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RomWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RomWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -27,7 +27,6 @@
 #include "DataGridWidget.hxx"
 #include "EditTextWidget.hxx"
 #include "PopUpWidget.hxx"
-#include "StringList.hxx"
 #include "ContextMenu.hxx"
 #include "RomListWidget.hxx"
 #include "RomWidget.hxx"
@@ -46,9 +45,9 @@ RomWidget::RomWidget(GuiObject* boss, const GUI::Font& lfont, const GUI::Font& n
   // Show current bank state
   xpos = x;  ypos = y + 7;
   t = new StaticTextWidget(boss, lfont, xpos, ypos,
-                           lfont.getStringWidth("Bank state: "),
+                           lfont.getStringWidth("Bank:"),
                            lfont.getFontHeight(),
-                           "Bank state: ", kTextAlignLeft);
+                           "Bank:", kTextAlignLeft);
 
   xpos += t->getWidth() + 5;
   myBank = new EditTextWidget(boss, nfont, xpos, ypos-1,
@@ -79,7 +78,7 @@ void RomWidget::loadConfig()
   myListIsDirty |= cart.disassemble(myListIsDirty);
   if(myListIsDirty)
   {
-    myRomList->setList(cart.disassembly(), dbg.breakpoints());
+    myRomList->setList(cart.disassembly(), dbg.breakPoints());
     myListIsDirty = false;
   }
 

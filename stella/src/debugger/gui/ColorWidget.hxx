@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ColorWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ColorWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef COLOR_WIDGET_HXX
@@ -31,7 +31,7 @@ class GuiObject;
   be expanded with a TIA palette table, to set the color visually.
   
   @author  Stephen Anthony
-  @version $Id: ColorWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: ColorWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class ColorWidget : public Widget, public CommandSender
 {

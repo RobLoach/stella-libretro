@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DataGridWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DataGridWidget.cxx 3147 2015-02-09 19:32:28Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -46,8 +46,8 @@ DataGridWidget::DataGridWidget(GuiObject* boss, const GUI::Font& font,
     _base(base),
     _selectedItem(0),
     _currentKeyDown(KBDK_UNKNOWN),
-    _opsWidget(NULL),
-    _scrollBar(NULL)
+    _opsWidget(nullptr),
+    _scrollBar(nullptr)
 {
   _flags = WIDGET_ENABLED | WIDGET_CLEARBG | WIDGET_RETAIN_FOCUS |
            WIDGET_WANTS_RAWDATA;
@@ -99,7 +99,7 @@ cerr << "alist.size() = "     << alist.size()
      << ", changed.size() = " << changed.size()
      << ", _rows*_cols = "    << _rows * _cols << endl << endl;
 */
-  int size = vlist.size();  // assume the alist is the same size
+  int size = (int)vlist.size();  // assume the alist is the same size
   assert(size == _rows * _cols);
 
   _addrList.clear();
@@ -280,7 +280,18 @@ int DataGridWidget::findItem(int x, int y)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool DataGridWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+bool DataGridWidget::handleText(char text)
+{
+  if(_editMode)
+  {
+    // Class EditableWidget handles all text editing related key presses for us
+    return EditableWidget::handleText(text);
+  }
+  return false;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+bool DataGridWidget::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Ignore all mod keys
   if(instance().eventHandler().kbdControl(mod) ||
@@ -292,14 +303,11 @@ bool DataGridWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
 
   if (_editMode)
   {
-    // Class EditableWidget handles all text editing related key presses for us
-    handled = EditableWidget::handleKeyDown(key, mod, ascii);
-    if(handled)
-      setDirty(); draw();
+    // Class EditableWidget handles all single-key presses for us
+    handled = EditableWidget::handleKeyDown(key, mod);
   }
   else
   {
-    // not editmode
     switch(key)
     {
       case KBDK_RETURN:
@@ -404,57 +412,45 @@ bool DataGridWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
         }
         break;
 
-      case KBDK_n: // negate
+      case KBDK_N: // negate
         if(_editable)
           negateCell();
         break;
 
+      case KBDK_I: // invert
+        if(_editable)
+          invertCell();
+        break;
+
+      case KBDK_MINUS: // decrement
+      case KBDK_KP_MINUS:
+        if(_editable)
+          decrementCell();
+        break;
+
+      case KBDK_EQUALS: // increment
+      case KBDK_KP_PLUS:
+        if(_editable)
+          incrementCell();
+        break;
+
+      case KBDK_COMMA: // shift left
+        if(_editable)
+          lshiftCell();
+        break;
+
+      case KBDK_PERIOD: // shift right
+        if(_editable)
+          rshiftCell();
+        break;
+
+      case KBDK_Z: // zero
+        if(_editable)
+          zeroCell();
+        break;
+
       default:
         handled = false;
-    }
-    if(!handled)
-    {
-      handled = true;
-
-      switch(ascii)
-      {
-        case 'i': // invert
-        case '!':
-          if(_editable)
-            invertCell();
-          break;
-
-        case '-': // decrement
-          if(_editable)
-            decrementCell();
-          break;
-
-        case '+': // increment
-        case '=':
-          if(_editable)
-            incrementCell();
-          break;
-
-        case '<': // shift left
-        case ',':
-          if(_editable)
-            lshiftCell();
-          break;
-
-        case '>': // shift right
-        case '.':
-          if(_editable)
-            rshiftCell();
-          break;
-
-        case 'z': // zero
-          if(_editable)
-            zeroCell();
-          break;
-
-        default:
-          handled = false;
-      }
     }
   }
 
@@ -474,7 +470,7 @@ bool DataGridWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool DataGridWidget::handleKeyUp(StellaKey key, StellaMod mod, char ascii)
+bool DataGridWidget::handleKeyUp(StellaKey key, StellaMod mod)
 {
   if (key == _currentKeyDown)
     _currentKeyDown = KBDK_UNKNOWN;
@@ -506,7 +502,7 @@ void DataGridWidget::lostFocusWidget()
 void DataGridWidget::handleCommand(CommandSender* sender, int cmd,
                                    int data, int id)
 {
-  switch (cmd)
+  switch(cmd)
   {
     case kSetPositionCmd:
       // Chain access; pass to parent
@@ -548,7 +544,7 @@ void DataGridWidget::drawWidget(bool hilite)
 {
 //cerr << "DataGridWidget::drawWidget\n";
   FBSurface& s = _boss->dialog().surface();
-  int row, col, deltax;
+  int row, col;
 
   // Draw the internal grid and labels
   int linewidth = _cols * _colWidth;
@@ -575,15 +571,12 @@ void DataGridWidget::drawWidget(bool hilite)
       if (_selectedItem == pos && _editMode)
       {
         adjustOffset();
-        deltax = -_editScrollOffset;
 
         s.drawString(_font, _editString, x, y, _colWidth, kTextColor,
-                     kTextAlignLeft, deltax, false);
+                     kTextAlignLeft, -_editScrollOffset, false);
       }
       else
       {
-        deltax = 0;
-
         uInt32 color = kTextColor;
         if(_changedList[pos])
         {

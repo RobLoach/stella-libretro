@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TIA.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TIA.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <cassert>
@@ -168,8 +168,7 @@ void TIA::frameReset()
   // framebuffer that is exposed outside the class actually starts at 'ystart'
   myFramePointerOffset = 160 * myFrameYStart;
 
-  //myAutoFrameEnabled = (mySettings.getFloat("framerate") <= 0);
-  myAutoFrameEnabled = false;
+  myAutoFrameEnabled = (mySettings.getInt("framerate") <= 0);
   myFramerate = myConsole.getFramerate();
 
   if(myFramerate > 55.0)  // NTSC
@@ -253,16 +252,13 @@ void TIA::install(System& system, Device& device)
   // Remember which system I'm installed in
   mySystem = &system;
 
-  uInt16 shift = mySystem->pageShift();
-  mySystem->resetCycles();
-
   // All accesses are to the given device
-  System::PageAccess access(0, 0, 0, &device, System::PA_READWRITE);
+  System::PageAccess access(&device, System::PA_READWRITE);
 
   // We're installing in a 2600 system
-  for(uInt32 i = 0; i < 8192; i += (1 << shift))
+  for(uInt32 i = 0; i < 8192; i += (1 << System::PAGE_SHIFT))
     if((i & 0x1080) == 0x0000)
-      mySystem->setPageAccess(i >> shift, access);
+      mySystem->setPageAccess(i >> System::PAGE_SHIFT, access);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1325,27 +1321,27 @@ uInt8 TIA::peek(uInt16 addr)
 
     case INPT0:
       value = (value & 0x7F) |
-        dumpedInputPort(myConsole.controller(Controller::Left).read(Controller::Nine));
+        dumpedInputPort(myConsole.leftController().read(Controller::Nine));
       break;
 
     case INPT1:
       value = (value & 0x7F) |
-        dumpedInputPort(myConsole.controller(Controller::Left).read(Controller::Five));
+        dumpedInputPort(myConsole.leftController().read(Controller::Five));
       break;
 
     case INPT2:
       value = (value & 0x7F) |
-        dumpedInputPort(myConsole.controller(Controller::Right).read(Controller::Nine));
+        dumpedInputPort(myConsole.rightController().read(Controller::Nine));
       break;
 
     case INPT3:
       value = (value & 0x7F) |
-        dumpedInputPort(myConsole.controller(Controller::Right).read(Controller::Five));
+        dumpedInputPort(myConsole.rightController().read(Controller::Five));
       break;
 
     case INPT4:
     {
-      uInt8 button = (myConsole.controller(Controller::Left).read(Controller::Six) ? 0x80 : 0x00);
+      uInt8 button = (myConsole.leftController().read(Controller::Six) ? 0x80 : 0x00);
       myINPT4 = (myVBLANK & 0x40) ? (myINPT4 & button) : button;
 
       value = (value & 0x7F) | myINPT4;
@@ -1354,7 +1350,7 @@ uInt8 TIA::peek(uInt16 addr)
 
     case INPT5:
     {
-      uInt8 button = (myConsole.controller(Controller::Right).read(Controller::Six) ? 0x80 : 0x00);
+      uInt8 button = (myConsole.rightController().read(Controller::Six) ? 0x80 : 0x00);
       myINPT5 = (myVBLANK & 0x40) ? (myINPT5 & button) : button;
 
       value = (value & 0x7F) | myINPT5;
@@ -2419,20 +2415,4 @@ inline void TIA::applyPreviousHMOVEMotion(int hpos, Int16& pos, uInt8 motion)
       pos -= (motclk - motclk_passed);
     }
   }
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-TIA::TIA(const TIA& c)
-  : myConsole(c.myConsole),
-    mySound(c.mySound),
-    mySettings(c.mySettings)
-{
-  assert(false);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-TIA& TIA::operator = (const TIA&)
-{
-  assert(false);
-  return *this;
 }

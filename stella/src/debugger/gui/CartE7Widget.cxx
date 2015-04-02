@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartE7Widget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartE7Widget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartE7.hxx"
@@ -46,7 +46,7 @@ CartridgeE7Widget::CartridgeE7Widget(
        << "    $F400 - $F7FF (R), $F000 - $F3FF (W)\n"
        << "256B RAM accessible @ $F800 - $F9FF\n"
        << "  Hotspots $FE8 - $FEB (256B of RAM slice 1)\n"
-       << "    $F400 - $F7FF (R), $F000 - $F3FF (W)\n"
+       << "    $F900 - $F9FF (R), $F800 - $F8FF (W)\n"
        << "Upper 1.5K ROM accessible @ $FA00 - $FFFF\n"
        << "  Always points to last 1.5K of ROM\n"
        << "Startup slices = " << cart.myStartBank << " / 0\n";
@@ -63,9 +63,9 @@ CartridgeE7Widget::CartridgeE7Widget(
 
   VariantList items0, items1;
   for(int i = 0; i < 8; ++i)
-    items0.push_back(spot_lower[i]);
+    VarList::push_back(items0, spot_lower[i]);
   for(int i = 0; i < 4; ++i)
-    items1.push_back(spot_upper[i]);
+    VarList::push_back(items1, spot_upper[i]);
 
   const int lwidth = _font.getStringWidth("Set slice for upper 256B: "),
             fwidth = _font.getStringWidth("3 - RAM ($FEB)");
@@ -81,6 +81,17 @@ CartridgeE7Widget::CartridgeE7Widget(
                     "Set slice for upper 256B: ", lwidth, kUpperChanged);
   myUpper256B->setTarget(this);
   addFocusWidget(myUpper256B);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void CartridgeE7Widget::saveOldState()
+{
+  myOldState.internalram.clear();
+  
+  for(uInt32 i = 0; i < this->internalRamSize();i++)
+  {
+    myOldState.internalram.push_back(myCart.myRAM[i]);
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -122,4 +133,60 @@ string CartridgeE7Widget::bankState()
       << spot_upper[myCart.myCurrentRAM];
 
   return buf.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeE7Widget::internalRamSize() 
+{
+  return 2048;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeE7Widget::internalRamRPort(int start)
+{
+  return 0x0000 + start;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string CartridgeE7Widget::internalRamDescription() 
+{
+  ostringstream desc;
+  desc << "First 1K accessible via:\n"
+       << "  $F000 - $F3FF used for Write Access\n"
+       << "  $F400 - $F7FF used for Read Access\n"
+       << "256K of second 1K accessible via:\n"
+       << "  $F800 - $F8FF used for Write Access\n"
+       << "  $F900 - $F9FF used for Read Access"  ;
+  
+  return desc.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeE7Widget::internalRamOld(int start, int count)
+{
+  myRamOld.clear();
+  for(int i = 0; i < count; i++)
+    myRamOld.push_back(myOldState.internalram[start + i]);
+  return myRamOld;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeE7Widget::internalRamCurrent(int start, int count)
+{
+  myRamCurrent.clear();
+  for(int i = 0; i < count; i++)
+    myRamCurrent.push_back(myCart.myRAM[start + i]);
+  return myRamCurrent;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void CartridgeE7Widget::internalRamSetValue(int addr, uInt8 value)
+{
+  myCart.myRAM[addr] = value;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt8 CartridgeE7Widget::internalRamGetValue(int addr)
+{
+  return myCart.myRAM[addr];
 }

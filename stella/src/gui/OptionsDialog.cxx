@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: OptionsDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: OptionsDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -42,27 +42,13 @@
 
 #include "bspf.hxx"
 
-#define addODButton(label, cmd) \
-  new ButtonWidget(this, font, xoffset, yoffset, buttonWidth, buttonHeight, label, cmd); yoffset += rowHeight
-
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-OptionsDialog::OptionsDialog(OSystem* osystem, DialogContainer* parent,
+OptionsDialog::OptionsDialog(OSystem& osystem, DialogContainer& parent,
                              GuiObject* boss, int max_w, int max_h, bool global)
-  : Dialog(osystem, parent, 0, 0, 0, 0),
-    myVideoDialog(NULL),
-    myAudioDialog(NULL),
-    myInputDialog(NULL),
-    myUIDialog(NULL),
-    mySnapshotDialog(NULL),
-    myConfigPathDialog(NULL),
-    myGameInfoDialog(NULL),
-    myCheatCodeDialog(NULL),
-    myLoggerDialog(NULL),
-    myHelpDialog(NULL),
-    myAboutDialog(NULL),
+  : Dialog(osystem, parent),
     myIsGlobal(global)
 {
-  const GUI::Font& font = instance().font();
+  const GUI::Font& font = instance().frameBuffer().font();
   const int buttonWidth = font.getStringWidth("Snapshot Settings") + 20,
             buttonHeight = font.getLineHeight() + 6,
             rowHeight = font.getLineHeight() + 10;
@@ -72,72 +58,80 @@ OptionsDialog::OptionsDialog(OSystem* osystem, DialogContainer* parent,
 
   int xoffset = 10, yoffset = 10;
   WidgetArray wid;
-  ButtonWidget* b = NULL;
+  ButtonWidget* b = nullptr;
 
-  b = addODButton("Video Settings", kVidCmd);
+  auto ADD_OD_BUTTON = [&](const string& label, int cmd)
+  {
+    ButtonWidget* bw = new ButtonWidget(this, font, xoffset, yoffset,
+            buttonWidth, buttonHeight, label, cmd);
+    yoffset += rowHeight;
+    return bw;
+  };
+
+  b = ADD_OD_BUTTON("Video Settings", kVidCmd);
   wid.push_back(b);
 
-  b = addODButton("Audio Settings", kAudCmd);
+  b = ADD_OD_BUTTON("Audio Settings", kAudCmd);
 #ifndef SOUND_SUPPORT
   b->clearFlags(WIDGET_ENABLED);
 #endif
   wid.push_back(b);
 
-  b = addODButton("Input Settings", kInptCmd);
+  b = ADD_OD_BUTTON("Input Settings", kInptCmd);
   wid.push_back(b);
 
-  b = addODButton("UI Settings", kUsrIfaceCmd);
+  b = ADD_OD_BUTTON("UI Settings", kUsrIfaceCmd);
   wid.push_back(b);
 
-  b = addODButton("Snapshot Settings", kSnapCmd);
+  b = ADD_OD_BUTTON("Snapshot Settings", kSnapCmd);
   wid.push_back(b);
 
-  b = addODButton("Config Paths", kCfgPathsCmd);
+  b = ADD_OD_BUTTON("Config Paths", kCfgPathsCmd);
   wid.push_back(b);
 
-  myRomAuditButton = addODButton("Audit ROMs", kAuditCmd);
+  myRomAuditButton = ADD_OD_BUTTON("Audit ROMs", kAuditCmd);
   wid.push_back(myRomAuditButton);
 
   // Move to second column
   xoffset += buttonWidth + 10;  yoffset = 10;
 
-  myGameInfoButton = addODButton("Game Properties", kInfoCmd);
+  myGameInfoButton = ADD_OD_BUTTON("Game Properties", kInfoCmd);
   wid.push_back(myGameInfoButton);
 
-  myCheatCodeButton = addODButton("Cheat Code", kCheatCmd);
+  myCheatCodeButton = ADD_OD_BUTTON("Cheat Code", kCheatCmd);
 #ifndef CHEATCODE_SUPPORT
   myCheatCodeButton->clearFlags(WIDGET_ENABLED);
 #endif
   wid.push_back(myCheatCodeButton);
 
-  b = addODButton("System Logs", kLoggerCmd);
+  b = ADD_OD_BUTTON("System Logs", kLoggerCmd);
   wid.push_back(b);
 
-  b = addODButton("Help", kHelpCmd);
+  b = ADD_OD_BUTTON("Help", kHelpCmd);
   wid.push_back(b);
 
-  b = addODButton("About", kAboutCmd);
+  b = ADD_OD_BUTTON("About", kAboutCmd);
   wid.push_back(b);
 
-  b = addODButton("Exit Menu", kExitCmd);
+  b = ADD_OD_BUTTON("Exit Menu", kExitCmd);
   wid.push_back(b);
   addCancelWidget(b);
 
   // Now create all the dialogs attached to each menu button
-  myVideoDialog    = new VideoDialog(osystem, parent, font, max_w, max_h);
-  myAudioDialog    = new AudioDialog(osystem, parent, font);
-  myInputDialog    = new InputDialog(osystem, parent, font, max_w, max_h);
-  myUIDialog       = new UIDialog(osystem, parent, font);
-  mySnapshotDialog = new SnapshotDialog(osystem, parent, font, boss, max_w, max_h);
-  myConfigPathDialog = new ConfigPathDialog(osystem, parent, font, boss, max_w, max_h);
-  myRomAuditDialog = new RomAuditDialog(osystem, parent, font, max_w, max_h);
-  myGameInfoDialog = new GameInfoDialog(osystem, parent, font, this);
+  myVideoDialog    = make_ptr<VideoDialog>(osystem, parent, font, max_w, max_h);
+  myAudioDialog    = make_ptr<AudioDialog>(osystem, parent, font);
+  myInputDialog    = make_ptr<InputDialog>(osystem, parent, font, max_w, max_h);
+  myUIDialog       = make_ptr<UIDialog>(osystem, parent, font);
+  mySnapshotDialog = make_ptr<SnapshotDialog>(osystem, parent, font, boss, max_w, max_h);
+  myConfigPathDialog = make_ptr<ConfigPathDialog>(osystem, parent, font, boss, max_w, max_h);
+  myRomAuditDialog = make_ptr<RomAuditDialog>(osystem, parent, font, max_w, max_h);
+  myGameInfoDialog = make_ptr<GameInfoDialog>(osystem, parent, font, this);
 #ifdef CHEATCODE_SUPPORT
-  myCheatCodeDialog = new CheatCodeDialog(osystem, parent, font);
+  myCheatCodeDialog = make_ptr<CheatCodeDialog>(osystem, parent, font);
 #endif
-  myLoggerDialog    = new LoggerDialog(osystem, parent, font, max_w, max_h);
-  myHelpDialog      = new HelpDialog(osystem, parent, font);
-  myAboutDialog     = new AboutDialog(osystem, parent, font);
+  myLoggerDialog    = make_ptr<LoggerDialog>(osystem, parent, font, max_w, max_h);
+  myHelpDialog      = make_ptr<HelpDialog>(osystem, parent, font);
+  myAboutDialog     = make_ptr<AboutDialog>(osystem, parent, font);
 
   addToFocusList(wid);
 
@@ -155,20 +149,6 @@ OptionsDialog::OptionsDialog(OSystem* osystem, DialogContainer* parent,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 OptionsDialog::~OptionsDialog()
 {
-  delete myVideoDialog;
-  delete myAudioDialog;
-  delete myInputDialog;
-  delete myUIDialog;
-  delete mySnapshotDialog;
-  delete myConfigPathDialog;
-  delete myRomAuditDialog;
-  delete myGameInfoDialog;
-#ifdef CHEATCODE_SUPPORT
-  delete myCheatCodeDialog;
-#endif
-  delete myLoggerDialog;
-  delete myHelpDialog;
-  delete myAboutDialog;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

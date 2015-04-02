@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: OSystem.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: OSystem.cxx 3148 2015-03-15 17:36:46Z stephena $
 //============================================================================
 
 #include <cassert>
@@ -39,15 +39,6 @@
   #include "CheatManager.hxx"
 #endif
 
-#include "SerialPort.hxx"
-#if defined(UNIX)
-  #include "SerialPortUNIX.hxx"
-#elif defined(WIN32)
-  #include "SerialPortWin32.hxx"
-#elif defined(MAC_OSX)
-  #include "SerialPortMACOSX.hxx"
-#endif
-
 #include "FSNode.hxx"
 #include "MD5.hxx"
 #include "Cart.hxx"
@@ -57,14 +48,10 @@
 #include "Menu.hxx"
 #include "CommandMenu.hxx"
 #include "Launcher.hxx"
-#include "Font.hxx"
-#include "StellaFont.hxx"
-#include "StellaMediumFont.hxx"
-#include "StellaLargeFont.hxx"
-#include "ConsoleFont.hxx"
 #include "Widget.hxx"
 #include "Console.hxx"
 #include "Random.hxx"
+#include "SerialPort.hxx"
 #include "StateManager.hxx"
 #include "Version.hxx"
 
@@ -72,35 +59,14 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 OSystem::OSystem()
-  : myEventHandler(NULL),
-    myFrameBuffer(NULL),
-    mySound(NULL),
-    mySettings(NULL),
-    myPropSet(NULL),
-    myConsole(NULL),
-    mySerialPort(NULL),
-    myMenu(NULL),
-    myCommandMenu(NULL),
-    myLauncher(NULL),
+  : myConsole(nullptr),
     myLauncherUsed(false),
-    myDebugger(NULL),
-    myCheatManager(NULL),
-    myStateManager(NULL),
-    myPNGLib(NULL),
-    myQuitLoop(false),
-    myRomFile(""),
-    myRomMD5(""),
-    myFeatures(""),
-    myBuildInfo(""),
-    myFont(NULL)
+    myQuitLoop(false)
 {
   // Calculate startup time
   myMillisAtStart = (uInt32)(time(NULL) * 1000);
 
   // Get built-in features
-  #ifdef DISPLAY_OPENGL
-    myFeatures += "OpenGL ";
-  #endif
   #ifdef SOUND_SUPPORT
     myFeatures += "Sound ";
   #endif
@@ -116,50 +82,21 @@ OSystem::OSystem()
 
   // Get build info
   ostringstream info;
-  const SDL_version* ver = SDL_Linked_Version();
+  SDL_version ver;
+  SDL_GetVersion(&ver);
 
-  info << "Build " << STELLA_BUILD << ", using SDL " << (int)ver->major
-       << "." << (int)ver->minor << "."<< (int)ver->patch
+  info << "Build " << STELLA_BUILD << ", using SDL " << (int)ver.major
+       << "." << (int)ver.minor << "."<< (int)ver.patch
        << " [" << BSPF_ARCH << "]";
   myBuildInfo = info.str();
+
+  mySettings = MediaFactory::createSettings(*this);
+  myRandom = make_ptr<Random>(*this);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 OSystem::~OSystem()
 {
-  delete myMenu;
-  delete myCommandMenu;
-  delete myLauncher;
-  delete myFont;
-  delete myInfoFont;
-  delete mySmallFont;
-  delete myLauncherFont;
-
-  // Remove any game console that is currently attached
-  deleteConsole();
-
-  // OSystem takes responsibility for framebuffer and sound,
-  // since it created them
-  delete myFrameBuffer;
-  delete mySound;
-
-  // These must be deleted after all the others
-  // This is a bit hacky, since it depends on ordering
-  // of d'tor calls
-#ifdef DEBUGGER_SUPPORT
-  delete myDebugger;
-#endif
-#ifdef CHEATCODE_SUPPORT
-  delete myCheatManager;
-#endif
-
-  delete myStateManager;
-  delete myPropSet;
-  delete myEventHandler;
-
-  delete mySerialPort;
-  delete myPNGLib;
-  delete myZipHandler;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -179,69 +116,32 @@ bool OSystem::create()
       << FilesystemNode(myPropertiesFile).getShortPath() << "'" << endl;
   logMessage(buf.str(), 1);
 
+  // NOTE: The framebuffer MUST be created before any other object!!!
   // Get relevant information about the video hardware
   // This must be done before any graphics context is created, since
   // it may be needed to initialize the size of graphical objects
-  if(!queryVideoHardware())
+  try        { myFrameBuffer = MediaFactory::createVideo(*this); }
+  catch(...) { return false; }
+  if(!myFrameBuffer->initialize())
     return false;
 
-  ////////////////////////////////////////////////////////////////////
-  // Create fonts to draw text
-  // NOTE: the logic determining appropriate font sizes is done here,
-  //       so that the UI classes can just use the font they expect,
-  //       and not worry about it
-  //       This logic should also take into account the size of the
-  //       framebuffer, and try to be intelligent about font sizes
-  //       We can probably add ifdefs to take care of corner cases,
-  //       but that means we've failed to abstract it enough ...
-  ////////////////////////////////////////////////////////////////////
-  bool smallScreen = myDesktopWidth < 640 || myDesktopHeight < 480;
-
-  // This font is used in a variety of situations when a really small
-  // font is needed; we let the specific widget/dialog decide when to
-  // use it
-  mySmallFont = new GUI::Font(GUI::stellaDesc);
-
-  // The general font used in all UI elements
-  // This is determined by the size of the framebuffer
-  myFont = new GUI::Font(smallScreen ? GUI::stellaDesc : GUI::stellaMediumDesc);
-
-  // The info font used in all UI elements
-  // This is determined by the size of the framebuffer
-  myInfoFont = new GUI::Font(smallScreen ? GUI::stellaDesc : GUI::consoleDesc);
-
-  // The font used by the ROM launcher
-  // Normally, this is configurable by the user, except in the case of
-  // very small screens
-  if(!smallScreen)
-  {    
-    if(mySettings->getString("launcherfont") == "small")
-      myLauncherFont = new GUI::Font(GUI::consoleDesc);
-    else if(mySettings->getString("launcherfont") == "medium")
-      myLauncherFont = new GUI::Font(GUI::stellaMediumDesc);
-    else
-      myLauncherFont = new GUI::Font(GUI::stellaLargeDesc);
-  }
-  else
-    myLauncherFont = new GUI::Font(GUI::stellaDesc);
-
   // Create the event handler for the system
-  myEventHandler = new EventHandler(this);
+  myEventHandler = MediaFactory::createEventHandler(*this);
   myEventHandler->initialize();
 
   // Create a properties set for us to use and set it up
-  myPropSet = new PropertiesSet(this);
+  myPropSet = make_ptr<PropertiesSet>(propertiesFile());
 
 #ifdef CHEATCODE_SUPPORT
-  myCheatManager = new CheatManager(this);
+  myCheatManager = make_ptr<CheatManager>(*this);
   myCheatManager->loadCheatDatabase();
 #endif
 
   // Create menu and launcher GUI objects
-  myMenu = new Menu(this);
-  myCommandMenu = new CommandMenu(this);
-  myLauncher = new Launcher(this);
-  myStateManager = new StateManager(this);
+  myMenu = make_ptr<Menu>(*this);
+  myCommandMenu = make_ptr<CommandMenu>(*this);
+  myLauncher = make_ptr<Launcher>(*this);
+  myStateManager = make_ptr<StateManager>(*this);
 
   // Create the sound object; the sound subsystem isn't actually
   // opened until needed, so this is non-blocking (on those systems
@@ -251,25 +151,13 @@ bool OSystem::create()
   // Create the serial port object
   // This is used by any controller that wants to directly access
   // a real serial port on the system
-#if defined(UNIX)
-  mySerialPort = new SerialPortUNIX();
-#elif defined(WIN32)
-  mySerialPort = new SerialPortWin32();
-#elif defined(MAC_OSX)
-  mySerialPort = new SerialPortMACOSX();
-#else
-  // Create an 'empty' serial port
-  mySerialPort = new SerialPort();
-#endif
+  mySerialPort = MediaFactory::createSerialPort();
 
-  // Let the random class know about us; it needs access to getTicks()
-  Random::setSystem(this);
+  // Re-initialize random seed
+  myRandom->initSeed();
 
   // Create PNG handler
-  myPNGLib = new PNGLibrary();
-
-  // Create ZIP handler
-  myZipHandler = new ZipHandler();
+  myPNGLib = make_ptr<PNGLibrary>(*myFrameBuffer);
 
   return true;
 }
@@ -285,20 +173,11 @@ void OSystem::saveConfig()
 {
   // Ask all subsystems to save their settings
   if(myFrameBuffer)
-    myFrameBuffer->ntsc().saveConfig(*mySettings);
+    myFrameBuffer->tiaSurface().ntsc().saveConfig(*mySettings);
 
-  mySettings->saveConfig();
+  if(mySettings)
+    mySettings->saveConfig();
 }
-
-#ifdef DEBUGGER_SUPPORT
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void OSystem::createDebugger(Console& console)
-{
-  delete myDebugger;  myDebugger = NULL;
-  myDebugger = new Debugger(*this, console);
-  myDebugger->initialize();
-}
-#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void OSystem::setConfigPaths()
@@ -335,15 +214,6 @@ void OSystem::setConfigPaths()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void OSystem::setUIPalette()
-{
-  int palette = mySettings->getInt("uipalette") - 1;
-  if(palette < 0 || palette >= kNumUIPalettes) palette = 0;
-  myFrameBuffer->setUIPalette(&ourGUIColors[palette][0]);
-  myFrameBuffer->refresh();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void OSystem::setBaseDir(const string& basedir)
 {
   FilesystemNode node(basedir);
@@ -373,18 +243,6 @@ void OSystem::setFramerate(float framerate)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 FBInitStatus OSystem::createFrameBuffer()
 {
-  // There is only ever one FrameBuffer created per run of Stella
-  // Due to the multi-surface nature of the FrameBuffer, repeatedly
-  // creating and destroying framebuffer objects causes crashes which
-  // are far too invasive to fix right now
-  // Besides, how often does one really switch between software and
-  // OpenGL rendering modes, and even when they do, does it really
-  // need to be dynamic?
-
-  bool firstTime = (myFrameBuffer == NULL);
-  if(firstTime)
-    myFrameBuffer = MediaFactory::createVideo(this);
-
   // Re-initialize the framebuffer to current settings
   FBInitStatus fbstatus = kFailComplete;
   switch(myEventHandler->state())
@@ -393,22 +251,19 @@ FBInitStatus OSystem::createFrameBuffer()
     case EventHandler::S_PAUSE:
     case EventHandler::S_MENU:
     case EventHandler::S_CMDMENU:
-      fbstatus = myConsole->initializeVideo();
-      if(fbstatus != kSuccess)
-        goto fallback;
+      if((fbstatus = myConsole->initializeVideo()) != kSuccess)
+        return fbstatus;
       break;  // S_EMULATE, S_PAUSE, S_MENU, S_CMDMENU
 
     case EventHandler::S_LAUNCHER:
-      fbstatus = myLauncher->initializeVideo();
-      if(fbstatus != kSuccess)
-        goto fallback;
+      if((fbstatus = myLauncher->initializeVideo()) != kSuccess)
+        return fbstatus;
       break;  // S_LAUNCHER
 
 #ifdef DEBUGGER_SUPPORT
     case EventHandler::S_DEBUGGER:
-      fbstatus = myDebugger->initializeVideo();
-      if(fbstatus != kSuccess)
-        goto fallback;
+      if((fbstatus = myDebugger->initializeVideo()) != kSuccess)
+        return fbstatus;
       break;  // S_DEBUGGER
 #endif
 
@@ -416,48 +271,14 @@ FBInitStatus OSystem::createFrameBuffer()
       logMessage("ERROR: Unknown emulation state in createFrameBuffer()", 0);
       break;
   }
-
-  // The following only need to be done once
-  if(firstTime)
-  {
-    // Setup the SDL joysticks (must be done after FrameBuffer is created)
-    myEventHandler->setupJoysticks();
-
-    // Update the UI palette
-    setUIPalette();
-  }
-
   return fbstatus;
-
-  // GOTO are normally considered evil, unless well documented :)
-  // If initialization of video system fails while in OpenGL mode
-  // because OpenGL is unavailable, attempt to fallback to software mode
-  // Otherwise, pass the error to the parent
-fallback:
-  if(fbstatus == kFailNotSupported && myFrameBuffer &&
-     myFrameBuffer->type() == kDoubleBuffer)
-  {
-    logMessage("ERROR: OpenGL mode failed, fallback to software", 0);
-    delete myFrameBuffer; myFrameBuffer = NULL;
-    mySettings->setValue("video", "soft");
-    FBInitStatus newstatus = createFrameBuffer();
-    if(newstatus == kSuccess)
-    {
-      setFramerate(60);
-      myFrameBuffer->showMessage("OpenGL mode failed, fallback to software",
-                                 kMiddleCenter, true);
-    }
-    return newstatus;
-  }
-  else
-    return fbstatus;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void OSystem::createSound()
 {
   if(!mySound)
-    mySound = MediaFactory::createAudio(this);
+    mySound = MediaFactory::createAudio(*this);
 #ifndef SOUND_SUPPORT
   mySettings->setValue("sound", false);
 #endif
@@ -467,9 +288,6 @@ void OSystem::createSound()
 string OSystem::createConsole(const FilesystemNode& rom, const string& md5sum,
                               bool newrom)
 {
-  // Do a little error checking; it shouldn't be necessary
-  if(myConsole) deleteConsole();
-
   bool showmessage = false;
 
   // If same ROM has been given, we reload the current one (assuming one exists)
@@ -493,11 +311,11 @@ string OSystem::createConsole(const FilesystemNode& rom, const string& md5sum,
   string type, id;
   try
   {
+    closeConsole();
     myConsole = openConsole(myRomFile, myRomMD5, type, id);
   }
   catch(const char* err_msg)
   {
-    myConsole = 0;
     buf << "ERROR: Couldn't create console (" << err_msg << ")";
     logMessage(buf.str(), 0);
     return buf.str();
@@ -506,21 +324,13 @@ string OSystem::createConsole(const FilesystemNode& rom, const string& md5sum,
   if(myConsole)
   {
   #ifdef DEBUGGER_SUPPORT
-    myConsole->addDebugger();
+    myDebugger = make_ptr<Debugger>(*this, *myConsole);
+    myDebugger->initialize();
+    myConsole->attachDebugger(*myDebugger);
   #endif
   #ifdef CHEATCODE_SUPPORT
     myCheatManager->loadCheats(myRomMD5);
   #endif
-    //////////////////////////////////////////////////////////////////////////
-    // For some reason, ATI video drivers for OpenGL in Win32 cause problems
-    // if the sound isn't initialized before the video
-    // According to the SDL documentation, it shouldn't matter what order the
-    // systems are initialized, but apparently it *does* matter
-    // For now, I'll just reverse the ordering, as suggested by 'zagon' at
-    // http://www.atariage.com/forums/index.php?showtopic=126090&view=findpost&p=1648693
-    // Hopefully it won't break anything else
-    //////////////////////////////////////////////////////////////////////////
-    myConsole->initializeAudio();
     myEventHandler->reset(EventHandler::S_EMULATE);
     myEventHandler->setMouseControllerMode(mySettings->getString("usemouse"));
     if(createFrameBuffer() != kSuccess)  // Takes care of initializeVideo()
@@ -529,6 +339,7 @@ string OSystem::createConsole(const FilesystemNode& rom, const string& md5sum,
       myEventHandler->reset(EventHandler::S_LAUNCHER);
       return "ERROR: Couldn't create framebuffer for console";
     }
+    myConsole->initializeAudio();
 
     if(showmessage)
     {
@@ -539,7 +350,7 @@ string OSystem::createConsole(const FilesystemNode& rom, const string& md5sum,
     }
     buf << "Game console created:" << endl
         << "  ROM file: " << myRomFile.getShortPath() << endl << endl
-        << getROMInfo(myConsole) << endl;
+        << getROMInfo(*myConsole) << endl;
     logMessage(buf.str(), 1);
 
     // Update the timing info for a new console run
@@ -586,41 +397,19 @@ string OSystem::createConsole(const FilesystemNode& rom, const string& md5sum,
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void OSystem::deleteConsole()
-{
-  if(myConsole)
-  {
-    mySound->close();
-  #ifdef CHEATCODE_SUPPORT
-    myCheatManager->saveCheats(myConsole->properties().get(Cartridge_MD5));
-  #endif
-    ostringstream buf;
-    double executionTime   = (double) myTimingInfo.totalTime / 1000000.0;
-    double framesPerSecond = (double) myTimingInfo.totalFrames / executionTime;
-    buf << "Game console stats:" << endl
-        << "  Total frames drawn: " << myTimingInfo.totalFrames << endl
-        << "  Total time (sec):   " << executionTime << endl
-        << "  Frames per second:  " << framesPerSecond << endl
-        << endl;
-    logMessage(buf.str(), 1);
-
-    delete myConsole;  myConsole = NULL;
-  #ifdef DEBUGGER_SUPPORT
-    delete myDebugger; myDebugger = NULL;
-  #endif
-  }
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool OSystem::reloadConsole()
 {
-  deleteConsole();
   return createConsole(myRomFile, myRomMD5, false) == EmptyString;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool OSystem::createLauncher(const string& startdir)
 {
+  closeConsole();
+
+  if(mySound)
+    mySound->close();
+
   mySettings->setValue("tmpromdir", startdir);
   bool status = false;
 
@@ -629,7 +418,6 @@ bool OSystem::createLauncher(const string& startdir)
   {
     myLauncher->reStack();
     myFrameBuffer->setCursorState();
-    myFrameBuffer->refresh();
 
     setFramerate(60);
     resetLoopTiming();
@@ -646,7 +434,7 @@ bool OSystem::createLauncher(const string& startdir)
 string OSystem::getROMInfo(const FilesystemNode& romfile)
 {
   string md5, type, id, result = "";
-  Console* console = 0;
+  unique_ptr<Console> console;
   try
   {
     console = openConsole(romfile, md5, type, id);
@@ -658,8 +446,7 @@ string OSystem::getROMInfo(const FilesystemNode& romfile)
     return buf.str();
   }
 
-  result = getROMInfo(console);
-  delete console;
+  result = getROMInfo(*console);
   return result;
 }
 
@@ -680,17 +467,13 @@ void OSystem::logMessage(const string& message, uInt8 level)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Console* OSystem::openConsole(const FilesystemNode& romfile, string& md5,
-                              string& type, string& id)
+unique_ptr<Console> OSystem::openConsole(const FilesystemNode& romfile,
+                                         string& md5, string& type, string& id)
 {
-#define CMDLINE_PROPS_UPDATE(cl_name, prop_name) \
-  s = mySettings->getString(cl_name);            \
-  if(s != "") props.set(prop_name, s);
-
-  Console* console = (Console*) NULL;
+  unique_ptr<Console> console;
 
   // Open the cartridge image and read it in
-  uInt8* image = 0;
+  uInt8* image = nullptr;
   uInt32 size  = 0;
   if((image = openROM(romfile, md5, size)) != 0)
   {
@@ -698,7 +481,13 @@ Console* OSystem::openConsole(const FilesystemNode& romfile, string& md5,
     // For initial creation of the Cart, we're only concerned with the BS type
     Properties props;
     myPropSet->getMD5(md5, props);
-    string s = "";
+
+    auto CMDLINE_PROPS_UPDATE = [&](const string& name, PropertyType prop)
+    {
+      const string& s = mySettings->getString(name);
+      if(s != "") props.set(prop, s);
+    };
+
     CMDLINE_PROPS_UPDATE("bs", Cartridge_Type);
     CMDLINE_PROPS_UPDATE("type", Cartridge_Type);
 
@@ -728,7 +517,7 @@ Console* OSystem::openConsole(const FilesystemNode& romfile, string& md5,
     CMDLINE_PROPS_UPDATE("sp", Console_SwapPorts);
     CMDLINE_PROPS_UPDATE("lc", Controller_Left);
     CMDLINE_PROPS_UPDATE("rc", Controller_Right);
-    s = mySettings->getString("bc");
+    const string& s = mySettings->getString("bc");
     if(s != "") { props.set(Controller_Left, s); props.set(Controller_Right, s); }
     CMDLINE_PROPS_UPDATE("cp", Controller_SwapPaddles);
     CMDLINE_PROPS_UPDATE("ma", Controller_MouseAxis);
@@ -740,7 +529,7 @@ Console* OSystem::openConsole(const FilesystemNode& romfile, string& md5,
 
     // Finally, create the cart with the correct properties
     if(cart)
-      console = new Console(this, cart, props);
+      console = make_ptr<Console>(*this, cart, props);
   }
 
   // Free the image since we don't need it any longer
@@ -751,6 +540,19 @@ Console* OSystem::openConsole(const FilesystemNode& romfile, string& md5,
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void OSystem::closeConsole()
+{
+  if(myConsole)
+  {
+  #ifdef CHEATCODE_SUPPORT
+    // If a previous console existed, save cheats before creating a new one
+    myCheatManager->saveCheats(myConsole->properties().get(Cartridge_MD5));
+  #endif
+    myConsole.release();
+  }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 uInt8* OSystem::openROM(const FilesystemNode& rom, string& md5, uInt32& size)
 {
   // This method has a documented side-effect:
@@ -758,11 +560,11 @@ uInt8* OSystem::openROM(const FilesystemNode& rom, string& md5, uInt32& size)
   // but also adds a properties entry if the one for the ROM doesn't
   // contain a valid name
 
-  uInt8* image = 0;
+  uInt8* image = nullptr;
   if((size = rom.read(image)) == 0)
   {
     delete[] image;
-    return (uInt8*) 0;
+    return nullptr;
   }
 
   // If we get to this point, we know we have a valid file to open
@@ -781,9 +583,9 @@ uInt8* OSystem::openROM(const FilesystemNode& rom, string& md5, uInt32& size)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-string OSystem::getROMInfo(const Console* console)
+string OSystem::getROMInfo(const Console& console)
 {
-  const ConsoleInfo& info = console->about();
+  const ConsoleInfo& info = console.about();
   ostringstream buf;
 
   buf << "  Cart Name:       " << info.CartName << endl
@@ -817,75 +619,6 @@ void OSystem::validatePath(string& path, const string& setting,
 
   path = node.getPath();
   mySettings->setValue(setting, node.getShortPath());
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void OSystem::setDefaultJoymap(Event::Type event, EventMode mode)
-{
-#define SET_DEFAULT_AXIS(sda_event, sda_mode, sda_stick, sda_axis, sda_val, sda_cmp_event) \
-  if(eraseAll || sda_cmp_event == sda_event) \
-    myEventHandler->addJoyAxisMapping(sda_event, sda_mode, sda_stick, sda_axis, sda_val, false);
-
-#define SET_DEFAULT_BTN(sdb_event, sdb_mode, sdb_stick, sdb_button, sdb_cmp_event) \
-  if(eraseAll || sdb_cmp_event == sdb_event) \
-    myEventHandler->addJoyButtonMapping(sdb_event, sdb_mode, sdb_stick, sdb_button, false);
-
-#define SET_DEFAULT_HAT(sdh_event, sdh_mode, sdh_stick, sdh_hat, sdh_dir, sdh_cmp_event) \
-  if(eraseAll || sdh_cmp_event == sdh_event) \
-    myEventHandler->addJoyHatMapping(sdh_event, sdh_mode, sdh_stick, sdh_hat, sdh_dir, false);
-
-  bool eraseAll = (event == Event::NoType);
-  switch(mode)
-  {
-    case kEmulationMode:  // Default emulation events
-      // Left joystick left/right directions (assume joystick zero)
-      SET_DEFAULT_AXIS(Event::JoystickZeroLeft, mode, 0, 0, 0, event);
-      SET_DEFAULT_AXIS(Event::JoystickZeroRight, mode, 0, 0, 1, event);
-      // Left joystick up/down directions (assume joystick zero)
-      SET_DEFAULT_AXIS(Event::JoystickZeroUp, mode, 0, 1, 0, event);
-      SET_DEFAULT_AXIS(Event::JoystickZeroDown, mode, 0, 1, 1, event);
-      // Right joystick left/right directions (assume joystick one)
-      SET_DEFAULT_AXIS(Event::JoystickOneLeft, mode, 1, 0, 0, event);
-      SET_DEFAULT_AXIS(Event::JoystickOneRight, mode, 1, 0, 1, event);
-      // Right joystick left/right directions (assume joystick one)
-      SET_DEFAULT_AXIS(Event::JoystickOneUp, mode, 1, 1, 0, event);
-      SET_DEFAULT_AXIS(Event::JoystickOneDown, mode, 1, 1, 1, event);
-
-      // Left joystick (assume joystick zero, button zero)
-      SET_DEFAULT_BTN(Event::JoystickZeroFire, mode, 0, 0, event);
-      // Right joystick (assume joystick one, button zero)
-      SET_DEFAULT_BTN(Event::JoystickOneFire, mode, 1, 0, event);
-
-      // Left joystick left/right directions (assume joystick zero and hat 0)
-      SET_DEFAULT_HAT(Event::JoystickZeroLeft, mode, 0, 0, EVENT_HATLEFT, event);
-      SET_DEFAULT_HAT(Event::JoystickZeroRight, mode, 0, 0, EVENT_HATRIGHT, event);
-      // Left joystick up/down directions (assume joystick zero and hat 0)
-      SET_DEFAULT_HAT(Event::JoystickZeroUp, mode, 0, 0, EVENT_HATUP, event);
-      SET_DEFAULT_HAT(Event::JoystickZeroDown, mode, 0, 0, EVENT_HATDOWN, event);
-
-      break;
-
-    case kMenuMode:  // Default menu/UI events
-      SET_DEFAULT_AXIS(Event::UILeft, mode, 0, 0, 0, event);
-      SET_DEFAULT_AXIS(Event::UIRight, mode, 0, 0, 1, event);
-      SET_DEFAULT_AXIS(Event::UIUp, mode, 0, 1, 0, event);
-      SET_DEFAULT_AXIS(Event::UIDown, mode, 0, 1, 1, event);
-
-      // Left joystick (assume joystick zero, button zero)
-      SET_DEFAULT_BTN(Event::UISelect, mode, 0, 0, event);
-      // Right joystick (assume joystick one, button zero)
-      SET_DEFAULT_BTN(Event::UISelect, mode, 1, 0, event);
-
-      SET_DEFAULT_HAT(Event::UILeft, mode, 0, 0, EVENT_HATLEFT, event);
-      SET_DEFAULT_HAT(Event::UIRight, mode, 0, 0, EVENT_HATRIGHT, event);
-      SET_DEFAULT_HAT(Event::UIUp, mode, 0, 0, EVENT_HATUP, event);
-      SET_DEFAULT_HAT(Event::UIDown, mode, 0, 0, EVENT_HATDOWN, event);
-
-      break;
-
-    default:
-      break;
-  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -931,7 +664,7 @@ void OSystem::mainLoop()
       }
 
       if(myTimingInfo.current < myTimingInfo.virt)
-        SDL_Delay((myTimingInfo.virt - myTimingInfo.current) / 1000);
+        SDL_Delay(uInt32(myTimingInfo.virt - myTimingInfo.current) / 1000);
 
       myTimingInfo.totalTime += (getTicks() - myTimingInfo.start);
       myTimingInfo.totalFrames++;
@@ -955,158 +688,12 @@ void OSystem::mainLoop()
       myTimingInfo.totalFrames++;
     }
   }
+
+  // Cleanup time
+#ifdef CHEATCODE_SUPPORT
+  if(myConsole)
+    myCheatManager->saveCheats(myConsole->properties().get(Cartridge_MD5));
+
+  myCheatManager->saveCheatDatabase();
+#endif
 }
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool OSystem::queryVideoHardware()
-{
-  // Go ahead and open the video hardware; we're going to need it eventually
-  if(SDL_WasInit(SDL_INIT_VIDEO) == 0)
-    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0)
-      return false;
-
-  // First get the maximum windowed desktop resolution
-  // Check the 'maxres' setting, which is an undocumented developer feature
-  // that specifies the desktop size
-  // Normally, this wouldn't be set, and we ask SDL directly
-  const GUI::Size& s = mySettings->getSize("maxres");
-  if(s.w <= 0 || s.h <= 0)
-  {
-    const SDL_VideoInfo* info = SDL_GetVideoInfo();
-    myDesktopWidth  = info->current_w;
-    myDesktopHeight = info->current_h;
-  }
-  else
-  {
-    myDesktopWidth  = BSPF_max(s.w, 320);
-    myDesktopHeight = BSPF_max(s.h, 240);
-  }
-
-  // Various parts of the codebase assume a minimum screen size of 320x240
-  if(!(myDesktopWidth >= 320 && myDesktopHeight >= 240))
-  {
-    logMessage("ERROR: queryVideoHardware failed, "
-               "window 320x240 or larger required", 0);
-    return false;
-  }
-
-  // Then get the valid fullscreen modes
-  // If there are any errors, just use the desktop resolution
-  ostringstream buf;
-  SDL_Rect** modes = SDL_ListModes(NULL, SDL_FULLSCREEN);
-  if((modes == (SDL_Rect**)0) || (modes == (SDL_Rect**)-1))
-  {
-    Resolution r;
-    r.width  = myDesktopWidth;
-    r.height = myDesktopHeight;
-    buf << r.width << "x" << r.height;
-    r.name = buf.str();
-    myResolutions.push_back(r);
-  }
-  else
-  {
-    // All modes must fit between the lower and upper limits of the desktop
-    // For 'small' desktop, this means larger than 320x240
-    // For 'large'/normal desktop, exclude all those less than 640x480
-    bool largeDesktop = myDesktopWidth >= 640 && myDesktopHeight >= 480;
-    uInt32 lowerWidth  = largeDesktop ? 640 : 320,
-           lowerHeight = largeDesktop ? 480 : 240;
-    for(uInt32 i = 0; modes[i]; ++i)
-    {
-      if(modes[i]->w >= lowerWidth && modes[i]->w <= myDesktopWidth &&
-         modes[i]->h >= lowerHeight && modes[i]->h <= myDesktopHeight)
-      {
-        Resolution r;
-        r.width  = modes[i]->w;
-        r.height = modes[i]->h;
-        buf.str("");
-        buf << r.width << "x" << r.height;
-        r.name = buf.str();
-        myResolutions.insert_at(0, r);  // insert in opposite (of descending) order
-      }
-    }
-    // If no modes were valid, use the desktop dimensions
-    if(myResolutions.size() == 0)
-    {
-      Resolution r;
-      r.width  = myDesktopWidth;
-      r.height = myDesktopHeight;
-      buf << r.width << "x" << r.height;
-      r.name = buf.str();
-      myResolutions.push_back(r);
-    }
-  }
-
-  return true;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-/*
-  Palette is defined as follows:
-    // Base colors
-    kColor            Normal foreground color (non-text)
-    kBGColor          Normal background color (non-text)
-    kShadowColor      Item is disabled
-    kTextColor        Normal text color
-    kTextColorHi      Highlighted text color
-    kTextColorEm      Emphasized text color
-
-    // UI elements (dialog and widgets)
-    kDlgColor         Dialog background
-    kWidColor         Widget background
-    kWidFrameColor    Border for currently selected widget
-
-    // Button colors
-    kBtnColor         Normal button background
-    kBtnColorHi       Highlighted button background
-    kBtnTextColor     Normal button font color
-    kBtnTextColorHi   Highlighted button font color
-
-    // Checkbox colors
-    kCheckColor       Color of 'X' in checkbox
-
-    // Scrollbar colors
-    kScrollColor      Normal scrollbar color
-    kScrollColorHi    Highlighted scrollbar color
-
-    // Debugger colors
-    kDbgChangedColor      Background color for changed cells
-    kDbgChangedTextColor  Text color for changed cells
-    kDbgColorHi           Highlighted color in debugger data cells
-*/
-uInt32 OSystem::ourGUIColors[kNumUIPalettes][kNumColors-256] = {
-  // Standard
-  { 0x686868, 0x000000, 0x404040, 0x000000, 0x62a108, 0x9f0000,
-    0xc9af7c, 0xf0f0cf, 0xc80000,
-    0xac3410, 0xd55941, 0xffffff, 0xffd652,
-    0xac3410,
-    0xac3410, 0xd55941,
-    0xac3410, 0xd55941,
-    0xc80000, 0x00ff00, 0xc8c8ff
-  },
-
-  // Classic
-  { 0x686868, 0x000000, 0x404040, 0x20a020, 0x00ff00, 0xc80000,
-    0x000000, 0x000000, 0xc80000,
-    0x000000, 0x000000, 0x20a020, 0x00ff00,
-    0x20a020,
-    0x20a020, 0x00ff00,
-    0x20a020, 0x00ff00,
-    0xc80000, 0x00ff00, 0xc8c8ff
-  }
-};
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-OSystem::OSystem(const OSystem& osystem)
-{
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-OSystem& OSystem::operator = (const OSystem&)
-{
-  assert(false);
-  return *this;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-ZipHandler* OSystem::myZipHandler = 0;

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: SnapshotDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: SnapshotDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -30,11 +30,11 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SnapshotDialog::SnapshotDialog(
-      OSystem* osystem, DialogContainer* parent,
+      OSystem& osystem, DialogContainer& parent,
       const GUI::Font& font, GuiObject* boss,
       int max_w, int max_h)
-  : Dialog(osystem, parent, 0, 0, 0, 0),
-    myBrowser(NULL)
+  : Dialog(osystem, parent),
+    myBrowser(nullptr)
 {
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
@@ -74,8 +74,8 @@ SnapshotDialog::SnapshotDialog(
   lwidth = font.getStringWidth("Continuous snapshot interval: ");
   fwidth = font.getStringWidth("internal database");
   VariantList items;
-  items.push_back("actual ROM name", "rom");
-  items.push_back("internal database", "int");
+  VarList::push_back(items, "actual ROM name", "rom");
+  VarList::push_back(items, "internal database", "int");
   xpos = vBorder+10;  ypos += buttonHeight + 8;
   mySnapName =
     new PopUpWidget(this, font, xpos, ypos, fwidth, lineHeight, items,
@@ -84,16 +84,16 @@ SnapshotDialog::SnapshotDialog(
 
   // Snapshot interval (continuous mode)
   items.clear();
-  items.push_back("1 second", "1");
-  items.push_back("2 seconds", "2");
-  items.push_back("3 seconds", "3");
-  items.push_back("4 seconds", "4");
-  items.push_back("5 seconds", "5");
-  items.push_back("6 seconds", "6");
-  items.push_back("7 seconds", "7");
-  items.push_back("8 seconds", "8");
-  items.push_back("9 seconds", "9");
-  items.push_back("10 seconds", "10");
+  VarList::push_back(items, "1 second", "1");
+  VarList::push_back(items, "2 seconds", "2");
+  VarList::push_back(items, "3 seconds", "3");
+  VarList::push_back(items, "4 seconds", "4");
+  VarList::push_back(items, "5 seconds", "5");
+  VarList::push_back(items, "6 seconds", "6");
+  VarList::push_back(items, "7 seconds", "7");
+  VarList::push_back(items, "8 seconds", "8");
+  VarList::push_back(items, "9 seconds", "9");
+  VarList::push_back(items, "10 seconds", "10");
   ypos += buttonHeight;
   mySnapInterval =
     new PopUpWidget(this, font, xpos, ypos, fwidth, lineHeight, items,
@@ -128,13 +128,12 @@ SnapshotDialog::SnapshotDialog(
   addToFocusList(wid);
 
   // Create file browser dialog
-  myBrowser = new BrowserDialog(this, font, max_w, max_h);
+  myBrowser = make_ptr<BrowserDialog>(this, font, max_w, max_h);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SnapshotDialog::~SnapshotDialog()
 {
-  delete myBrowser;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

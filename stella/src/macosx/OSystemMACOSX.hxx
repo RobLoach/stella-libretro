@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: OSystemMACOSX.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: OSystemMACOSX.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef OSYSTEM_MACOSX_HXX
@@ -26,7 +26,7 @@
   This class defines UNIX-like OS's (MacOS X) system specific settings.
 
   @author  Mark Grebe
-  @version $Id: OSystemMACOSX.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: OSystemMACOSX.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class OSystemMACOSX : public OSystem
 {

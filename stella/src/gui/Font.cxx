@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Font.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Font.cxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from ScummVM - Scumm Interpreter
 //   Copyright (C) 2002-2004 The ScummVM project
@@ -53,13 +53,12 @@ int Font::getStringWidth(const string& str) const
 {
   // If no width table is specified, use the maximum width
   if(!myFontDesc.width)
-    return myFontDesc.maxwidth * str.size();
+    return (int)(myFontDesc.maxwidth * str.size());
   else
   {
     int space = 0;
-
-    for(unsigned int i = 0; i < str.size(); ++i)
-      space += getCharWidth(str[i]);
+    for(auto c: str)
+      space += getCharWidth(c);
 
     return space;
   }

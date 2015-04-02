@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RiotWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RiotWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Settings.hxx"
@@ -35,19 +35,10 @@
 #include "DrivingWidget.hxx"
 #include "GenesisWidget.hxx"
 #include "KeyboardWidget.hxx"
+#include "AtariVoxWidget.hxx"
+#include "SaveKeyWidget.hxx"
 
 #include "RiotWidget.hxx"
-
-#define CREATE_IO_REGS(desc, bits, bitsID, editable)                     \
-  t = new StaticTextWidget(boss, lfont, xpos, ypos+2, lwidth, fontHeight,\
-                           desc, kTextAlignLeft);                        \
-  xpos += t->getWidth() + 5;                                             \
-  bits = new ToggleBitWidget(boss, nfont, xpos, ypos, 8, 1);             \
-  bits->setTarget(this);                                                 \
-  bits->setID(bitsID);                                                   \
-  if(editable) addFocusWidget(bits); else bits->setEditable(false);      \
-  xpos += bits->getWidth() + 5;                                          \
-  bits->setList(off, on);
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 RiotWidget::RiotWidget(GuiObject* boss, const GUI::Font& lfont,
@@ -71,6 +62,17 @@ RiotWidget::RiotWidget(GuiObject* boss, const GUI::Font& lfont,
     off.push_back("0");
     on.push_back("1");
   }
+
+#define CREATE_IO_REGS(desc, bits, bitsID, editable)                     \
+  t = new StaticTextWidget(boss, lfont, xpos, ypos+2, lwidth, fontHeight,\
+                           desc, kTextAlignLeft);                        \
+  xpos += t->getWidth() + 5;                                             \
+  bits = new ToggleBitWidget(boss, nfont, xpos, ypos, 8, 1);             \
+  bits->setTarget(this);                                                 \
+  bits->setID(bitsID);                                                   \
+  if(editable) addFocusWidget(bits); else bits->setEditable(false);      \
+  xpos += bits->getWidth() + 5;                                          \
+  bits->setList(off, on);
 
   // SWCHA bits in 'poke' mode
   CREATE_IO_REGS("SWCHA(W):", mySWCHAWriteBits, kSWCHABitsID, true);
@@ -174,8 +176,8 @@ RiotWidget::RiotWidget(GuiObject* boss, const GUI::Font& lfont,
   xpos = col;  ypos += 2 * lineHeight;
   int col2_ypos = ypos;
   items.clear();
-  items.push_back("B/easy", "b");
-  items.push_back("A/hard", "a");
+  VarList::push_back(items, "B/easy", "b");
+  VarList::push_back(items, "A/hard", "a");
   myP0Diff = new PopUpWidget(boss, lfont, xpos, ypos, pwidth, lineHeight, items,
                              "P0 Diff: ", lwidth, kP0DiffChanged);
   myP0Diff->setTarget(this);
@@ -189,8 +191,8 @@ RiotWidget::RiotWidget(GuiObject* boss, const GUI::Font& lfont,
   // TV Type
   ypos += myP1Diff->getHeight() + 5;
   items.clear();
-  items.push_back("B&W", "bw");
-  items.push_back("Color", "color");
+  VarList::push_back(items, "B&W", "bw");
+  VarList::push_back(items, "Color", "color");
   myTVType = new PopUpWidget(boss, lfont, xpos, ypos, pwidth, lineHeight, items,
                              "TV Type: ", lwidth, kTVTypeChanged);
   myTVType->setTarget(this);
@@ -216,21 +218,30 @@ RiotWidget::RiotWidget(GuiObject* boss, const GUI::Font& lfont,
       lfont.getStringWidth("When loading a ROM:"), fontHeight, 
       "When loading a ROM:", kTextAlignLeft);
 
-  // Randomize CPU
-  xpos += 30;  ypos += lineHeight + 4;
-  myRandomizeCPU = new CheckboxWidget(boss, lfont, xpos, ypos+1,
-      "Randomize CPU registers (A/X/Y/PS)", kCheckActionCmd);
-  myRandomizeCPU->setID(kRandCPUID);
-  myRandomizeCPU->setTarget(this);
-  addFocusWidget(myRandomizeCPU);
-
   // Randomize RAM
-  ypos += lineHeight + 4;
+  xpos += 30;  ypos += lineHeight + 4;
   myRandomizeRAM = new CheckboxWidget(boss, lfont, xpos, ypos+1,
       "Randomize zero-page and extended RAM", kCheckActionCmd);
   myRandomizeRAM->setID(kRandRAMID);
   myRandomizeRAM->setTarget(this);
   addFocusWidget(myRandomizeRAM);
+
+  // Randomize CPU
+  ypos += lineHeight + 8;
+  lwidth = lfont.getStringWidth("Randomize CPU ");
+  new StaticTextWidget(boss, lfont, xpos, ypos+1,
+      lwidth, fontHeight, "Randomize CPU ", kTextAlignLeft);
+  xpos += lwidth + 10;
+  const char* cpuregs[] = { "SP", "A", "X", "Y", "PS" };
+  for(int i = 0; i < 5; ++i)
+  {
+    myRandomizeCPU[i] = new CheckboxWidget(boss, lfont, xpos, ypos+1,
+      cpuregs[i], kCheckActionCmd);
+    myRandomizeCPU[i]->setID(kRandCPUID);
+    myRandomizeCPU[i]->setTarget(this);
+    addFocusWidget(myRandomizeCPU[i]);
+    xpos += CheckboxWidget::boxSize() + lfont.getStringWidth("XX") + 20;
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -243,7 +254,7 @@ void RiotWidget::loadConfig()
 {
 #define IO_REGS_UPDATE(bits, s_bits)                          \
   changed.clear();                                            \
-  for(unsigned int i = 0; i < state.s_bits.size(); ++i)       \
+  for(uInt32 i = 0; i < state.s_bits.size(); ++i)             \
     changed.push_back(state.s_bits[i] != oldstate.s_bits[i]); \
   bits->setState(state.s_bits, changed);
 
@@ -333,8 +344,12 @@ void RiotWidget::loadConfig()
   myLeftControl->loadConfig();
   myRightControl->loadConfig();
 
-  myRandomizeCPU->setState(instance().settings().getBool("cpurandom"));
   myRandomizeRAM->setState(instance().settings().getBool("ramrandom"));
+
+  const string& cpurandom = instance().settings().getString("cpurandom");
+  const char* cpuregs[] = { "S", "A", "X", "Y", "P" };
+  for(int i = 0; i < 5; ++i)
+    myRandomizeCPU[i]->setState(BSPF_containsIgnoreCase(cpurandom, cpuregs[i]));
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -399,11 +414,11 @@ void RiotWidget::handleCommand(CommandSender* sender, int cmd, int data, int id)
         case kResetID:
           riot.reset(!myReset->getState());
           break;
-        case kRandCPUID:
-          instance().settings().setValue("cpurandom", myRandomizeCPU->getState());
-          break;
         case kRandRAMID:
           instance().settings().setValue("ramrandom", myRandomizeRAM->getState());
+          break;
+        case kRandCPUID:
+          handleRandomCPU();
           break;
       }
       break;
@@ -440,7 +455,23 @@ ControllerWidget* RiotWidget::addControlWidget(GuiObject* boss, const GUI::Font&
       return new GenesisWidget(boss, font, x, y, controller);
     case Controller::Keyboard:
       return new KeyboardWidget(boss, font, x, y, controller);
+    case Controller::AtariVox:
+      return new AtariVoxWidget(boss, font, x, y, controller);
+    case Controller::SaveKey:
+      return new SaveKeyWidget(boss, font, x, y, controller);
     default:
       return new NullControlWidget(boss, font, x, y, controller);
   }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void RiotWidget::handleRandomCPU()
+{
+  string cpurandom;
+  const char* cpuregs[] = { "S", "A", "X", "Y", "P" };
+  for(int i = 0; i < 5; ++i)
+    if(myRandomizeCPU[i]->getState())
+      cpurandom += cpuregs[i];
+
+  instance().settings().setValue("cpurandom", cpurandom);
 }

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: FileListWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: FileListWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "ScrollBarWidget.hxx"
@@ -63,22 +63,22 @@ void FileListWidget::setLocation(const FilesystemNode& node, string select)
     _gameList.appendGame(" [..]", _node.getParent().getPath(), "", true);
 
   // Now add the directory entries
-  for(unsigned int idx = 0; idx < content.size(); idx++)
+  for(const auto& file: content)
   {
-    string name = content[idx].getName();
-    bool isDir = content[idx].isDirectory();
+    string name = file.getName();
+    bool isDir = file.isDirectory();
     if(isDir)
       name = " [" + name + "]";
     else if(!BSPF_endsWithIgnoreCase(name, _extension))
       continue;
 
-    _gameList.appendGame(name, content[idx].getPath(), "", isDir);
+    _gameList.appendGame(name, file.getPath(), "", isDir);
   }
   _gameList.sortByName();
 
   // Now fill the list widget with the contents of the GameList
   StringList l;
-  for (int i = 0; i < (int) _gameList.size(); ++i)
+  for(int i = 0; i < (int) _gameList.size(); ++i)
     l.push_back(_gameList.name(i));
 
   setList(l);

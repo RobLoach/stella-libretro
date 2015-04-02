@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: EditTextWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: EditTextWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -29,7 +29,6 @@
 EditTextWidget::EditTextWidget(GuiObject* boss, const GUI::Font& font,
                                int x, int y, int w, int h, const string& text)
   : EditableWidget(boss, font, x, y, w, h + 2, text),
-    _editable(true),
     _changed(false)
 {
   _flags = WIDGET_ENABLED | WIDGET_CLEARBG | WIDGET_RETAIN_FOCUS;
@@ -56,7 +55,7 @@ void EditTextWidget::handleMouseDown(int x, int y, int button, int clickCount)
   x += _editScrollOffset;
 
   int width = 0;
-  unsigned int i;
+  uInt32 i;
 
   for (i = 0; i < _editString.size(); ++i)
   {

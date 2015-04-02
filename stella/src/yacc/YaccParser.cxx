@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: YaccParser.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: YaccParser.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 //#include "YaccParser.hxx"
@@ -36,7 +36,7 @@ namespace YaccParser {
 #include <ctype.h>
 
 #include "y.tab.h"
-yystype result;
+YYSTYPE result;
 string errMsg;
 #include "y.tab.c"
 
@@ -171,7 +171,7 @@ int const_to_int(char *c) {
 }
 
 // special methods that get e.g. CPU registers
-CPUDEBUG_INT_METHOD getCpuSpecial(char *c)
+CpuMethod getCpuSpecial(char* c)
 {
   if(BSPF_equalsIgnoreCase(c, "a"))
     return &CpuDebug::a;
@@ -202,7 +202,7 @@ CPUDEBUG_INT_METHOD getCpuSpecial(char *c)
 }
 
 // special methods that get Cart RAM/ROM internal state
-CARTDEBUG_INT_METHOD getCartSpecial(char *c)
+CartMethod getCartSpecial(char* c)
 {
   if(BSPF_equalsIgnoreCase(c, "_bank"))
     return &CartDebug::getBank;
@@ -213,7 +213,7 @@ CARTDEBUG_INT_METHOD getCartSpecial(char *c)
 }
 
 // special methods that get TIA internal state
-TIADEBUG_INT_METHOD getTiaSpecial(char *c)
+TiaMethod getTiaSpecial(char* c)
 {
   if(BSPF_equalsIgnoreCase(c, "_scan"))
     return &TIADebug::scanlines;
@@ -252,9 +252,9 @@ int yylex() {
 
       case ST_IDENTIFIER:
         {
-          CARTDEBUG_INT_METHOD cartMeth;
-          CPUDEBUG_INT_METHOD  cpuMeth;
-          TIADEBUG_INT_METHOD  tiaMeth;
+          CartMethod cartMeth;
+          CpuMethod  cpuMeth;
+          TiaMethod  tiaMeth;
 
           char *bufp = idbuf;
           *bufp++ = *c++; // might be a base prefix
@@ -275,7 +275,7 @@ int yylex() {
           // the specials. Who would do that, though?
 
           if(Debugger::debugger().cartDebug().getAddress(idbuf) > -1) {
-            yylval.equate = idbuf;
+            yylval.Equate = idbuf;
             return EQUATE;
           } else if( (cpuMeth = getCpuSpecial(idbuf)) ) {
             yylval.cpuMethod = cpuMeth;
@@ -286,8 +286,8 @@ int yylex() {
           } else if( (tiaMeth = getTiaSpecial(idbuf)) ) {
             yylval.tiaMethod = tiaMeth;
             return TIA_METHOD;
-          } else if( Debugger::debugger().getFunction(idbuf) != 0) {
-            yylval.function = idbuf;
+          } else if( Debugger::debugger().getFunctionDef(idbuf) != EmptyString ) {
+            yylval.DefinedFunction = idbuf;
             return FUNCTION;
           } else {
             yylval.val = const_to_int(idbuf);

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartDPCPlusWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartDPCPlusWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartDPCPlus.hxx"
@@ -55,12 +55,12 @@ CartridgeDPCPlusWidget::CartridgeDPCPlusWidget(
               myLineHeight;
 
   VariantList items;
-  items.push_back("0 ($FF6)");
-  items.push_back("1 ($FF7)");
-  items.push_back("2 ($FF8)");
-  items.push_back("3 ($FF9)");
-  items.push_back("4 ($FFA)");
-  items.push_back("5 ($FFB)");
+  VarList::push_back(items, "0 ($FF6)");
+  VarList::push_back(items, "1 ($FF7)");
+  VarList::push_back(items, "2 ($FF8)");
+  VarList::push_back(items, "3 ($FF9)");
+  VarList::push_back(items, "4 ($FFA)");
+  VarList::push_back(items, "5 ($FFB)");
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth("0 ($FFx) "),
                     myLineHeight, items, "Set bank: ",
@@ -193,8 +193,9 @@ void CartridgeDPCPlusWidget::saveOldState()
   myOldState.mcounters.clear();
   myOldState.mfreqs.clear();
   myOldState.mwaves.clear();
+  myOldState.internalram.clear();
 
-  for(int i = 0; i < 8; ++i)
+  for(uInt32 i = 0; i < 8; ++i)
   {
     myOldState.tops.push_back(myCart.myTops[i]);
     myOldState.bottoms.push_back(myCart.myBottoms[i]);
@@ -203,7 +204,7 @@ void CartridgeDPCPlusWidget::saveOldState()
     myOldState.fracinc.push_back(myCart.myFractionalIncrements[i]);
     myOldState.param.push_back(myCart.myParameter[i]);
   }
-  for(int i = 0; i < 3; ++i)
+  for(uInt32 i = 0; i < 3; ++i)
   {
     myOldState.mcounters.push_back(myCart.myMusicCounters[i]);
     myOldState.mfreqs.push_back(myCart.myMusicFrequencies[i]);
@@ -211,6 +212,9 @@ void CartridgeDPCPlusWidget::saveOldState()
   }
 
   myOldState.random = myCart.myRandomNumber;
+  
+  for(uInt32 i = 0; i < internalRamSize(); ++i)
+    myOldState.internalram.push_back(myCart.myDisplayImage[i]);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -306,7 +310,7 @@ void CartridgeDPCPlusWidget::loadConfig()
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CartridgeDPCPlusWidget::handleCommand(CommandSender* sender,
-                                      int cmd, int data, int id)
+                                           int cmd, int data, int id)
 {
   if(cmd == kBankChanged)
   {
@@ -329,4 +333,60 @@ string CartridgeDPCPlusWidget::bankState()
       << ", hotspot = " << spot[myCart.myCurrentBank];
 
   return buf.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeDPCPlusWidget::internalRamSize() 
+{
+  return 5*1024;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 CartridgeDPCPlusWidget::internalRamRPort(int start)
+{
+  return 0x0000 + start;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string CartridgeDPCPlusWidget::internalRamDescription() 
+{
+  ostringstream desc;
+  desc << "$0000 - $0FFF - 4K display data\n"
+       << "                indirectly accessible to 6507\n"
+       << "                via DPC+'s Data Fetcher registers\n"
+       << "$1000 - $13FF - 1K frequency table,\n"
+       << "                C variables and C stack\n"
+       << "                not accessible to 6507";
+  
+  return desc.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeDPCPlusWidget::internalRamOld(int start, int count)
+{
+  myRamOld.clear();
+  for(int i = 0; i < count; i++)
+    myRamOld.push_back(myOldState.internalram[start + i]);
+  return myRamOld;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& CartridgeDPCPlusWidget::internalRamCurrent(int start, int count)
+{
+  myRamCurrent.clear();
+  for(int i = 0; i < count; i++)
+    myRamCurrent.push_back(myCart.myDisplayImage[start + i]);
+  return myRamCurrent;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void CartridgeDPCPlusWidget::internalRamSetValue(int addr, uInt8 value)
+{
+  myCart.myDisplayImage[addr] = value;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt8 CartridgeDPCPlusWidget::internalRamGetValue(int addr)
+{
+  return myCart.myDisplayImage[addr];
 }

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Dialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Dialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from ScummVM - Scumm Interpreter
 //   Copyright (C) 2002-2004 The ScummVM project
@@ -29,6 +29,7 @@ class DialogContainer;
 class TabWidget;
 
 #include "Command.hxx"
+#include "Stack.hxx"
 #include "Widget.hxx"
 #include "GuiObject.hxx"
 #include "StellaKeys.hxx"
@@ -39,15 +40,15 @@ class TabWidget;
   This is the base class for all dialog boxes.
   
   @author  Stephen Anthony
-  @version $Id: Dialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Dialog.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Dialog : public GuiObject
 {
   friend class DialogContainer;
 
   public:
-    Dialog(OSystem* instance, DialogContainer* parent,
-           int x, int y, int w, int h, bool isBase = false);
+    Dialog(OSystem& instance, DialogContainer& parent,
+           int x = 0, int y = 0, int w = 0, int h = 0);
 
     virtual ~Dialog();
 
@@ -55,7 +56,6 @@ class Dialog : public GuiObject
     void close(bool refresh = true);
 
     bool isVisible() const { return _visible; }
-    bool isBase() const    { return _isBase;  }
 
     virtual void center();
     virtual void drawDialog();
@@ -73,14 +73,23 @@ class Dialog : public GuiObject
     void addCancelWidget(Widget* w) { _cancelWidget = w; }
     void setFocus(Widget* w);
 
+    /** Returns the base surface associated with this dialog. */
     FBSurface& surface() const { return *_surface; }
+
+    /** Adds a surface to this dialog, which is rendered on top of the
+        base surface whenever the base surface is re-rendered.  Since
+        the surface render() call will always occur in such a case, the
+        surface should call setVisible() to enable/disable its output.
+    */
+    void addSurface(shared_ptr<FBSurface> surface);
 
   protected:
     virtual void draw();
     void releaseFocus();
 
-    virtual void handleKeyDown(StellaKey key, StellaMod modifiers, char ascii);
-    virtual void handleKeyUp(StellaKey key, StellaMod modifiers, char ascii);
+    virtual void handleText(char text);
+    virtual void handleKeyDown(StellaKey key, StellaMod modifiers);
+    virtual void handleKeyUp(StellaKey key, StellaMod modifiers);
     virtual void handleMouseDown(int x, int y, int button, int clickCount);
     virtual void handleMouseUp(int x, int y, int button, int clickCount);
     virtual void handleMouseWheel(int x, int y, int direction);
@@ -92,7 +101,7 @@ class Dialog : public GuiObject
     virtual bool handleJoyHat(int stick, int hat, int value);
     virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
-    Widget* findWidget(int x, int y); // Find the widget at pos x,y if any
+    Widget* findWidget(int x, int y) const; // Find the widget at pos x,y if any
 
     void addOKCancelBGroup(WidgetArray& wid, const GUI::Font& font,
                            const string& okText = "",
@@ -113,38 +122,39 @@ class Dialog : public GuiObject
     Widget* _okWidget;
     Widget* _cancelWidget;
     bool    _visible;
-    bool    _isBase;
     bool    _processCancel;
+
+    Common::FixedStack<shared_ptr<FBSurface>> mySurfaceStack;
 
   private:
     struct Focus {
       Widget* widget;
       WidgetArray list;
 
-      Focus(Widget* w = 0);
+      Focus(Widget* w = nullptr);
       virtual ~Focus();
     };
-    typedef Common::Array<Focus> FocusList;
+    using FocusList = vector<Focus>;
 
     struct TabFocus {
       TabWidget* widget;
       FocusList focus;
       uInt32 currentTab;
 
-      TabFocus(TabWidget* w = 0);
+      TabFocus(TabWidget* w = nullptr);
       virtual ~TabFocus();
 
       void appendFocusList(WidgetArray& list);
       void saveCurrentFocus(Widget* w);
       Widget* getNewFocus();
     };
-    typedef Common::Array<TabFocus> TabFocusList;
+    using TabFocusList = vector<TabFocus>;
 
     Focus        _myFocus;    // focus for base dialog
     TabFocusList _myTabList;  // focus for each tab (if any)
 
     WidgetArray _buttonGroup;
-    FBSurface*  _surface;
+    shared_ptr<FBSurface> _surface;
 
     int _tabID;
 };

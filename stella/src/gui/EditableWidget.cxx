@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: EditableWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: EditableWidget.cxx 3146 2015-02-09 17:14:28Z stephena $
 //============================================================================
 
 #include "Dialog.hxx"
@@ -40,6 +40,9 @@ EditableWidget::EditableWidget(GuiObject* boss, const GUI::Font& font,
   _bgcolorhi = kWidColor;
   _textcolor = kTextColor;
   _textcolorhi = kTextColor;
+
+  // By default, include all printable chars except quotes
+  _filter = [](char c) { return isprint(c) && c != '\"'; };
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -50,10 +53,13 @@ EditableWidget::~EditableWidget()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void EditableWidget::setText(const string& str, bool)
 {
-  // TODO: We probably should filter the input string here,
-  // e.g. using tryInsertChar.
-  _editString = str;
-  _caretPos = _editString.size();
+  // Filter input string
+  _editString = "";
+  for(int i = 0; i < str.size(); ++i)
+    if(_filter(tolower(str[i])))
+      _editString.push_back(str[i]);
+
+  _caretPos = (int)_editString.size();
 
   _editScrollOffset = (_font.getStringWidth(_editString) - (getEditRect().width()));
   if (_editScrollOffset < 0)
@@ -70,15 +76,15 @@ void EditableWidget::setEditable(bool editable)
 {
   _editable = editable;
   if(_editable)
-    setFlags(WIDGET_WANTS_RAWDATA|WIDGET_RETAIN_FOCUS);
+    setFlags(WIDGET_WANTS_RAWDATA | WIDGET_RETAIN_FOCUS);
   else
-    clearFlags(WIDGET_WANTS_RAWDATA|WIDGET_RETAIN_FOCUS);
+    clearFlags(WIDGET_WANTS_RAWDATA | WIDGET_RETAIN_FOCUS);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool EditableWidget::tryInsertChar(char c, int pos)
 {
-  if(isprint(c) && c != '\"')
+  if(_filter(tolower(c)))
   {
     _editString.insert(pos, 1, c);
     return true;
@@ -87,7 +93,23 @@ bool EditableWidget::tryInsertChar(char c, int pos)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool EditableWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+bool EditableWidget::handleText(char text)
+{
+  if(!_editable)
+    return true;
+
+  if(tryInsertChar(text, _caretPos))
+  {
+    _caretPos++;
+    sendCommand(EditableWidget::kChangedCmd, 0, _id);
+    setDirty(); draw();
+    return true;
+  }
+  return false;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+bool EditableWidget::handleKeyDown(StellaKey key, StellaMod mod)
 {
   if(!_editable)
     return true;
@@ -117,24 +139,24 @@ bool EditableWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
 
     case KBDK_BACKSPACE:
       dirty = killChar(-1);
-      if(dirty)  sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(dirty)  sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
     case KBDK_DELETE:
       dirty = killChar(+1);
-      if(dirty)  sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(dirty)  sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
     case KBDK_LEFT:
       if(instance().eventHandler().kbdControl(mod))
-        dirty = specialKeys(key, ascii);
+        dirty = specialKeys(key);
       else if(_caretPos > 0)
         dirty = setCaretPos(_caretPos - 1);
       break;
 
     case KBDK_RIGHT:
       if(instance().eventHandler().kbdControl(mod))
-        dirty = specialKeys(key, ascii);
+        dirty = specialKeys(key);
       else if(_caretPos < (int)_editString.size())
         dirty = setCaretPos(_caretPos + 1);
       break;
@@ -144,19 +166,13 @@ bool EditableWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
       break;
 
     case KBDK_END:
-      dirty = setCaretPos(_editString.size());
+      dirty = setCaretPos((int)_editString.size());
       break;
 
     default:
       if (instance().eventHandler().kbdControl(mod))
       {
-        dirty = specialKeys(key, ascii);
-      }
-      else if (tryInsertChar(ascii, _caretPos))
-      {
-        _caretPos++;
-        sendCommand(EditableWidget::kChangedCmd, ascii, _id);
-        dirty = true;
+        dirty = specialKeys(key);
       }
       else
         handled = false;
@@ -250,48 +266,48 @@ bool EditableWidget::adjustOffset()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool EditableWidget::specialKeys(StellaKey key, char ascii)
+bool EditableWidget::specialKeys(StellaKey key)
 {
   bool handled = true;
 
   switch (key)
   {
-    case KBDK_a:
+    case KBDK_A:
       setCaretPos(0);
       break;
 
-    case KBDK_c:
+    case KBDK_C:
       copySelectedText();
-      if(handled) sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(handled) sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
-    case KBDK_e:
-      setCaretPos(_editString.size());
+    case KBDK_E:
+      setCaretPos((int)_editString.size());
       break;
 
-    case KBDK_d:
+    case KBDK_D:
       handled = killChar(+1);
-      if(handled) sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(handled) sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
-    case KBDK_k:
+    case KBDK_K:
       handled = killLine(+1);
-      if(handled) sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(handled) sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
-    case KBDK_u:
+    case KBDK_U:
       handled = killLine(-1);
-      if(handled) sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(handled) sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
-    case KBDK_v:
+    case KBDK_V:
       pasteSelectedText();
-      if(handled) sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(handled) sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
-    case KBDK_w:
+    case KBDK_W:
       handled = killLastWord();
-      if(handled) sendCommand(EditableWidget::kChangedCmd, ascii, _id);
+      if(handled) sendCommand(EditableWidget::kChangedCmd, key, _id);
       break;
 
     case KBDK_LEFT:
@@ -350,7 +366,7 @@ bool EditableWidget::killLine(int direction)
   }
   else if(direction == 1)  // erase from current position to end of line
   {
-    int count = _editString.size() - _caretPos;
+    int count = (int)_editString.size() - _caretPos;
     if(count > 0)
     {
       for (int i = 0; i < count; i++)

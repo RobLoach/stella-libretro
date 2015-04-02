@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartUAWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartUAWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartUA.hxx"
@@ -48,8 +48,8 @@ CartridgeUAWidget::CartridgeUAWidget(
       ypos = addBaseInformation(size, "UA Limited", info.str()) + myLineHeight;
 
   VariantList items;
-  items.push_back("0 ($220)");
-  items.push_back("1 ($240)");
+  VarList::push_back(items, "0 ($220)");
+  VarList::push_back(items, "1 ($240)");
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth("0 ($FFx) "),
                     myLineHeight, items, "Set bank: ",

@@ -8,23 +8,21 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: InputDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: InputDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
 
-#include "Array.hxx"
 #include "OSystem.hxx"
 #include "Joystick.hxx"
 #include "Paddles.hxx"
 #include "Settings.hxx"
-#include "StringList.hxx"
 #include "EventMappingWidget.hxx"
 #include "EditTextWidget.hxx"
 #include "PopUpWidget.hxx"
@@ -35,9 +33,9 @@
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-InputDialog::InputDialog(OSystem* osystem, DialogContainer* parent,
+InputDialog::InputDialog(OSystem& osystem, DialogContainer& parent,
                          const GUI::Font& font, int max_w, int max_h)
-  : Dialog(osystem, parent, 0, 0, 0, 0)
+  : Dialog(osystem, parent)
 {
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
@@ -45,12 +43,11 @@ InputDialog::InputDialog(OSystem* osystem, DialogContainer* parent,
             buttonHeight = font.getLineHeight() + 4;
   const int vBorder = 4;
   int xpos, ypos, tabID;
-  WidgetArray wid;
   StringList actions;
 
   // Set real dimensions
   _w = BSPF_min(50 * fontWidth + 10, max_w);
-  _h = BSPF_min(14 * (lineHeight + 4) + 14, max_h);
+  _h = BSPF_min(15 * (lineHeight + 4) + 14, max_h);
 
   // The tab widget
   xpos = 2; ypos = vBorder;
@@ -59,7 +56,7 @@ InputDialog::InputDialog(OSystem* osystem, DialogContainer* parent,
 
   // 1) Event mapper for emulation actions
   tabID = myTab->addTab("Emul. Events");
-  instance().eventHandler().getActionList(kEmulationMode, actions);
+  actions = instance().eventHandler().getActionList(kEmulationMode);
   myEmulEventMapper = new EventMappingWidget(myTab, font, 2, 2,
                                              myTab->getWidth(),
                                              myTab->getHeight() - ypos,
@@ -69,8 +66,7 @@ InputDialog::InputDialog(OSystem* osystem, DialogContainer* parent,
 
   // 2) Event mapper for UI actions
   tabID = myTab->addTab("UI Events");
-  actions.clear();
-  instance().eventHandler().getActionList(kMenuMode, actions);
+  actions = instance().eventHandler().getActionList(kMenuMode);
   myMenuEventMapper = new EventMappingWidget(myTab, font, 2, 2,
                                              myTab->getWidth(),
                                              myTab->getHeight() - ypos,
@@ -86,7 +82,7 @@ InputDialog::InputDialog(OSystem* osystem, DialogContainer* parent,
   myTab->setActiveTab(0);
 
   // Add Defaults, OK and Cancel buttons
-  wid.clear();
+  WidgetArray wid;
   ButtonWidget* b;
   b = new ButtonWidget(this, font, 10, _h - buttonHeight - 10,
                        buttonWidth, buttonHeight, "Defaults", kDefaultsCmd);
@@ -118,9 +114,8 @@ void InputDialog::addDevicePortTab(const GUI::Font& font)
   lwidth = font.getStringWidth("Use mouse as a controller: ");
   pwidth = font.getStringWidth("Analog devices");
 
-  items.clear();
-  items.push_back("Left / Right", "lr");
-  items.push_back("Right / Left", "rl");
+  VarList::push_back(items, "Left / Right", "lr");
+  VarList::push_back(items, "Right / Left", "rl");
   mySAPort = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight, items,
                              "Stelladaptor port order: ", lwidth);
   wid.push_back(mySAPort);
@@ -128,9 +123,9 @@ void InputDialog::addDevicePortTab(const GUI::Font& font)
   // Use mouse as controller
   ypos += lineHeight + 5;
   items.clear();
-  items.push_back("Always", "always");
-  items.push_back("Analog devices", "analog");
-  items.push_back("Never", "never");
+  VarList::push_back(items, "Always", "always");
+  VarList::push_back(items, "Analog devices", "analog");
+  VarList::push_back(items, "Never", "never");
   myMouseControl = new PopUpWidget(myTab, font, xpos, ypos, pwidth, lineHeight, items,
                              "Use mouse as a controller: ", lwidth);
   wid.push_back(myMouseControl);
@@ -198,6 +193,28 @@ void InputDialog::addDevicePortTab(const GUI::Font& font)
   myGrabMouse->clearFlags(WIDGET_ENABLED);
 #endif
 
+  // Hide mouse cursor
+  ypos += lineHeight + 4;
+  myHideCursor = new CheckboxWidget(myTab, font, xpos, ypos,
+	                 "Always hide mouse cursor");
+  wid.push_back(myHideCursor);
+#ifndef WINDOWED_SUPPORT
+  myHideCursor->clearFlags(WIDGET_ENABLED);
+#endif
+
+  // Enable/disable control key-combos
+  ypos += lineHeight + 4;
+  myCtrlCombo = new CheckboxWidget(myTab, font, xpos, ypos,
+	                "Use Control key combos");
+  wid.push_back(myCtrlCombo);
+
+  // Show joystick database
+  xpos += 20;  ypos += lineHeight + 8;
+  myJoyDlgButton = new ButtonWidget(myTab, font, xpos, ypos,
+    font.getStringWidth("Show Joystick Database") + 20, font.getLineHeight() + 4,
+    "Show Joystick Database", kDBButtonPressed);
+  wid.push_back(myJoyDlgButton);
+
   // Add items for virtual device ports
   addToFocusList(wid, myTab, tabID);
 }
@@ -216,9 +233,6 @@ void InputDialog::loadConfig()
   myDeadzone->setValue(instance().settings().getInt("joydeadzone"));
   myDeadzoneLabel->setValue(Joystick::deadzone());
 
-  // Grab mouse
-  myGrabMouse->setState(instance().settings().getBool("grabmouse"));
-
   // Paddle speed (digital and mouse)
   myDPaddleSpeed->setValue(instance().settings().getInt("dsense"));
   myDPaddleLabel->setLabel(instance().settings().getString("dsense"));
@@ -230,6 +244,15 @@ void InputDialog::loadConfig()
 
   // Allow all 4 joystick directions
   myAllowAll4->setState(instance().settings().getBool("joyallow4"));
+
+  // Grab mouse
+  myGrabMouse->setState(instance().settings().getBool("grabmouse"));
+
+  // Hide cursor
+  myHideCursor->setState(instance().settings().getBool("hidecursor"));
+
+  // Enable/disable control key-combos
+  myCtrlCombo->setState(instance().settings().getBool("ctrlcombo"));
 
   myTab->loadConfig();
 }
@@ -250,10 +273,6 @@ void InputDialog::saveConfig()
   instance().settings().setValue("joydeadzone", deadzone);
   Joystick::setDeadZone(deadzone);
 
-  // Grab mouse	 
-  instance().settings().setValue("grabmouse", myGrabMouse->getState());	 
-  instance().frameBuffer().setCursorState();
-
   // Paddle speed (digital and mouse)
   int sensitivity = myDPaddleSpeed->getValue();
   instance().settings().setValue("dsense", sensitivity);
@@ -269,6 +288,14 @@ void InputDialog::saveConfig()
   bool allowall4 = myAllowAll4->getState();
   instance().settings().setValue("joyallow4", allowall4);
   instance().eventHandler().allowAllDirections(allowall4);
+
+  // Grab mouse and hide cursor
+  instance().settings().setValue("grabmouse", myGrabMouse->getState());	 
+  instance().settings().setValue("hidecursor", myHideCursor->getState());	 
+  instance().frameBuffer().setCursorState();
+
+  // Enable/disable control key-combos
+  instance().settings().setValue("ctrlcombo", myCtrlCombo->getState());	 
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -296,9 +323,6 @@ void InputDialog::setDefaults()
       myDeadzone->setValue(0);
       myDeadzoneLabel->setValue(3200);
 
-      // Grab mouse
-      myGrabMouse->setState(true);
-
       // Paddle speed (digital and mouse)
       myDPaddleSpeed->setValue(5);
       myDPaddleLabel->setLabel("5");
@@ -311,6 +335,15 @@ void InputDialog::setDefaults()
       // Allow all 4 joystick directions
       myAllowAll4->setState(false);
 
+      // Grab mouse
+      myGrabMouse->setState(true);
+
+      // Hide cursor
+      myHideCursor->setState(false);
+
+      // Enable/disable control key-combos
+      myCtrlCombo->setState(true);
+
       break;
     }
 
@@ -322,15 +355,15 @@ void InputDialog::setDefaults()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void InputDialog::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+void InputDialog::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Remap key events in remap mode, otherwise pass to parent dialog
   if(myEmulEventMapper->remapMode())
-    myEmulEventMapper->handleKeyDown(key, mod, ascii);
+    myEmulEventMapper->handleKeyDown(key, mod);
   else if(myMenuEventMapper->remapMode())
-    myMenuEventMapper->handleKeyDown(key, mod, ascii);
+    myMenuEventMapper->handleKeyDown(key, mod);
   else
-    Dialog::handleKeyDown(key, mod, ascii);
+    Dialog::handleKeyDown(key, mod);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -399,6 +432,13 @@ void InputDialog::handleCommand(CommandSender* sender, int cmd,
 
     case kMPSpeedChanged:
       myMPaddleLabel->setValue(myMPaddleSpeed->getValue());
+      break;
+
+    case kDBButtonPressed:
+      if(!myJoyDialog)
+        myJoyDialog = make_ptr<JoystickDialog>
+                          (this, instance().frameBuffer().font(), _w-60, _h-60);
+      myJoyDialog->show();
       break;
 
     default:

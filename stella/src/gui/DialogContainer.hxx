@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DialogContainer.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DialogContainer.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef DIALOG_CONTAINER_HXX
@@ -37,7 +37,7 @@ class OSystem;
   a stack, and handles their events.
 
   @author  Stephen Anthony
-  @version $Id: DialogContainer.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: DialogContainer.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class DialogContainer
 {
@@ -48,7 +48,7 @@ class DialogContainer
     /**
       Create a new DialogContainer stack
     */
-    DialogContainer(OSystem* osystem);
+    DialogContainer(OSystem& osystem);
 
     /**
       Destructor
@@ -65,14 +65,20 @@ class DialogContainer
     void updateTime(uInt64 time);
 
     /**
-      Handle a keyboard event.
+      Handle a keyboard Unicode text event.
 
-      @param key      Actual key symbol
-      @param mod      Modifiers
-      @param ascii    ASCII translation
-      @param state    Pressed (true) or released (false)
+      @param text   Unicode character string
     */
-    void handleKeyEvent(StellaKey key, StellaMod mod, char ascii, bool state);
+    void handleTextEvent(char text);
+
+    /**
+      Handle a keyboard single-key event.
+
+      @param key    Actual key symbol
+      @param mod    Modifiers
+      @param state  Pressed (true) or released (false)
+    */
+    void handleKeyEvent(StellaKey key, StellaMod mod, bool state);
 
     /**
       Handle a mouse motion event.
@@ -89,9 +95,8 @@ class DialogContainer
       @param b     The mouse button
       @param x     The x location
       @param y     The y location
-      @param state The state (pressed or released)
     */
-    void handleMouseButtonEvent(MouseButton b, int x, int y, uInt8 state);
+    void handleMouseButtonEvent(MouseButton b, int x, int y);
 
     /**
       Handle a joystick button event.
@@ -149,9 +154,9 @@ class DialogContainer
     void removeDialog();
 
   protected:
-    OSystem* myOSystem;
+    OSystem& myOSystem;
     Dialog*  myBaseDialog;
-    Common::FixedStack<Dialog *> myDialogStack;
+    Common::FixedStack<Dialog*> myDialogStack;
 
   private:
     enum {
@@ -166,8 +171,7 @@ class DialogContainer
     // For continuous 'key down' events
     struct {
       StellaKey keycode;
-      char ascii;
-      int flags;
+      StellaMod flags;
     } myCurrentKeyDown;
     uInt64 myKeyRepeatTime;
 

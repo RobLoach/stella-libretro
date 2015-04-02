@@ -15,6 +15,7 @@ MODULE_OBJS := \
 	src/emucore/CartCM.o \
 	src/emucore/CartCTY.o \
 	src/emucore/CartCV.o \
+	src/emucore/CartDASH.o \
 	src/emucore/CartDPC.o \
 	src/emucore/CartDPCPlus.o \
 	src/emucore/CartE0.o \
@@ -36,15 +37,19 @@ MODULE_OBJS := \
 	src/emucore/CartFA2.o \
 	src/emucore/CartFE.o \
 	src/emucore/CartMC.o \
+	src/emucore/CartMDM.o \
 	src/emucore/CartSB.o \
 	src/emucore/CartUA.o \
+	src/emucore/CartWD.o \
 	src/emucore/CartX07.o \
 	src/emucore/CompuMate.o \
 	src/emucore/Console.o \
 	src/emucore/Control.o \
 	src/emucore/Driving.o \
 	src/emucore/EventHandler.o \
+	src/emucore/EventJoyHandler.o \
 	src/emucore/FrameBuffer.o \
+	src/emucore/FBSurface.o \
 	src/emucore/FSNode.o \
 	src/emucore/Genesis.o \
 	src/emucore/Joystick.o \
@@ -54,13 +59,11 @@ MODULE_OBJS := \
 	src/emucore/M6502.o \
 	src/emucore/M6532.o \
 	src/emucore/MT24LC256.o \
-	src/emucore/NullDev.o \
 	src/emucore/MD5.o \
 	src/emucore/OSystem.o \
 	src/emucore/Paddles.o \
 	src/emucore/Props.o \
 	src/emucore/PropsSet.o \
-	src/emucore/Random.o \
 	src/emucore/SaveKey.o \
 	src/emucore/Serializer.o \
 	src/emucore/Settings.o \
@@ -70,6 +73,7 @@ MODULE_OBJS := \
 	src/emucore/TIA.o \
 	src/emucore/TIASnd.o \
 	src/emucore/TIATables.o \
+	src/emucore/TIASurface.o \
 	src/emucore/TrackBall.o \
 	src/emucore/Thumbulator.o
 

@@ -8,13 +8,13 @@
 //  BB  BB  SS  SS  PP      FF
 //  BBBBB    SSSS   PP      FF
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: bspf.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: bspf.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef BSPF_HXX
@@ -25,58 +25,48 @@
   that need to be defined for different operating systems.
 
   @author Bradford W. Mott
-  @version $Id: bspf.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: bspf.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 
-#ifdef HAVE_INTTYPES
-  #include <inttypes.h>
-
-  // Types for 8-bit signed and unsigned integers
-  typedef int8_t Int8;
-  typedef uint8_t uInt8;
-  // Types for 16-bit signed and unsigned integers
-  typedef int16_t Int16;
-  typedef uint16_t uInt16;
-  // Types for 32-bit signed and unsigned integers
-  typedef int32_t Int32;
-  typedef uint32_t uInt32;
-  // Types for 64-bit signed and unsigned integers
-  typedef int64_t Int64;
-  typedef uint64_t uInt64;
-#elif defined BSPF_WIN32
-  // Types for 8-bit signed and unsigned integers
-  typedef signed char Int8;
-  typedef unsigned char uInt8;
-  // Types for 16-bit signed and unsigned integers
-  typedef signed short Int16;
-  typedef unsigned short uInt16;
-  // Types for 32-bit signed and unsigned integers
-  typedef signed int Int32;
-  typedef unsigned int uInt32;
-  // Types for 64-bit signed and unsigned integers
-  typedef __int64 Int64;
-  typedef unsigned __int64 uInt64;
-#else
-  #error Update src/common/bspf.hxx for datatypes
-#endif
-
+#include <cstdint>
+// Types for 8-bit signed and unsigned integers
+using Int8  = int8_t;
+using uInt8 = uint8_t;
+// Types for 16-bit signed and unsigned integers
+using Int16  = int16_t;
+using uInt16 = uint16_t;
+// Types for 32-bit signed and unsigned integers
+using Int32  = int32_t;
+using uInt32 = uint32_t;
+// Types for 64-bit signed and unsigned integers
+using Int64  = int64_t;
+using uInt64 = uint64_t;
 
 // The following code should provide access to the standard C++ objects and
 // types: cout, cerr, string, ostream, istream, etc.
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
+#include <memory>
 #include <string>
 #include <sstream>
 #include <cstring>
 #include <cctype>
 #include <cstdio>
+#include <utility>
+#include <vector>
 using namespace std;
+
+// Common array types
+using IntArray = vector<Int32>;
+using BoolArray = vector<bool>;
+using ByteArray = vector<uInt8>;
+using StringList = vector<string>;
 
 // Defines to help with path handling
 #if (defined(BSPF_UNIX) || defined(BSPF_MAC_OSX))
   #define BSPF_PATH_SEPARATOR  "/"
-#elif (defined(BSPF_DOS) || defined(BSPF_WIN32) || defined(BSPF_OS2))
+#elif (defined(BSPF_DOS) || defined(BSPF_WINDOWS) || defined(BSPF_OS2))
   #define BSPF_PATH_SEPARATOR  "\\"
 #else
   #error Update src/common/bspf.hxx for path separator
@@ -95,7 +85,7 @@ using namespace std;
 #endif
 
 // I wish Windows had a complete POSIX layer
-#if defined BSPF_WIN32 && !defined __GNUG__
+#if defined BSPF_WINDOWS && !defined __GNUG__
   #define BSPF_snprintf _snprintf
   #define BSPF_vsnprintf _vsnprintf
 #else
@@ -110,22 +100,26 @@ static const string EmptyString("");
 //////////////////////////////////////////////////////////////////////
 // Some convenience functions
 
-template<typename T> inline void BSPF_swap(T& a, T& b) { T tmp = a; a = b; b = tmp; }
+// Initialize C++11 unique_ptr, at least until std::make_unique()
+// becomes part of the standard (C++14)
+template <typename Value, typename ... Arguments>
+std::unique_ptr<Value> make_ptr(Arguments && ... arguments_for_constructor)
+{
+  return std::unique_ptr<Value>(
+      new Value(std::forward<Arguments>(arguments_for_constructor)...)
+  );
+}
+
+template<typename T> inline void BSPF_swap(T& a, T& b) { std::swap(a, b); }
 template<typename T> inline T BSPF_abs (T x) { return (x>=0) ? x : -x; }
 template<typename T> inline T BSPF_min (T a, T b) { return (a<b) ? a : b; }
 template<typename T> inline T BSPF_max (T a, T b) { return (a>b) ? a : b; }
 template<typename T> inline T BSPF_clamp (T a, T l, T u) { return (a<l) ? l : (a>u) ? u : a; }
 
-// Test whether two characters are equal (case insensitive)
-static bool BSPF_equalsIgnoreCaseChar(char ch1, char ch2)
-{
-  return toupper((unsigned char)ch1) == toupper((unsigned char)ch2);
-}
-
 // Compare two strings, ignoring case
 inline int BSPF_compareIgnoreCase(const string& s1, const string& s2)
 {
-#if defined WIN32 && !defined __GNUG__
+#if defined BSPF_WINDOWS && !defined __GNUG__
   return _stricmp(s1.c_str(), s2.c_str());
 #else
   return strcasecmp(s1.c_str(), s2.c_str());
@@ -133,7 +127,7 @@ inline int BSPF_compareIgnoreCase(const string& s1, const string& s2)
 }
 inline int BSPF_compareIgnoreCase(const char* s1, const char* s2)
 {
-#if defined WIN32 && !defined __GNUG__
+#if defined BSPF_WINDOWS && !defined __GNUG__
   return _stricmp(s1, s2);
 #else
   return strcasecmp(s1, s2);
@@ -143,7 +137,7 @@ inline int BSPF_compareIgnoreCase(const char* s1, const char* s2)
 // Test whether the first string starts with the second one (case insensitive)
 inline bool BSPF_startsWithIgnoreCase(const string& s1, const string& s2)
 {
-#if defined WIN32 && !defined __GNUG__
+#if defined BSPF_WINDOWS && !defined __GNUG__
   return _strnicmp(s1.c_str(), s2.c_str(), s2.length()) == 0;
 #else
   return strncasecmp(s1.c_str(), s2.c_str(), s2.length()) == 0;
@@ -151,7 +145,7 @@ inline bool BSPF_startsWithIgnoreCase(const string& s1, const string& s2)
 }
 inline bool BSPF_startsWithIgnoreCase(const char* s1, const char* s2)
 {
-#if defined WIN32 && !defined __GNUG__
+#if defined BSPF_WINDOWS && !defined __GNUG__
   return _strnicmp(s1, s2, strlen(s2)) == 0;
 #else
   return strncasecmp(s1, s2, strlen(s2)) == 0;
@@ -168,8 +162,10 @@ inline bool BSPF_equalsIgnoreCase(const string& s1, const string& s2)
 // starting from 'startpos' in the first string
 inline size_t BSPF_findIgnoreCase(const string& s1, const string& s2, int startpos = 0)
 {
-  string::const_iterator pos = std::search(s1.begin()+startpos, s1.end(),
-    s2.begin(), s2.end(), BSPF_equalsIgnoreCaseChar);
+  auto pos = std::search(s1.begin()+startpos, s1.end(),
+    s2.begin(), s2.end(), [](char ch1, char ch2) {
+      return toupper((uInt8)ch1) == toupper((uInt8)ch2);
+    });
   return pos == s1.end() ? string::npos : pos - (s1.begin()+startpos);
 }
 

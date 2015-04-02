@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: AudioDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: AudioDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -27,7 +27,6 @@
 #include "Menu.hxx"
 #include "OSystem.hxx"
 #include "PopUpWidget.hxx"
-#include "StringList.hxx"
 #include "Settings.hxx"
 #include "Sound.hxx"
 #include "Widget.hxx"
@@ -35,9 +34,9 @@
 #include "AudioDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-AudioDialog::AudioDialog(OSystem* osystem, DialogContainer* parent,
+AudioDialog::AudioDialog(OSystem& osystem, DialogContainer& parent,
                          const GUI::Font& font)
-  : Dialog(osystem, parent, 0, 0, 0, 0)
+  : Dialog(osystem, parent)
 {
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
@@ -70,13 +69,12 @@ AudioDialog::AudioDialog(OSystem* osystem, DialogContainer* parent,
   ypos += lineHeight + 4;
 
   // Fragment size
-  items.clear();
-  items.push_back("128 bytes", "128");
-  items.push_back("256 bytes", "256");
-  items.push_back("512 bytes", "512");
-  items.push_back("1 KB", "1024");
-  items.push_back("2 KB", "2048");
-  items.push_back("4 KB", "4096");
+  VarList::push_back(items, "128 bytes", "128");
+  VarList::push_back(items, "256 bytes", "256");
+  VarList::push_back(items, "512 bytes", "512");
+  VarList::push_back(items, "1 KB", "1024");
+  VarList::push_back(items, "2 KB", "2048");
+  VarList::push_back(items, "4 KB", "4096");
   myFragsizePopup = new PopUpWidget(this, font, xpos, ypos,
                                     pwidth + myVolumeLabel->getWidth() - 4, lineHeight,
                                     items, "Sample size (*): ", lwidth);
@@ -85,11 +83,11 @@ AudioDialog::AudioDialog(OSystem* osystem, DialogContainer* parent,
 
   // Output frequency
   items.clear();
-  items.push_back("11025 Hz", "11025");
-  items.push_back("22050 Hz", "22050");
-  items.push_back("31400 Hz", "31400");
-  items.push_back("44100 Hz", "44100");
-  items.push_back("48000 Hz", "48000");
+  VarList::push_back(items, "11025 Hz", "11025");
+  VarList::push_back(items, "22050 Hz", "22050");
+  VarList::push_back(items, "31400 Hz", "31400");
+  VarList::push_back(items, "44100 Hz", "44100");
+  VarList::push_back(items, "48000 Hz", "48000");
   myFreqPopup = new PopUpWidget(this, font, xpos, ypos,
                                 pwidth + myVolumeLabel->getWidth() - 4, lineHeight,
                                 items, "Frequency (*): ", lwidth);
@@ -105,7 +103,7 @@ AudioDialog::AudioDialog(OSystem* osystem, DialogContainer* parent,
 
   // Add message concerning usage
   ypos += lineHeight + 12;
-  const GUI::Font& infofont = instance().infoFont();
+  const GUI::Font& infofont = instance().frameBuffer().infoFont();
   new StaticTextWidget(this, infofont, 10, ypos,
         font.getStringWidth("(*) Requires application restart"), fontHeight,
         "(*) Requires application restart", kTextAlignLeft);
@@ -166,7 +164,7 @@ void AudioDialog::saveConfig()
 
   // Only force a re-initialization when necessary, since it can
   // be a time-consuming operation
-  if(&instance().console())
+  if(instance().hasConsole())
     instance().console().initializeAudio();
 }
 

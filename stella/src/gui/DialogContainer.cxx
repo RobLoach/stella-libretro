@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DialogContainer.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DialogContainer.cxx 3148 2015-03-15 17:36:46Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -26,9 +26,9 @@
 #include "DialogContainer.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-DialogContainer::DialogContainer(OSystem* osystem)
+DialogContainer::DialogContainer(OSystem& osystem)
   : myOSystem(osystem),
-    myBaseDialog(NULL),
+    myBaseDialog(nullptr),
     myTime(0)
 {
   reset();
@@ -37,8 +37,7 @@ DialogContainer::DialogContainer(OSystem* osystem)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 DialogContainer::~DialogContainer()
 {
-  if(myBaseDialog)
-    delete myBaseDialog;
+  delete myBaseDialog;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -56,8 +55,7 @@ void DialogContainer::updateTime(uInt64 time)
   // Key still pressed
   if(myCurrentKeyDown.keycode != 0 && myKeyRepeatTime < myTime)
   {
-    activeDialog->handleKeyDown(myCurrentKeyDown.keycode, myCurrentKeyDown.flags,
-                                myCurrentKeyDown.ascii);
+    activeDialog->handleKeyDown(myCurrentKeyDown.keycode, myCurrentKeyDown.flags);
     myKeyRepeatTime = myTime + kRepeatSustainDelay;
   }
 
@@ -114,9 +112,6 @@ void DialogContainer::draw(bool full)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void DialogContainer::addDialog(Dialog* d)
 {
-  const GUI::Rect& screen = myOSystem->frameBuffer().screenRect();
-  assert(d->getWidth() <= screen.width() && d->getHeight() <= screen.height());
-
   myDialogStack.push(d);
 }
 
@@ -136,15 +131,23 @@ void DialogContainer::reStack()
 
   myBaseDialog->open(false);  // don't force a refresh
 
-  myOSystem->frameBuffer().refresh();
-
   // Reset all continuous events
   reset();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void DialogContainer::handleKeyEvent(StellaKey key, StellaMod mod,
-                                     char ascii, bool state)
+void DialogContainer::handleTextEvent(char text)
+{
+  if(myDialogStack.empty())
+    return;
+
+  // Send the event to the dialog box on the top of the stack
+  Dialog* activeDialog = myDialogStack.top();
+  activeDialog->handleText(text);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void DialogContainer::handleKeyEvent(StellaKey key, StellaMod mod, bool state)
 {
   if(myDialogStack.empty())
     return;
@@ -155,14 +158,13 @@ void DialogContainer::handleKeyEvent(StellaKey key, StellaMod mod,
   {
     myCurrentKeyDown.keycode = key;
     myCurrentKeyDown.flags   = mod;
-    myCurrentKeyDown.ascii   = ascii;
     myKeyRepeatTime = myTime + kRepeatInitialDelay;
 
-    activeDialog->handleKeyDown(key, mod, ascii);
+    activeDialog->handleKeyDown(key, mod);
   }
   else
   {
-    activeDialog->handleKeyUp(key, mod, ascii);
+    activeDialog->handleKeyUp(key, mod);
 
     // Only stop firing events if it's the current key
     if (key == myCurrentKeyDown.keycode)
@@ -185,7 +187,7 @@ void DialogContainer::handleMouseMotionEvent(int x, int y, int button)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void DialogContainer::handleMouseButtonEvent(MouseButton b, int x, int y, uInt8 state)
+void DialogContainer::handleMouseButtonEvent(MouseButton b, int x, int y)
 {
   if(myDialogStack.empty())
     return;

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartMC.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartMC.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEMC_HXX
@@ -137,7 +137,7 @@ class System;
 
 
   @author  Bradford W. Mott
-  @version $Id: CartMC.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: CartMC.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class CartridgeMC : public Cartridge
 {
@@ -175,16 +175,9 @@ class CartridgeMC : public Cartridge
     void install(System& system);
 
     /**
-      Install pages for the specified bank in the system.
-
-      @param bank The bank that should be installed in the system
-    */
-    bool bank(uInt16 bank);
-
-    /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const;
 
     /**
       Query the number of banks supported by the cartridge.

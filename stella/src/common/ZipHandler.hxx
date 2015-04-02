@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ZipHandler.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ZipHandler.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef ZIP_HANDLER_HXX
@@ -69,7 +69,7 @@ class ZipHandler
 {
   public:
     ZipHandler();
-    virtual ~ZipHandler();
+    ~ZipHandler();
 
     // Open ZIP file for processing
     void open(const string& filename);
@@ -225,22 +225,22 @@ class ZipHandler
     /* ----- ZIP file access ----- */
 
     /* open a ZIP file and parse its central directory */
-    zip_error zip_file_open(const char *filename, zip_file **zip);
+    zip_error zip_file_open(const char* filename, zip_file** zip);
 
     /* close a ZIP file (may actually be left open due to caching) */
-    void zip_file_close(zip_file *zip);
+    void zip_file_close(zip_file* zip);
 
     /* clear out all open ZIP files from the cache */
-    void zip_file_cache_clear(void);
+    void zip_file_cache_clear();
 
 
     /* ----- contained file access ----- */
 
     /* find the next file in the ZIP */
-    const zip_file_header *zip_file_next_file(zip_file *zip);
+    const zip_file_header* zip_file_next_file(zip_file* zip);
 
     /* decompress the most recently found file in the ZIP */
-    zip_error zip_file_decompress(zip_file *zip, void *buffer, uInt32 length);
+    zip_error zip_file_decompress(zip_file* zip, void* buffer, uInt32 length);
 
     inline static uInt16 read_word(uInt8* buf)
     {
@@ -253,17 +253,17 @@ class ZipHandler
     }
 
     /* cache management */
-    static void free_zip_file(zip_file *zip);
+    static void free_zip_file(zip_file* zip);
 
     /* ZIP file parsing */
-    static zip_error read_ecd(zip_file *zip);
-    static zip_error get_compressed_data_offset(zip_file *zip, uInt64 *offset);
+    static zip_error read_ecd(zip_file* zip);
+    static zip_error get_compressed_data_offset(zip_file* zip, uInt64& offset);
 
     /* decompression interfaces */
-    static zip_error decompress_data_type_0(zip_file *zip, uInt64 offset,
-                                            void *buffer, uInt32 length);
-    static zip_error decompress_data_type_8(zip_file *zip, uInt64 offset,
-                                            void *buffer, uInt32 length);
+    static zip_error decompress_data_type_0(zip_file* zip, uInt64 offset,
+                                            void* buffer, uInt32 length);
+    static zip_error decompress_data_type_8(zip_file* zip, uInt64 offset,
+                                            void* buffer, uInt32 length);
 
   private:
     zip_file* myZip;

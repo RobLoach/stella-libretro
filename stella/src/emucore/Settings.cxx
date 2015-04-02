@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Settings.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Settings.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <cassert>
@@ -24,57 +24,51 @@
 
 #include "bspf.hxx"
 
-//#include "DebuggerDialog.hxx"
 #include "OSystem.hxx"
 #include "Version.hxx"
+
+#ifdef DEBUGGER_SUPPORT
+  #include "DebuggerDialog.hxx"
+#endif
 
 #include "Settings.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Settings::Settings(OSystem* osystem)
+Settings::Settings(OSystem& osystem)
   : myOSystem(osystem)
 {
-  // Add this settings object to the OSystem
-  myOSystem->attach(this);
-
-  // Add options that are common to all versions of Stella
-  setInternal("video", "soft");
-
-  // OpenGL specific options
-  setInternal("gl_inter", "false");
-  setInternal("gl_aspectn", "90");
-  setInternal("gl_aspectp", "100");
-  setInternal("gl_fsscale", "false");
-  setInternal("gl_lib", "libGL.so");
-  setInternal("gl_vsync", "true");
-  setInternal("gl_vbo", "true");
-
-  // Framebuffer-related options
-  setInternal("tia_filter", "zoom2x");
-  setInternal("fullscreen", "0");
-  setInternal("fullres", "auto");
+  // Video-related options
+  setInternal("video", "");
+  setInternal("vsync", "true");
+  setInternal("fullscreen", "false");
   setInternal("center", "false");
-  setInternal("grabmouse", "true");
   setInternal("palette", "standard");
   setInternal("colorloss", "true");
   setInternal("timing", "sleep");
   setInternal("uimessages", "true");
 
+  // TIA specific options
+  setInternal("tia.zoom", "2");
+  setInternal("tia.inter", "false");
+  setInternal("tia.aspectn", "90");
+  setInternal("tia.aspectp", "100");
+  setInternal("tia.fsfill", "false");
+
   // TV filtering options
-  setInternal("tv_filter", "0");
-  setInternal("tv_scanlines", "25");
-  setInternal("tv_scaninter", "true");
+  setInternal("tv.filter", "0");
+  setInternal("tv.scanlines", "25");
+  setInternal("tv.scaninter", "true");
   // TV options when using 'custom' mode
-  setInternal("tv_contrast", "0.0");
-  setInternal("tv_brightness", "0.0");
-  setInternal("tv_hue", "0.0");
-  setInternal("tv_saturation", "0.0");
-  setInternal("tv_gamma", "0.0");
-  setInternal("tv_sharpness", "0.0");
-  setInternal("tv_resolution", "0.0");
-  setInternal("tv_artifacts", "0.0");
-  setInternal("tv_fringing", "0.0");
-  setInternal("tv_bleed", "0.0");
+  setInternal("tv.contrast", "0.0");
+  setInternal("tv.brightness", "0.0");
+  setInternal("tv.hue", "0.0");
+  setInternal("tv.saturation", "0.0");
+  setInternal("tv.gamma", "0.0");
+  setInternal("tv.sharpness", "0.0");
+  setInternal("tv.resolution", "0.0");
+  setInternal("tv.artifacts", "0.0");
+  setInternal("tv.fringing", "0.0");
+  setInternal("tv.bleed", "0.0");
 
   // Sound options
   setInternal("sound", "true");
@@ -89,6 +83,8 @@ Settings::Settings(OSystem* osystem)
   setInternal("joydeadzone", "13");
   setInternal("joyallow4", "false");
   setInternal("usemouse", "analog");
+  setInternal("grabmouse", "true");
+  setInternal("hidecursor", "false");
   setInternal("dsense", "5");
   setInternal("msense", "7");
   setInternal("saport", "lr");
@@ -120,9 +116,12 @@ Settings::Settings(OSystem* osystem)
   setInternal("lastrom", "");
 
   // UI-related options
-//  setInternal("dbg.res",
-//    GUI::Size(DebuggerDialog::kMediumFontMinW, DebuggerDialog::kMediumFontMinH));
-  setInternal("uipalette", "0");
+#ifdef DEBUGGER_SUPPORT
+  setInternal("dbg.res",
+    GUI::Size(DebuggerDialog::kMediumFontMinW,
+              DebuggerDialog::kMediumFontMinH));
+#endif
+  setInternal("uipalette", "standard");
   setInternal("listdelay", "300");
   setInternal("mwheel", "4");
 
@@ -131,7 +130,7 @@ Settings::Settings(OSystem* osystem)
   setInternal("loglevel", "1");
   setInternal("logtoconsole", "0");
   setInternal("tiadriven", "false");
-  setInternal("cpurandom", "true");
+  setInternal("cpurandom", "");
   setInternal("ramrandom", "true");
   setInternal("avoxport", "");
   setInternal("stats", "false");
@@ -139,6 +138,7 @@ Settings::Settings(OSystem* osystem)
   setExternal("romloadcount", "0");
   setExternal("maxres", "");
 
+#ifdef DEBUGGER_SUPPORT
   // Debugger/disassembly options
   setInternal("dbg.fontstyle", "0");
   setInternal("dbg.uhex", "true");
@@ -146,62 +146,63 @@ Settings::Settings(OSystem* osystem)
   setInternal("dis.gfxformat", "2");
   setInternal("dis.showaddr", "true");
   setInternal("dis.relocate", "false");
+#endif
 
+#ifdef DTHUMB_SUPPORT
   // Thumb ARM emulation options
   setInternal("thumb.trapfatal", "true");
+#endif
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Settings::~Settings()
 {
-  myInternalSettings.clear();
-  myExternalSettings.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//void Settings::loadConfig()
-//{
-//  string line, key, value;
-//  string::size_type equalPos, garbage;
-//
-//  ifstream in(myOSystem->configFile().c_str());
-//  if(!in || !in.is_open())
-//  {
-//    myOSystem->logMessage("ERROR: Couldn't load settings file", 0);
-//    return;
-//  }
-//
-//  while(getline(in, line))
-//  {
-//    // Strip all whitespace and tabs from the line
-//    while((garbage = line.find("\t")) != string::npos)
-//      line.erase(garbage, 1);
-//
-//    // Ignore commented and empty lines
-//    if((line.length() == 0) || (line[0] == ';'))
-//      continue;
-//
-//    // Search for the equal sign and discard the line if its not found
-//    if((equalPos = line.find("=")) == string::npos)
-//      continue;
-//
-//    // Split the line into key/value pairs and trim any whitespace
-//    key   = line.substr(0, equalPos);
-//    value = line.substr(equalPos + 1, line.length() - key.length() - 1);
-//    key   = trim(key);
-//    value = trim(value);
-//
-//    // Check for absent key or value
-//    if((key.length() == 0) || (value.length() == 0))
-//      continue;
-//
-//    // Only settings which have been previously set are valid
-//    if(int idx = getInternalPos(key) != -1)
-//      setInternal(key, value, idx, true);
-//  }
-//
-//  in.close();
-//}
+void Settings::loadConfig()
+{
+  string line, key, value;
+  string::size_type equalPos, garbage;
+
+  ifstream in(myOSystem.configFile().c_str());
+  if(!in || !in.is_open())
+  {
+    myOSystem.logMessage("ERROR: Couldn't load settings file", 0);
+    return;
+  }
+
+  while(getline(in, line))
+  {
+    // Strip all whitespace and tabs from the line
+    while((garbage = line.find("\t")) != string::npos)
+      line.erase(garbage, 1);
+
+    // Ignore commented and empty lines
+    if((line.length() == 0) || (line[0] == ';'))
+      continue;
+
+    // Search for the equal sign and discard the line if its not found
+    if((equalPos = line.find("=")) == string::npos)
+      continue;
+
+    // Split the line into key/value pairs and trim any whitespace
+    key   = line.substr(0, equalPos);
+    value = line.substr(equalPos + 1, line.length() - key.length() - 1);
+    key   = trim(key);
+    value = trim(value);
+
+    // Check for absent key or value
+    if((key.length() == 0) || (value.length() == 0))
+      continue;
+
+    // Only settings which have been previously set are valid
+    if(int idx = getInternalPos(key) != -1)
+      setInternal(key, value, idx, true);
+  }
+
+  in.close();
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 string Settings::loadCommandLine(int argc, char** argv)
@@ -235,6 +236,7 @@ string Settings::loadCommandLine(int argc, char** argv)
       if(++i >= argc)
       {
         buf << "Missing argument for '" << key << "'" << endl;
+        myOSystem.logMessage(buf.str(), 0);
         return "";
       }
       string value = argv[i];
@@ -254,6 +256,8 @@ string Settings::loadCommandLine(int argc, char** argv)
         setExternal(key, value);
         buf << "(E)\n";
       }
+
+      myOSystem.logMessage(buf.str(), 2);
     }
     else
       return key;
@@ -268,22 +272,16 @@ void Settings::validate()
   string s;
   int i;
 
-  s = getString("video");
-  if(s != "soft" && s != "gl")  setInternal("video", "soft");
-
   s = getString("timing");
   if(s != "sleep" && s != "busy")  setInternal("timing", "sleep");
 
-#ifdef DISPLAY_OPENGL
-  i = getInt("gl_aspectn");
-  if(i < 80 || i > 120)  setInternal("gl_aspectn", "100");
-  i = getInt("gl_aspectp");
-  if(i < 80 || i > 120)  setInternal("gl_aspectp", "100");
+  i = getInt("tia.aspectn");
+  if(i < 80 || i > 120)  setInternal("tia.aspectn", "90");
+  i = getInt("tia.aspectp");
+  if(i < 80 || i > 120)  setInternal("tia.aspectp", "100");
 
-  i = getInt("tv_filter");
-  if(i < 0 || i > 5)  setInternal("tv_filter", "0");
-
-#endif
+  i = getInt("tv.filter");
+  if(i < 0 || i > 5)  setInternal("tv.filter", "0");
 
 #ifdef SOUND_SUPPORT
   i = getInt("volume");
@@ -330,150 +328,151 @@ void Settings::validate()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//void Settings::usage()
-//{
-//  cout << endl
-//    << "Stella version " << STELLA_VERSION << endl
-//    << endl
-//    << "Usage: stella [options ...] romfile" << endl
-//    << "       Run without any options or romfile to use the ROM launcher" << endl
-//    << "       Consult the manual for more in-depth information" << endl
-//    << endl
-//    << "Valid options are:" << endl
-//    << endl
-//    << "  -video        <type>         Type is one of the following:\n"
-//    << "                 soft            SDL software mode\n"
-//  #ifdef DISPLAY_OPENGL
-//    << "                 gl              SDL OpenGL mode\n"
-//    << endl
-//    << "  -gl_lib       <name>         Specify the OpenGL library\n"
-//    << "  -gl_inter     <1|0>          Enable interpolated (smooth) scaling\n"
-//    << "  -gl_aspectn   <number>       Scale the TIA width by the given percentage in NTSC mode\n"
-//    << "  -gl_aspectp   <number>       Scale the TIA width by the given percentage in PAL mode\n"
-//    << "  -gl_fsscale   <1|0>          Stretch GL image in fullscreen emulation mode to max/integer scale\n"
-//    << "  -gl_vsync     <1|0>          Enable 'synchronize to vertical blank interrupt'\n"
-//    << "  -gl_vbo       <1|0>          Enable 'vertex buffer objects'\n"
-//    << endl
-//    << "  -tv_filter    <0-5>          Set TV effects off (0) or to specified mode (1-5)\n"
-//    << "  -tv_scanlines <0-100>        Set scanline intensity to percentage (0 disables completely)\n"
-//    << "  -tv_scaninter <1|0>          Enable interpolated (smooth) scanlines\n"
-//    << "  -tv_contrast    <value>      Set TV effects custom contrast to value 1.0 - 1.0\n"
-//    << "  -tv_brightness  <value>      Set TV effects custom brightness to value 1.0 - 1.0\n"
-//    << "  -tv_hue         <value>      Set TV effects custom hue to value 1.0 - 1.0\n"
-//    << "  -tv_saturation  <value>      Set TV effects custom saturation to value 1.0 - 1.0\n"
-//    << "  -tv_gamma       <value>      Set TV effects custom gamma to value 1.0 - 1.0\n"
-//    << "  -tv_sharpness   <value>      Set TV effects custom sharpness to value 1.0 - 1.0\n"
-//    << "  -tv_resolution  <value>      Set TV effects custom resolution to value 1.0 - 1.0\n"
-//    << "  -tv_artifacts   <value>      Set TV effects custom artifacts to value 1.0 - 1.0\n"
-//    << "  -tv_fringing    <value>      Set TV effects custom fringing to value 1.0 - 1.0\n"
-//    << "  -tv_bleed       <value>      Set TV effects custom bleed to value 1.0 - 1.0\n"
-//    << endl
-//  #endif
-//    << "  -tia_filter   <filter>       Use the specified filter in emulation mode\n"
-//    << "  -fullscreen   <1|0|-1>       Use fullscreen mode (1 or 0), or disable switching to fullscreen entirely\n"
-//    << "  -fullres      <auto|WxH>     The resolution to use in fullscreen mode\n"
-//    << "  -center       <1|0>          Centers game window (if possible)\n"
-//    << "  -grabmouse    <1|0>          Keeps the mouse in the game window\n"
-//    << "  -palette      <standard|     Use the specified color palette\n"
-//    << "                 z26|\n"
-//    << "                 user>\n"
-//    << "  -colorloss    <1|0>          Enable PAL color-loss effect\n"
-//    << "  -framerate    <number>       Display the given number of frames per second (0 to auto-calculate)\n"
-//    << "  -timing       <sleep|busy>   Use the given type of wait between frames\n"
-//    << "  -uimessages   <1|0>          Show onscreen UI messages for different events\n"
-//    << endl
-//  #ifdef SOUND_SUPPORT
-//    << "  -sound        <1|0>          Enable sound generation\n"
-//    << "  -fragsize     <number>       The size of sound fragments (must be a power of two)\n"
-//    << "  -freq         <number>       Set sound sample output frequency (11025|22050|31400|44100|48000)\n"
-//    << "  -volume       <number>       Set the volume (0 - 100)\n"
-//    << endl
-//  #endif
-//    << "  -cheat        <code>         Use the specified cheatcode (see manual for description)\n"
-//    << "  -loglevel     <0|1|2>        Set level of logging during application run\n"
-//    << "  -logtoconsole <1|0>          Log output to console/commandline\n"
-//    << "  -joydeadzone  <number>       Sets 'deadzone' area for analog joysticks (0-29)\n"
-//    << "  -joyallow4    <1|0>          Allow all 4 directions on a joystick to be pressed simultaneously\n"
-//    << "  -usemouse     <always|\n"
-//    << "                 analog|\n"
-//    << "                 never>        Use mouse as a controller as specified by ROM properties in given mode(see manual)\n"
-//    << "  -dsense       <number>       Sensitivity of digital emulated paddle movement (1-10)\n"
-//    << "  -msense       <number>       Sensitivity of mouse emulated paddle movement (1-15)\n"
-//    << "  -saport       <lr|rl>        How to assign virtual ports to multiple Stelladaptor/2600-daptors\n"
-//    << "  -ctrlcombo    <1|0>          Use key combos involving the Control key (Control-Q for quit may be disabled!)\n"
-//    << "  -autoslot     <1|0>          Automatically switch to next save slot when state saving\n"
-//    << "  -stats        <1|0>          Overlay console info during emulation\n"
-//    << "  -fastscbios   <1|0>          Disable Supercharger BIOS progress loading bars\n"
-//    << "  -snapsavedir  <path>         The directory to save snapshot files to\n"
-//    << "  -snaploaddir  <path>         The directory to load snapshot files from\n"
-//    << "  -snapname     <int|rom>      Name snapshots according to internal database or ROM\n"
-//    << "  -sssingle     <1|0>          Generate single snapshot instead of many\n"
-//    << "  -ss1x         <1|0>          Generate TIA snapshot in 1x mode (ignore scaling/effects)\n"
-//    << "  -ssinterval   <number        Number of seconds between snapshots in continuous snapshot mode\n"
-//    << endl
-//    << "  -rominfo      <rom>          Display detailed information for the given ROM\n"
-//    << "  -listrominfo                 Display contents of stella.pro, one line per ROM entry\n"
-//    << "  -exitlauncher <1|0>          On exiting a ROM, go back to the ROM launcher\n"
-//    << "  -launcherres  <WxH>          The resolution to use in ROM launcher mode\n"
-//    << "  -launcherfont <small|medium| Use the specified font in the ROM launcher\n"
-//    << "                 large>\n"
-//    << "  -launcherexts <allfiles|     Show files with the given extensions in ROM launcher\n"
-//    << "                 allroms|        (exts is a ':' separated list of extensions)\n"
-//    << "                 exts\n"
-//    << "  -romviewer    <0|1|2>        Show ROM info viewer at given zoom level in ROM launcher (0 for off)\n"
-//    << "  -uipalette    <1|2>          Used the specified palette for UI elements\n"
-//    << "  -listdelay    <delay>        Time to wait between keypresses in list widgets (300-1000)\n"
-//    << "  -mwheel       <lines>        Number of lines the mouse wheel will scroll in UI\n"
-//    << "  -statedir     <dir>          Directory in which to save/load state files\n"
-//    << "  -cheatfile    <file>         Full pathname of cheatfile database\n"
-//    << "  -palettefile  <file>         Full pathname of user-defined palette file\n"
-//    << "  -propsfile    <file>         Full pathname of ROM properties file\n"
-//    << "  -nvramdir     <dir>          Directory in which to save/load flash/EEPROM files\n"
-//    << "  -cfgdir       <dir>          Directory in which to save Distella config files\n"
-//    << "  -avoxport     <name>         The name of the serial port where an AtariVox is connected\n"
-//    << "  -maxres       <WxH>          Used by developers to force the maximum size of the application window\n"
-//    << "  -holdreset                   Start the emulator with the Game Reset switch held down\n"
-//    << "  -holdselect                  Start the emulator with the Game Select switch held down\n"
-//    << "  -holdjoy0     <U,D,L,R,F>    Start the emulator with the left joystick direction/fire button held down\n"
-//    << "  -holdjoy1     <U,D,L,R,F>    Start the emulator with the right joystick direction/fire button held down\n"
-//    << "  -tiadriven    <1|0>          Drive unused TIA pins randomly on a read/peek\n"
-//    << "  -cpurandom    <1|0>          Randomize the contents of CPU registers on reset\n"
-//    << "  -ramrandom    <1|0>          Randomize the contents of RAM on reset\n"
-//    << "  -help                        Show the text you're now reading\n"
-//  #ifdef DEBUGGER_SUPPORT
-//    << endl
-//    << " The following options are meant for developers\n"
-//    << " Arguments are more fully explained in the manual\n"
-//    << endl
-//    << "   -dis.resolve   <1|0>        Attempt to resolve code sections in disassembler\n"
-//    << "   -dis.gfxformat <2|16>       Set base to use for displaying GFX sections in disassembler\n"
-//    << "   -dis.showaddr  <1|0>        Show opcode addresses in disassembler\n"
-//    << "   -dis.relocate  <1|0>        Relocate calls out of address range in disassembler\n"
-//    << endl
-//    << "   -dbg.res       <WxH>        The resolution to use in debugger mode\n"
-//    << "   -dbg.fontstyle <0-3>        Font style to use in debugger window (bold vs. normal)\n"
-//    << "   -break         <address>    Set a breakpoint at 'address'\n"
-//    << "   -debug                      Start in debugger mode\n"
-//    << endl
-//    << "   -bs          <arg>          Sets the 'Cartridge.Type' (bankswitch) property\n"
-//    << "   -type        <arg>          Same as using -bs\n"
-//    << "   -channels    <arg>          Sets the 'Cartridge.Sound' property\n"
-//    << "   -ld          <arg>          Sets the 'Console.LeftDifficulty' property\n"
-//    << "   -rd          <arg>          Sets the 'Console.RightDifficulty' property\n"
-//    << "   -tv          <arg>          Sets the 'Console.TelevisionType' property\n"
-//    << "   -sp          <arg>          Sets the 'Console.SwapPorts' property\n"
-//    << "   -lc          <arg>          Sets the 'Controller.Left' property\n"
-//    << "   -rc          <arg>          Sets the 'Controller.Right' property\n"
-//    << "   -bc          <arg>          Same as using both -lc and -rc\n"
-//    << "   -cp          <arg>          Sets the 'Controller.SwapPaddles' property\n"
-//    << "   -format      <arg>          Sets the 'Display.Format' property\n"
-//    << "   -ystart      <arg>          Sets the 'Display.YStart' property\n"
-//    << "   -height      <arg>          Sets the 'Display.Height' property\n"
-//    << "   -pp          <arg>          Sets the 'Display.Phosphor' property\n"
-//    << "   -ppblend     <arg>          Sets the 'Display.PPBlend' property\n"
-//  #endif
-//    << endl << flush;
-//}
+void Settings::usage() const
+{
+  cout << endl
+    << "Stella version " << STELLA_VERSION << endl
+    << endl
+    << "Usage: stella [options ...] romfile" << endl
+    << "       Run without any options or romfile to use the ROM launcher" << endl
+    << "       Consult the manual for more in-depth information" << endl
+    << endl
+    << "Valid options are:" << endl
+    << endl
+    << "  -video        <type>         Type is one of the following:\n"
+  #ifdef BSPF_WINDOWS
+    << "                 direct3d        Direct3D acceleration\n"
+  #endif
+    << "                 opengl          OpenGL acceleration\n"
+    << "                 opengles2       OpenGLES 2 acceleration\n"
+    << "                 opengles        OpenGLES 1 acceleration\n"
+    << "                 software        Software mode (no acceleration)\n"
+    << endl
+    << "  -vsync        <1|0>          Enable 'synchronize to vertical blank interrupt'\n"
+    << "  -fullscreen   <1|0>          Enable fullscreen mode\n"
+    << "  -center       <1|0>          Centers game window (if possible)\n"
+    << "  -palette      <standard|     Use the specified color palette\n"
+    << "                 z26|\n"
+    << "                 user>\n"
+    << "  -colorloss    <1|0>          Enable PAL color-loss effect\n"
+    << "  -framerate    <number>       Display the given number of frames per second (0 to auto-calculate)\n"
+    << "  -timing       <sleep|busy>   Use the given type of wait between frames\n"
+    << "  -uimessages   <1|0>          Show onscreen UI messages for different events\n"
+    << endl
+  #ifdef SOUND_SUPPORT
+    << "  -sound        <1|0>          Enable sound generation\n"
+    << "  -fragsize     <number>       The size of sound fragments (must be a power of two)\n"
+    << "  -freq         <number>       Set sound sample output frequency (11025|22050|31400|44100|48000)\n"
+    << "  -volume       <number>       Set the volume (0 - 100)\n"
+    << endl
+  #endif
+    << "  -tia.zoom     <zoom>         Use the specified zoom level (windowed mode) for TIA image\n"
+    << "  -tia.inter    <1|0>          Enable interpolated (smooth) scaling for TIA image\n"
+    << "  -tia.aspectn  <number>       Scale TIA width by the given percentage in NTSC mode\n"
+    << "  -tia.aspectp  <number>       Scale TIA width by the given percentage in PAL mode\n"
+    << "  -tia.fsfill   <1|0>          Stretch TIA image to fill fullscreen mode\n"
+    << endl
+    << "  -tv.filter    <0-5>          Set TV effects off (0) or to specified mode (1-5)\n"
+    << "  -tv.scanlines <0-100>        Set scanline intensity to percentage (0 disables completely)\n"
+    << "  -tv.scaninter <1|0>          Enable interpolated (smooth) scanlines\n"
+    << "  -tv.contrast    <value>      Set TV effects custom contrast to value 1.0 - 1.0\n"
+    << "  -tv.brightness  <value>      Set TV effects custom brightness to value 1.0 - 1.0\n"
+    << "  -tv.hue         <value>      Set TV effects custom hue to value 1.0 - 1.0\n"
+    << "  -tv.saturation  <value>      Set TV effects custom saturation to value 1.0 - 1.0\n"
+    << "  -tv.gamma       <value>      Set TV effects custom gamma to value 1.0 - 1.0\n"
+    << "  -tv.sharpness   <value>      Set TV effects custom sharpness to value 1.0 - 1.0\n"
+    << "  -tv.resolution  <value>      Set TV effects custom resolution to value 1.0 - 1.0\n"
+    << "  -tv.artifacts   <value>      Set TV effects custom artifacts to value 1.0 - 1.0\n"
+    << "  -tv.fringing    <value>      Set TV effects custom fringing to value 1.0 - 1.0\n"
+    << "  -tv.bleed       <value>      Set TV effects custom bleed to value 1.0 - 1.0\n"
+    << endl
+    << "  -cheat        <code>         Use the specified cheatcode (see manual for description)\n"
+    << "  -loglevel     <0|1|2>        Set level of logging during application run\n"
+    << "  -logtoconsole <1|0>          Log output to console/commandline\n"
+    << "  -joydeadzone  <number>       Sets 'deadzone' area for analog joysticks (0-29)\n"
+    << "  -joyallow4    <1|0>          Allow all 4 directions on a joystick to be pressed simultaneously\n"
+    << "  -usemouse     <always|\n"
+    << "                 analog|\n"
+    << "                 never>        Use mouse as a controller as specified by ROM properties in given mode(see manual)\n"
+    << "  -grabmouse    <1|0>          Locks the mouse cursor in the TIA window\n"
+    << "  -hidecursor   <1|0>          Always hide the cursor, or show it when appropriate\n"
+    << "  -dsense       <number>       Sensitivity of digital emulated paddle movement (1-10)\n"
+    << "  -msense       <number>       Sensitivity of mouse emulated paddle movement (1-15)\n"
+    << "  -saport       <lr|rl>        How to assign virtual ports to multiple Stelladaptor/2600-daptors\n"
+    << "  -ctrlcombo    <1|0>          Use key combos involving the Control key (Control-Q for quit may be disabled!)\n"
+    << "  -autoslot     <1|0>          Automatically switch to next save slot when state saving\n"
+    << "  -stats        <1|0>          Overlay console info during emulation\n"
+    << "  -fastscbios   <1|0>          Disable Supercharger BIOS progress loading bars\n"
+    << "  -snapsavedir  <path>         The directory to save snapshot files to\n"
+    << "  -snaploaddir  <path>         The directory to load snapshot files from\n"
+    << "  -snapname     <int|rom>      Name snapshots according to internal database or ROM\n"
+    << "  -sssingle     <1|0>          Generate single snapshot instead of many\n"
+    << "  -ss1x         <1|0>          Generate TIA snapshot in 1x mode (ignore scaling/effects)\n"
+    << "  -ssinterval   <number        Number of seconds between snapshots in continuous snapshot mode\n"
+    << endl
+    << "  -rominfo      <rom>          Display detailed information for the given ROM\n"
+    << "  -listrominfo                 Display contents of stella.pro, one line per ROM entry\n"
+    << "  -exitlauncher <1|0>          On exiting a ROM, go back to the ROM launcher\n"
+    << "  -launcherres  <WxH>          The resolution to use in ROM launcher mode\n"
+    << "  -launcherfont <small|medium| Use the specified font in the ROM launcher\n"
+    << "                 large>\n"
+    << "  -launcherexts <allfiles|     Show files with the given extensions in ROM launcher\n"
+    << "                 allroms|        (exts is a ':' separated list of extensions)\n"
+    << "                 exts\n"
+    << "  -romviewer    <0|1|2>        Show ROM info viewer at given zoom level in ROM launcher (0 for off)\n"
+    << "  -listdelay    <delay>        Time to wait between keypresses in list widgets (300-1000)\n"
+    << "  -mwheel       <lines>        Number of lines the mouse wheel will scroll in UI\n"
+    << "  -romdir       <dir>          Directory in which to load ROM files\n"
+    << "  -statedir     <dir>          Directory in which to save/load state files\n"
+    << "  -cheatfile    <file>         Full pathname of cheatfile database\n"
+    << "  -palettefile  <file>         Full pathname of user-defined palette file\n"
+    << "  -propsfile    <file>         Full pathname of ROM properties file\n"
+    << "  -nvramdir     <dir>          Directory in which to save/load flash/EEPROM files\n"
+    << "  -cfgdir       <dir>          Directory in which to save Distella config files\n"
+    << "  -avoxport     <name>         The name of the serial port where an AtariVox is connected\n"
+    << "  -holdreset                   Start the emulator with the Game Reset switch held down\n"
+    << "  -holdselect                  Start the emulator with the Game Select switch held down\n"
+    << "  -holdjoy0     <U,D,L,R,F>    Start the emulator with the left joystick direction/fire button held down\n"
+    << "  -holdjoy1     <U,D,L,R,F>    Start the emulator with the right joystick direction/fire button held down\n"
+    << "  -tiadriven    <1|0>          Drive unused TIA pins randomly on a read/peek\n"
+    << "  -cpurandom    <1|0>          Randomize the contents of CPU registers on reset\n"
+    << "  -ramrandom    <1|0>          Randomize the contents of RAM on reset\n"
+    << "  -maxres       <WxH>          Used by developers to force the maximum size of the application window\n"
+    << "  -help                        Show the text you're now reading\n"
+  #ifdef DEBUGGER_SUPPORT
+    << endl
+    << " The following options are meant for developers\n"
+    << " Arguments are more fully explained in the manual\n"
+    << endl
+    << "   -dis.resolve   <1|0>        Attempt to resolve code sections in disassembler\n"
+    << "   -dis.gfxformat <2|16>       Set base to use for displaying GFX sections in disassembler\n"
+    << "   -dis.showaddr  <1|0>        Show opcode addresses in disassembler\n"
+    << "   -dis.relocate  <1|0>        Relocate calls out of address range in disassembler\n"
+    << endl
+    << "   -dbg.res       <WxH>        The resolution to use in debugger mode\n"
+    << "   -dbg.fontstyle <0-3>        Font style to use in debugger window (bold vs. normal)\n"
+    << "   -break         <address>    Set a breakpoint at 'address'\n"
+    << "   -debug                      Start in debugger mode\n"
+    << endl
+    << "   -bs          <arg>          Sets the 'Cartridge.Type' (bankswitch) property\n"
+    << "   -type        <arg>          Same as using -bs\n"
+    << "   -channels    <arg>          Sets the 'Cartridge.Sound' property\n"
+    << "   -ld          <arg>          Sets the 'Console.LeftDifficulty' property\n"
+    << "   -rd          <arg>          Sets the 'Console.RightDifficulty' property\n"
+    << "   -tv          <arg>          Sets the 'Console.TelevisionType' property\n"
+    << "   -sp          <arg>          Sets the 'Console.SwapPorts' property\n"
+    << "   -lc          <arg>          Sets the 'Controller.Left' property\n"
+    << "   -rc          <arg>          Sets the 'Controller.Right' property\n"
+    << "   -bc          <arg>          Same as using both -lc and -rc\n"
+    << "   -cp          <arg>          Sets the 'Controller.SwapPaddles' property\n"
+    << "   -format      <arg>          Sets the 'Display.Format' property\n"
+    << "   -ystart      <arg>          Sets the 'Display.YStart' property\n"
+    << "   -height      <arg>          Sets the 'Display.Height' property\n"
+    << "   -pp          <arg>          Sets the 'Display.Phosphor' property\n"
+    << "   -ppblend     <arg>          Sets the 'Display.PPBlend' property\n"
+  #endif
+    << endl << flush;
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const Variant& Settings::value(const string& key) const
@@ -498,59 +497,56 @@ void Settings::setValue(const string& key, const Variant& value)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//void Settings::saveConfig()
-//{
-//  // Do a quick scan of the internal settings to see if any have
-//  // changed.  If not, we don't need to save them at all.
-//  bool settingsChanged = false;
-//  for(unsigned int i = 0; i < myInternalSettings.size(); ++i)
-//  {
-//    if(myInternalSettings[i].value != myInternalSettings[i].initialValue)
-//    {
-//      settingsChanged = true;
-//      break;
-//    }
-//  }
-//
-//  if(!settingsChanged)
-//    return;
-//
-//  ofstream out(myOSystem->configFile().c_str());
-//  if(!out || !out.is_open())
-//  {
-//    myOSystem->logMessage("ERROR: Couldn't save settings file", 0);
-//    return;
-//  }
-//
-//  out << ";  Stella configuration file" << endl
-//      << ";" << endl
-//      << ";  Lines starting with ';' are comments and are ignored." << endl
-//      << ";  Spaces and tabs are ignored." << endl
-//      << ";" << endl
-//      << ";  Format MUST be as follows:" << endl
-//      << ";    command = value" << endl
-//      << ";" << endl
-//      << ";  Commmands are the same as those specified on the commandline," << endl
-//      << ";  without the '-' character." << endl
-//      << ";" << endl
-//      << ";  Values are the same as those allowed on the commandline." << endl
-//      << ";  Boolean values are specified as 1 (or true) and 0 (or false)" << endl
-//      << ";" << endl;
-//
-//  // Write out each of the key and value pairs
-//  for(unsigned int i = 0; i < myInternalSettings.size(); ++i)
-//  {
-//    out << myInternalSettings[i].key << " = " <<
-//           myInternalSettings[i].value << endl;
-//  }
-//
-//  out.close();
-//}
+void Settings::saveConfig()
+{
+  // Do a quick scan of the internal settings to see if any have
+  // changed.  If not, we don't need to save them at all.
+  bool settingsChanged = false;
+  for(const auto& s: myInternalSettings)
+  {
+    if(s.value != s.initialValue)
+    {
+      settingsChanged = true;
+      break;
+    }
+  }
+
+  if(!settingsChanged)
+    return;
+
+  ofstream out(myOSystem.configFile().c_str());
+  if(!out || !out.is_open())
+  {
+    myOSystem.logMessage("ERROR: Couldn't save settings file", 0);
+    return;
+  }
+
+  out << ";  Stella configuration file" << endl
+      << ";" << endl
+      << ";  Lines starting with ';' are comments and are ignored." << endl
+      << ";  Spaces and tabs are ignored." << endl
+      << ";" << endl
+      << ";  Format MUST be as follows:" << endl
+      << ";    command = value" << endl
+      << ";" << endl
+      << ";  Commmands are the same as those specified on the commandline," << endl
+      << ";  without the '-' character." << endl
+      << ";" << endl
+      << ";  Values are the same as those allowed on the commandline." << endl
+      << ";  Boolean values are specified as 1 (or true) and 0 (or false)" << endl
+      << ";" << endl;
+
+  // Write out each of the key and value pairs
+  for(const auto& s: myInternalSettings)
+    out << s.key << " = " << s.value << endl;
+
+  out.close();
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 int Settings::getInternalPos(const string& key) const
 {
-  for(unsigned int i = 0; i < myInternalSettings.size(); ++i)
+  for(uInt32 i = 0; i < myInternalSettings.size(); ++i)
     if(myInternalSettings[i].key == key)
       return i;
 
@@ -560,7 +556,7 @@ int Settings::getInternalPos(const string& key) const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 int Settings::getExternalPos(const string& key) const
 {
-  for(unsigned int i = 0; i < myExternalSettings.size(); ++i)
+  for(uInt32 i = 0; i < myExternalSettings.size(); ++i)
     if(myExternalSettings[i].key == key)
       return i;
 
@@ -573,14 +569,14 @@ int Settings::setInternal(const string& key, const Variant& value,
 {
   int idx = -1;
 
-  if(pos != -1 && pos >= 0 && pos < (int)myInternalSettings.size() &&
+  if(pos >= 0 && pos < (int)myInternalSettings.size() &&
      myInternalSettings[pos].key == key)
   {
     idx = pos;
   }
   else
   {
-    for(unsigned int i = 0; i < myInternalSettings.size(); ++i)
+    for(uInt32 i = 0; i < myInternalSettings.size(); ++i)
     {
       if(myInternalSettings[i].key == key)
       {
@@ -610,7 +606,7 @@ int Settings::setInternal(const string& key, const Variant& value,
     if(useAsInitial) setting.initialValue = value;
 
     myInternalSettings.push_back(setting);
-    idx = myInternalSettings.size() - 1;
+    idx = int(myInternalSettings.size()) - 1;
 
     /*cerr << "insert internal: key = " << key
          << ", value  = " << value
@@ -628,14 +624,14 @@ int Settings::setExternal(const string& key, const Variant& value,
 {
   int idx = -1;
 
-  if(pos != -1 && pos >= 0 && pos < (int)myExternalSettings.size() &&
+  if(pos >= 0 && pos < (int)myExternalSettings.size() &&
      myExternalSettings[pos].key == key)
   {
     idx = pos;
   }
   else
   {
-    for(unsigned int i = 0; i < myExternalSettings.size(); ++i)
+    for(uInt32 i = 0; i < myExternalSettings.size(); ++i)
     {
       if(myExternalSettings[i].key == key)
       {
@@ -664,7 +660,7 @@ int Settings::setExternal(const string& key, const Variant& value,
     if(useAsInitial) setting.initialValue = value;
 
     myExternalSettings.push_back(setting);
-    idx = myExternalSettings.size() - 1;
+    idx = int(myExternalSettings.size()) - 1;
 
     /*cerr << "insert external: key = " << key
          << ", value = " << value
@@ -673,17 +669,4 @@ int Settings::setExternal(const string& key, const Variant& value,
   }
 
   return idx;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Settings::Settings(const Settings&)
-{
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Settings& Settings::operator = (const Settings&)
-{
-  assert(false);
-
-  return *this;
 }

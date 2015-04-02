@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: PopUpWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: PopUpWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -28,7 +28,7 @@
 #define UP_DOWN_BOX_HEIGHT	10
 
 // Little up/down arrow
-static unsigned int up_down_arrows[8] = {
+static uInt32 up_down_arrows[8] = {
   0x00000000,
   0x00001000,
   0x00011100,
@@ -63,13 +63,12 @@ PopUpWidget::PopUpWidget(GuiObject* boss, const GUI::Font& font,
   myTextY   = (_h - _font.getFontHeight()) / 2;
   myArrowsY = (_h - 8) / 2;
 
-  myMenu = new ContextMenu(this, font, list, cmd);
+  myMenu = make_ptr<ContextMenu>(this, font, list, cmd);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 PopUpWidget::~PopUpWidget()
 {
-  delete myMenu;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -79,8 +78,8 @@ void PopUpWidget::handleMouseDown(int x, int y, int button, int clickCount)
   {
     // Add menu just underneath parent widget
     const GUI::Rect& image = instance().frameBuffer().imageRect();
-    uInt32 tx, ty;
-    dialog().surface().getPos(tx, ty);
+    const GUI::Rect& srect = dialog().surface().dstRect();
+    uInt32 tx = srect.x(), ty = srect.y();
     tx += getAbsX() + _labelWidth - image.x();
     ty += getAbsY() + getHeight() - image.y();
     myMenu->show(tx, ty, myMenu->getSelected());

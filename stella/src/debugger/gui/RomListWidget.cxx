@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: RomListWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: RomListWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -31,7 +31,6 @@ RomListWidget::RomListWidget(GuiObject* boss, const GUI::Font& lfont,
                              const GUI::Font& nfont,
                              int x, int y, int w, int h)
   : EditableWidget(boss, nfont, x, y, 16, 16),
-    myMenu(NULL),
     _rows(0),
     _cols(0),
     _currentPos(0),
@@ -58,7 +57,7 @@ RomListWidget::RomListWidget(GuiObject* boss, const GUI::Font& lfont,
   myScrollBar->setTarget(this);
 
   // Add settings menu
-  myMenu = new RomListSettings(this, lfont);
+  myMenu = make_ptr<RomListSettings>(this, lfont);
 
   // Take advantage of a wide debugger window when possible
   const int fontWidth = lfont.getMaxCharWidth(),
@@ -77,7 +76,7 @@ RomListWidget::RomListWidget(GuiObject* boss, const GUI::Font& lfont,
   _rows = h / _fontHeight;
 
   // Create a CheckboxWidget for each row in the list
-  CheckboxWidget* t;
+  CheckboxWidget* t = nullptr;
   for(int i = 0; i < _rows; ++i)
   {
     t = new CheckboxWidget(boss, lfont, _x + 2, ypos, "", kCheckActionCmd);
@@ -94,7 +93,6 @@ RomListWidget::RomListWidget(GuiObject* boss, const GUI::Font& lfont,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 RomListWidget::~RomListWidget()
 {
-  delete myMenu;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -110,7 +108,7 @@ void RomListWidget::setList(const CartDebug::Disassembly& disasm,
 
   // Then turn off any extras
   if((int)myDisasm->list.size() < _rows)
-    for(int i = myDisasm->list.size(); i < _rows; ++i)
+    for(int i = (int)myDisasm->list.size(); i < _rows; ++i)
       myCheckList[i]->clearFlags(WIDGET_ENABLED);
 
   recalc();
@@ -175,7 +173,7 @@ int RomListWidget::findItem(int x, int y) const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void RomListWidget::recalc()
 {
-  int size = myDisasm->list.size();
+  int size = (int)myDisasm->list.size();
 
   if (_currentPos >= size)
     _currentPos = size - 1;
@@ -187,7 +185,7 @@ void RomListWidget::recalc()
 
   _editMode = false;
 
-  myScrollBar->_numEntries     = myDisasm->list.size();
+  myScrollBar->_numEntries     = (int)myDisasm->list.size();
   myScrollBar->_entriesPerPage = _rows;
 
   // Reset to normal data entry
@@ -212,7 +210,7 @@ void RomListWidget::scrollToCurrent(int item)
   if (_currentPos < 0 || _rows > (int)myDisasm->list.size())
     _currentPos = 0;
   else if (_currentPos + _rows > (int)myDisasm->list.size())
-    _currentPos = myDisasm->list.size() - _rows;
+    _currentPos = (int)myDisasm->list.size() - _rows;
 
   myScrollBar->_currentPos = _currentPos;
   myScrollBar->recalc();
@@ -272,7 +270,18 @@ void RomListWidget::handleMouseWheel(int x, int y, int direction)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool RomListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+bool RomListWidget::handleText(char text)
+{
+  if(_editMode)
+  {
+    // Class EditableWidget handles all text editing related key presses for us
+    return EditableWidget::handleText(text);
+  }
+  return false;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+bool RomListWidget::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Ignore all Alt-mod keys
   if(instance().eventHandler().kbdAlt(mod))
@@ -283,12 +292,11 @@ bool RomListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
 
   if (_editMode)
   {
-    // Class EditableWidget handles all text editing related key presses for us
-    handled = EditableWidget::handleKeyDown(key, mod, ascii);
+    // Class EditableWidget handles all single-key presses for us
+    handled = EditableWidget::handleKeyDown(key, mod);
   }
   else
   {
-    // not editmode
     switch (key)
     {
       case KBDK_SPACE:
@@ -316,7 +324,7 @@ bool RomListWidget::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool RomListWidget::handleKeyUp(StellaKey key, StellaMod mod, char ascii)
+bool RomListWidget::handleKeyUp(StellaKey key, StellaMod mod)
 {
   if (key == _currentKeyDown)
     _currentKeyDown = KBDK_UNKNOWN;
@@ -361,7 +369,7 @@ bool RomListWidget::handleEvent(Event::Type e)
     case Event::UIPgDown:
       _selectedItem += _rows - 1;
       if (_selectedItem >= (int)myDisasm->list.size())
-        _selectedItem = myDisasm->list.size() - 1;
+        _selectedItem = (int)myDisasm->list.size() - 1;
       break;
 
     case Event::UIHome:
@@ -369,7 +377,7 @@ bool RomListWidget::handleEvent(Event::Type e)
       break;
 
     case Event::UIEnd:
-      _selectedItem = myDisasm->list.size() - 1;
+      _selectedItem = (int)myDisasm->list.size() - 1;
       break;
 
     default:
@@ -426,8 +434,7 @@ void RomListWidget::drawWidget(bool hilite)
 //cerr << "RomListWidget::drawWidget\n";
   FBSurface& s = _boss->dialog().surface();
   const CartDebug::DisassemblyList& dlist = myDisasm->list;
-  int i, pos, xpos, ypos, len = dlist.size();
-  int deltax;
+  int i, pos, xpos, ypos, len = (int)dlist.size();
 
   const GUI::Rect& r = getEditRect();
   const GUI::Rect& l = getLineRect();
@@ -499,16 +506,13 @@ void RomListWidget::drawWidget(bool hilite)
         if (_selectedItem == pos && _editMode)
         {
           adjustOffset();
-          deltax = -_editScrollOffset;
-
           s.drawString(_font, _editString, _x + r.x(), ypos, r.width(), kTextColor,
-                       kTextAlignLeft, deltax, false);
+                       kTextAlignLeft, -_editScrollOffset, false);
 
           drawCaret();
         }
         else
         {
-          deltax = 0;
           s.drawString(_font, dlist[pos].bytes, _x + r.x(), ypos, r.width(), kTextColor);
         }
       }

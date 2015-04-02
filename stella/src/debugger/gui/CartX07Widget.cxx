@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartX07Widget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartX07Widget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartX07.hxx"
@@ -50,22 +50,22 @@ CartridgeX07Widget::CartridgeX07Widget(
                                 info.str()) + myLineHeight;
 
   VariantList items;
-  items.push_back("  0");
-  items.push_back("  1");
-  items.push_back("  2");
-  items.push_back("  3");
-  items.push_back("  4");
-  items.push_back("  5");
-  items.push_back("  6");
-  items.push_back("  7");
-  items.push_back("  8");
-  items.push_back("  9");
-  items.push_back(" 10");
-  items.push_back(" 11");
-  items.push_back(" 12");
-  items.push_back(" 13");
-  items.push_back(" 14");
-  items.push_back(" 15");
+  VarList::push_back(items, "  0");
+  VarList::push_back(items, "  1");
+  VarList::push_back(items, "  2");
+  VarList::push_back(items, "  3");
+  VarList::push_back(items, "  4");
+  VarList::push_back(items, "  5");
+  VarList::push_back(items, "  6");
+  VarList::push_back(items, "  7");
+  VarList::push_back(items, "  8");
+  VarList::push_back(items, "  9");
+  VarList::push_back(items, " 10");
+  VarList::push_back(items, " 11");
+  VarList::push_back(items, " 12");
+  VarList::push_back(items, " 13");
+  VarList::push_back(items, " 14");
+  VarList::push_back(items, " 15");
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth(" 15 "),
                     myLineHeight, items, "Set bank: ",

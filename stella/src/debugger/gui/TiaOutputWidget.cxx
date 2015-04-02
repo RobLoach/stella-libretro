@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TiaOutputWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TiaOutputWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -28,6 +28,7 @@
 #include "Debugger.hxx"
 #include "DebuggerParser.hxx"
 #include "TIADebug.hxx"
+#include "TIASurface.hxx"
 #include "TIA.hxx"
 
 #include "TiaOutputWidget.hxx"
@@ -37,28 +38,55 @@ TiaOutputWidget::TiaOutputWidget(GuiObject* boss, const GUI::Font& font,
                                  int x, int y, int w, int h)
   : Widget(boss, font, x, y, w, h),
     CommandSender(boss),
-    myMenu(NULL),
-    myZoom(NULL)
+    myZoom(nullptr),
+    myClickX(0),
+    myClickY(0)
 {
   // Create context menu for commands
   VariantList l;
-  l.push_back("Fill to scanline", "scanline");
-  l.push_back("Set breakpoint", "bp");
-  l.push_back("Set zoom position", "zoom");
-  l.push_back("Toggle fixed debug colors (from beam pos)", "fixed");
-  myMenu = new ContextMenu(this, font, l);
+  VarList::push_back(l, "Fill to scanline", "scanline");
+  VarList::push_back(l, "Set breakpoint", "bp");
+  VarList::push_back(l, "Set zoom position", "zoom");
+  VarList::push_back(l, "Save snapshot", "snap");
+  VarList::push_back(l, "Toggle fixed debug colors (from beam pos)", "fixed");
+  myMenu = make_ptr<ContextMenu>(this, font, l);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 TiaOutputWidget::~TiaOutputWidget()
 {
-  delete myMenu;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void TiaOutputWidget::loadConfig()
 {
   setDirty(); draw();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void TiaOutputWidget::saveSnapshot()
+{
+  int number = (int)(instance().getTicks() / 1000);
+  ostringstream sspath;
+  sspath << instance().snapshotSaveDir()
+         << instance().console().properties().get(Cartridge_Name)
+         << "_dbg_" << hex << setw(8) << setfill('0') << number << ".png";
+
+  const uInt32 width  = instance().console().tia().width(),
+               height = instance().console().tia().height();
+  FBSurface& s = dialog().surface();
+
+  GUI::Rect rect(_x, _y, _x + width*2, _y + height);
+  string message = "Snapshot saved";
+  try
+  {
+    instance().png().saveImage(sspath.str(), s, rect);
+  }
+  catch(const char* msg)
+  {
+    message = msg;
+  }
+  instance().frameBuffer().showMessage(message);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -110,6 +138,10 @@ void TiaOutputWidget::handleCommand(CommandSender* sender, int cmd, int data, in
         if(myZoom)
           myZoom->setPos(myClickX, myClickY);
       }
+      else if(rmb == "snap")
+      {
+        instance().debugger().parser().run("savesnap");
+      }
       else if(rmb == "fixed")
       {
         instance().console().tia().toggleFixedColors();
@@ -123,10 +155,9 @@ void TiaOutputWidget::handleCommand(CommandSender* sender, int cmd, int data, in
 void TiaOutputWidget::drawWidget(bool hilite)
 {
 //cerr << "TiaOutputWidget::drawWidget\n";
-  FBSurface& s = dialog().surface();
-
   const uInt32 width  = instance().console().tia().width(),
                height = instance().console().tia().height();
+  FBSurface& s = dialog().surface();
 
   // Get current scanline position
   // This determines where the frame greying should start, and where a
@@ -141,7 +172,7 @@ void TiaOutputWidget::drawWidget(bool hilite)
     for(uInt32 x = 0; x < width; ++x, ++i)
     {
       uInt8 shift = i > scanoffset ? 1 : 0;
-      uInt32 pixel = instance().frameBuffer().tiaPixel(i, shift);
+      uInt32 pixel = instance().frameBuffer().tiaSurface().pixel(i, shift);
       *line_ptr++ = pixel;
       *line_ptr++ = pixel;
     }

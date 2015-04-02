@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Widget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Widget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //
 //   Based on code from ScummVM - Scumm Interpreter
 //   Copyright (C) 2002-2004 The ScummVM project
@@ -59,7 +59,7 @@ Widget::Widget(GuiObject* boss, const GUI::Font& font,
 Widget::~Widget()
 {
   delete _next;
-  _next = NULL;
+  _next = nullptr;
 
   _focusList.clear();
 }
@@ -75,7 +75,7 @@ void Widget::draw()
   FBSurface& s = _boss->dialog().surface();
 
   bool hasBorder = _flags & WIDGET_BORDER;
-  int oldX = _x, oldY = _y, oldW = _w, oldH = _h;
+  int oldX = _x, oldY = _y;
 
   // Account for our relative position in the dialog
   _x = getAbsX();
@@ -93,7 +93,8 @@ void Widget::draw()
   }
 
   // Draw border
-  if(hasBorder) {
+  if(hasBorder)
+  {
     s.box(_x, _y, _w, _h, kColor, kShadowColor);
     _x += 4;
     _y += 4;
@@ -105,7 +106,8 @@ void Widget::draw()
   drawWidget((_flags & WIDGET_HILITED) ? true : false);
 
   // Restore x/y
-  if (hasBorder) {
+  if (hasBorder)
+  {
     _x -= 4;
     _y -= 4;
     _w += 8;
@@ -124,7 +126,7 @@ void Widget::draw()
   }
 
   // Tell the framebuffer this area is dirty
-  s.addDirtyRect(getAbsX(), getAbsY(), oldW, oldH);
+  s.setDirty();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -159,7 +161,7 @@ void Widget::setEnabled(bool e)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Widget* Widget::findWidgetInChain(Widget *w, int x, int y)
+Widget* Widget::findWidgetInChain(Widget* w, int x, int y)
 {
   while(w)
   {
@@ -190,8 +192,8 @@ bool Widget::isWidgetInChain(Widget* w, Widget* find)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Widget::isWidgetInChain(WidgetArray& list, Widget* find)
 {
-  for(int i = 0; i < (int)list.size(); ++i)
-    if(list[i] == find)
+  for(const auto& w: list)
+    if(w == find)
       return true;
 
   return false;
@@ -202,7 +204,7 @@ Widget* Widget::setFocusForChain(GuiObject* boss, WidgetArray& arr,
                                  Widget* wid, int direction)
 {
   FBSurface& s = boss->dialog().surface();
-  int size = arr.size(), pos = -1;
+  int size = (int)arr.size(), pos = -1;
   Widget* tmp;
   for(int i = 0; i < size; ++i)
   {
@@ -226,7 +228,7 @@ Widget* Widget::setFocusForChain(GuiObject* boss, WidgetArray& arr,
       s.frameRect(x, y, w, h, kDlgColor);
 
       tmp->setDirty(); tmp->draw();
-      s.addDirtyRect(x, y, w, h);
+      s.setDirty();
     }
   }
 
@@ -269,7 +271,7 @@ Widget* Widget::setFocusForChain(GuiObject* boss, WidgetArray& arr,
   s.frameRect(x, y, w, h, kWidFrameColor, kDashLine);
 
   tmp->setDirty(); tmp->draw();
-  s.addDirtyRect(x, y, w, h);
+  s.setDirty();
 
   return tmp;
 }
@@ -285,7 +287,7 @@ void Widget::setDirtyInChain(Widget* start)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-StaticTextWidget::StaticTextWidget(GuiObject *boss, const GUI::Font& font,
+StaticTextWidget::StaticTextWidget(GuiObject* boss, const GUI::Font& font,
                                    int x, int y, int w, int h,
                                    const string& text, TextAlignment align)
   : Widget(boss, font, x, y, w, h),
@@ -298,6 +300,7 @@ StaticTextWidget::StaticTextWidget(GuiObject *boss, const GUI::Font& font,
   _textcolorhi = kTextColor;
 
   _label = text;
+  _editable = false;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -327,7 +330,7 @@ void StaticTextWidget::drawWidget(bool hilite)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-ButtonWidget::ButtonWidget(GuiObject *boss, const GUI::Font& font,
+ButtonWidget::ButtonWidget(GuiObject* boss, const GUI::Font& font,
                            int x, int y, int w, int h,
                            const string& label, int cmd)
   : StaticTextWidget(boss, font, x, y, w, h, label, kTextAlignCenter),
@@ -394,7 +397,7 @@ void ButtonWidget::drawWidget(bool hilite)
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 /* 8x8 checkbox bitmap */
-static unsigned int checked_img_active[8] =
+static uInt32 checked_img_active[8] =
 {
 	0x11111111,
 	0x11111111,
@@ -406,7 +409,7 @@ static unsigned int checked_img_active[8] =
 	0x11111111
 };
 
-static unsigned int checked_img_inactive[8] =
+static uInt32 checked_img_inactive[8] =
 {
 	0x11111111,
 	0x11111111,
@@ -418,7 +421,7 @@ static unsigned int checked_img_inactive[8] =
 	0x11111111
 };
 
-static unsigned int checked_img_circle[8] =
+static uInt32 checked_img_circle[8] =
 {
 	0x00011000,
 	0x01111110,
@@ -431,7 +434,7 @@ static unsigned int checked_img_circle[8] =
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CheckboxWidget::CheckboxWidget(GuiObject *boss, const GUI::Font& font,
+CheckboxWidget::CheckboxWidget(GuiObject* boss, const GUI::Font& font,
                                int x, int y, const string& label,
                                int cmd)
   : ButtonWidget(boss, font, x, y, 16, 16, label, cmd),
@@ -539,7 +542,7 @@ void CheckboxWidget::drawWidget(bool hilite)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-SliderWidget::SliderWidget(GuiObject *boss, const GUI::Font& font,
+SliderWidget::SliderWidget(GuiObject* boss, const GUI::Font& font,
                            int x, int y, int w, int h,
                            const string& label, int labelWidth, int cmd)
   : ButtonWidget(boss, font, x, y, w, h, label, cmd),

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: FSNodePOSIX.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: FSNodePOSIX.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef FS_NODE_POSIX_HXX
@@ -91,6 +91,30 @@ class FilesystemNodePOSIX : public AbstractFSNode
      * using the stat() function.
      */
     virtual void setFlags();
+
+    /**
+     * Returns the last component of a given path.
+     *
+     * Examples:
+     *			/foo/bar.txt would return /bar.txt
+     *			/foo/bar/    would return /bar/
+     *
+     * @param str String containing the path.
+     * @return Pointer to the first char of the last component inside str.
+     */
+    static const char* lastPathComponent(const string& str)
+    {
+      if(str.empty())
+        return "";
+
+      const char* start = str.c_str();
+      const char* cur = start + str.size() - 2;
+
+      while (cur >= start && *cur != '/')
+        --cur;
+
+      return cur + 1;
+    }
 };
 
 #endif

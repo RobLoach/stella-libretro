@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartFA.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartFA.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEFA_HXX
@@ -33,7 +33,7 @@ class System;
   three 4K banks and 256 bytes of RAM.
 
   @author  Bradford W. Mott
-  @version $Id: CartFA.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: CartFA.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class CartridgeFA : public Cartridge
 {
@@ -78,7 +78,7 @@ class CartridgeFA : public Cartridge
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const;
 
     /**
       Query the number of banks supported by the cartridge.

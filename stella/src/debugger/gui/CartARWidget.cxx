@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartARWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartARWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartAR.hxx"
@@ -38,38 +38,38 @@ CartridgeARWidget::CartridgeARWidget(
       ypos = addBaseInformation(size, "Starpath", info) + myLineHeight;
 
   VariantList items;
-  items.push_back("  0");
-  items.push_back("  1");
-  items.push_back("  2");
-  items.push_back("  3");
-  items.push_back("  4");
-  items.push_back("  5");
-  items.push_back("  6");
-  items.push_back("  7");
-  items.push_back("  8");
-  items.push_back("  9");
-  items.push_back(" 10");
-  items.push_back(" 11");
-  items.push_back(" 12");
-  items.push_back(" 13");
-  items.push_back(" 14");
-  items.push_back(" 15");
-  items.push_back(" 16");
-  items.push_back(" 17");
-  items.push_back(" 18");
-  items.push_back(" 19");
-  items.push_back(" 20");
-  items.push_back(" 21");
-  items.push_back(" 22");
-  items.push_back(" 23");
-  items.push_back(" 24");
-  items.push_back(" 25");
-  items.push_back(" 26");
-  items.push_back(" 27");
-  items.push_back(" 28");
-  items.push_back(" 29");
-  items.push_back(" 30");
-  items.push_back(" 31");
+  VarList::push_back(items, "  0");
+  VarList::push_back(items, "  1");
+  VarList::push_back(items, "  2");
+  VarList::push_back(items, "  3");
+  VarList::push_back(items, "  4");
+  VarList::push_back(items, "  5");
+  VarList::push_back(items, "  6");
+  VarList::push_back(items, "  7");
+  VarList::push_back(items, "  8");
+  VarList::push_back(items, "  9");
+  VarList::push_back(items, " 10");
+  VarList::push_back(items, " 11");
+  VarList::push_back(items, " 12");
+  VarList::push_back(items, " 13");
+  VarList::push_back(items, " 14");
+  VarList::push_back(items, " 15");
+  VarList::push_back(items, " 16");
+  VarList::push_back(items, " 17");
+  VarList::push_back(items, " 18");
+  VarList::push_back(items, " 19");
+  VarList::push_back(items, " 20");
+  VarList::push_back(items, " 21");
+  VarList::push_back(items, " 22");
+  VarList::push_back(items, " 23");
+  VarList::push_back(items, " 24");
+  VarList::push_back(items, " 25");
+  VarList::push_back(items, " 26");
+  VarList::push_back(items, " 27");
+  VarList::push_back(items, " 28");
+  VarList::push_back(items, " 29");
+  VarList::push_back(items, " 30");
+  VarList::push_back(items, " 31");
   myBank =
     new PopUpWidget(boss, _font, xpos, ypos-2, _font.getStringWidth(" XX "),
                     myLineHeight, items, "Set bank: ",

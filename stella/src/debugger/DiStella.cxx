@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DiStella.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DiStella.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -24,12 +24,12 @@ using namespace Common;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 DiStella::DiStella(const CartDebug& dbg, CartDebug::DisassemblyList& list,
-                   CartDebug::BankInfo& info, const DiStella::Settings& settings,
+                   CartDebug::BankInfo& info, const DiStella::Settings& s,
                    uInt8* labels, uInt8* directives,
                    CartDebug::ReservedEquates& reserved)
   : myDbg(dbg),
     myList(list),
-    mySettings(settings),
+    mySettings(s),
     myReserved(reserved),
     myLabels(labels),
     myDirectives(directives)
@@ -307,10 +307,8 @@ void DiStella::disasm(uInt32 distart, int pass)
           if(referenced)        // start a new line with a label
           {
             if(!line_empty)
-            {
               addEntry(CartDebug::ROW);
-              line_empty = true;
-            }
+
             myDisasmBuf << Base::HEX4 << myPC+myOffset << "'L" << Base::HEX4
                         << myPC+myOffset << "'.byte " << "$" << Base::HEX2
                         << (int)Debugger::debugger().peek(myPC+myOffset);
@@ -1053,10 +1051,8 @@ DONE_WITH_ADD:
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void DiStella::processDirectives(const CartDebug::DirectiveList& directives)
 {
-  for(CartDebug::DirectiveList::const_iterator i = directives.begin();
-      i != directives.end(); ++i)
+  for(const auto& tag: directives)
   {
-    const CartDebug::DirectiveTag& tag = *i;
     if(check_range(tag.start, tag.end))
       for(uInt32 k = tag.start; k <= tag.end; ++k)
         mark(k, tag.type, true);

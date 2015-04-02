@@ -20,6 +20,7 @@ MODULE_OBJS := \
 	src/debugger/gui/ToggleBitWidget.o \
 	src/debugger/gui/TogglePixelWidget.o \
 	src/debugger/gui/ToggleWidget.o \
+	src/debugger/gui/CartRamWidget.o \
 	src/debugger/gui/Cart0840Widget.o \
 	src/debugger/gui/Cart2KWidget.o \
 	src/debugger/gui/Cart3EWidget.o \
@@ -31,6 +32,7 @@ MODULE_OBJS := \
 	src/debugger/gui/CartCMWidget.o \
 	src/debugger/gui/CartCTYWidget.o \
 	src/debugger/gui/CartCVWidget.o \
+	src/debugger/gui/CartDASHWidget.o \
 	src/debugger/gui/CartDPCWidget.o \
 	src/debugger/gui/CartDPCPlusWidget.o \
 	src/debugger/gui/CartE0Widget.o \
@@ -52,15 +54,19 @@ MODULE_OBJS := \
 	src/debugger/gui/CartFA2Widget.o \
 	src/debugger/gui/CartFEWidget.o \
 	src/debugger/gui/CartMCWidget.o \
+	src/debugger/gui/CartMDMWidget.o \
 	src/debugger/gui/CartSBWidget.o \
 	src/debugger/gui/CartUAWidget.o \
+	src/debugger/gui/CartWDWidget.o \
 	src/debugger/gui/CartX07Widget.o \
 	src/debugger/gui/JoystickWidget.o \
 	src/debugger/gui/PaddleWidget.o \
 	src/debugger/gui/BoosterWidget.o \
 	src/debugger/gui/DrivingWidget.o \
 	src/debugger/gui/KeyboardWidget.o \
-	src/debugger/gui/GenesisWidget.o
+	src/debugger/gui/GenesisWidget.o \
+	src/debugger/gui/AtariVoxWidget.o \
+	src/debugger/gui/SaveKeyWidget.o
 
 MODULE_DIRS += \
 	src/debugger/gui

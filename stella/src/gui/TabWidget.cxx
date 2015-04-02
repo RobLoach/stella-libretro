@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TabWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TabWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -50,10 +50,10 @@ TabWidget::TabWidget(GuiObject* boss, const GUI::Font& font,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 TabWidget::~TabWidget()
 {
-  for (unsigned int i = 0; i < _tabs.size(); ++i)
+  for(auto& tab: _tabs)
   {
-    delete _tabs[i].firstWidget;
-    _tabs[i].firstWidget = 0;
+    delete tab.firstWidget;
+    tab.firstWidget = nullptr;
     // _tabs[i].parentWidget is deleted elsewhere
   }
   _tabs.clear();
@@ -70,7 +70,7 @@ int TabWidget::addTab(const string& title)
 {
   // Add a new tab page
   _tabs.push_back(Tab(title));
-  int numTabs = _tabs.size();
+  int numTabs = (int)_tabs.size();
 
   // Determine the new tab width
   int newWidth = _font.getStringWidth(title) + 2 * kTabPadding;
@@ -106,6 +106,7 @@ void TabWidget::setActiveTab(int tabID, bool show)
     sendCommand(kTabChangedCmd, _activeTab, _id);
 }
 
+#if 0 // FIXME
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void TabWidget::disableTab(int tabID)
 {
@@ -114,6 +115,7 @@ void TabWidget::disableTab(int tabID)
   _tabs[tabID].enabled = false;
   // TODO - also disable all widgets belonging to this tab
 }
+#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void TabWidget::updateActiveTab()
@@ -133,7 +135,7 @@ void TabWidget::updateActiveTab()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void TabWidget::activateTabs()
 {
-  for(unsigned int i = 0; i <_tabs.size(); ++i)
+  for(uInt32 i = 0; i <_tabs.size(); ++i)
     sendCommand(kTabChangedCmd, i-1, _id);
 }
 

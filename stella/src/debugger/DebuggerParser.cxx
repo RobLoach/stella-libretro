@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DebuggerParser.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DebuggerParser.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <fstream>
@@ -26,6 +26,7 @@
 #include "CpuDebug.hxx"
 #include "RiotDebug.hxx"
 #include "TIADebug.hxx"
+#include "TiaOutputWidget.hxx"
 #include "DebuggerParser.hxx"
 #include "YaccParser.hxx"
 #include "M6502.hxx"
@@ -35,6 +36,7 @@
 #include "RomWidget.hxx"
 #include "ProgressDialog.hxx"
 #include "PackedBitArray.hxx"
+#include "Vec.hxx"
 
 #include "Base.hxx"
 using namespace Common;
@@ -46,25 +48,15 @@ using namespace Common;
 
 #include "DebuggerParser.hxx"
 
-// Call the pointed-to method on the this object. Whew.
-#define CALL_METHOD(method) ( (this->*method)() )
-
 
 // TODO - use C++ streams instead of nasty C-strings and pointers
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 DebuggerParser::DebuggerParser(Debugger& d, Settings& s)
   : debugger(d),
-    settings(s)
+    settings(s),
+    argCount(0)
 {
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-DebuggerParser::~DebuggerParser()
-{
-  args.clear();
-  argStrings.clear();
-  watches.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -119,7 +111,7 @@ string DebuggerParser::run(const string& command)
     if(BSPF_equalsIgnoreCase(verb, commands[i].cmdString))
     {
       if(validateArgs(i))
-        CALL_METHOD(commands[i].executor);
+        commands[i].executor(this);
 
       if(commands[i].refreshRequired)
         debugger.myBaseDialog->loadConfig();
@@ -298,7 +290,7 @@ int DebuggerParser::decipher_arg(const string& str)
 string DebuggerParser::showWatches()
 {
   ostringstream buf;
-  for(unsigned int i = 0; i < watches.size(); i++)
+  for(uInt32 i = 0; i < watches.size(); i++)
   {
     if(watches[i] != "")
     {
@@ -326,7 +318,7 @@ string DebuggerParser::showWatches()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool DebuggerParser::getArgs(const string& command, string& verb)
 {
-  int state = kIN_COMMAND, i = 0, length = command.length();
+  int state = kIN_COMMAND, i = 0, length = (int)command.length();
   string curArg = "";
   verb = "";
 
@@ -383,7 +375,7 @@ bool DebuggerParser::getArgs(const string& command, string& verb)
   if(curArg != "")
     argStrings.push_back(curArg);
 
-  argCount = argStrings.size();
+  argCount = (int)argStrings.size();
   /*
   cerr << "verb = " << verb << endl;
   cerr << "arguments (" << argCount << "):\n";
@@ -400,15 +392,15 @@ bool DebuggerParser::getArgs(const string& command, string& verb)
   }
   */
 
-  for(int i = 0; i < argCount; i++) {
-    int err = YaccParser::parse(argStrings[i].c_str());
-    if(err) {
-      args.push_back(-1);
-    } else {
-      Expression* e = YaccParser::getResult();
-      args.push_back( e->evaluate() );
-      delete e;
+  for(int arg = 0; arg < argCount; ++arg)
+  {
+    if(!YaccParser::parse(argStrings[arg].c_str()))
+    {
+      unique_ptr<Expression> expr(YaccParser::getResult());
+      args.push_back(expr->evaluate());
     }
+    else
+      args.push_back(-1);
   }
 
   return true;
@@ -419,7 +411,7 @@ bool DebuggerParser::validateArgs(int cmd)
 {
   // cerr << "entering validateArgs(" << cmd << ")" << endl;
   bool required = commands[cmd].parmsRequired;
-  parameters *p = commands[cmd].parms;
+  parameters* p = commands[cmd].parms;
 
   if(argCount == 0)
   {
@@ -600,17 +592,18 @@ bool DebuggerParser::saveScriptFile(string file)
   ofstream out(file.c_str());
 
   FunctionDefMap funcs = debugger.getFunctionDefMap();
-  for(FunctionDefMap::const_iterator i = funcs.begin(); i != funcs.end(); ++i)
-    out << "function " << i->first << " { " << i->second << " }" << endl;
+  for(const auto& i: funcs)
+    out << "function " << i.first << " { " << i.second << " }" << endl;
 
-  for(unsigned int i=0; i<watches.size(); i++)
-    out << "watch " << watches[i] << endl;
+  for(const auto& i: watches)
+    out << "watch " << i << endl;
 
-  for(unsigned int i=0; i<0x10000; i++)
+  for(uInt32 i = 0; i < 0x10000; ++i)
     if(debugger.breakPoint(i))
       out << "break #" << i << endl;
 
-  for(unsigned int i=0; i<0x10000; i++) {
+  for(uInt32 i = 0; i < 0x10000; ++i)
+  {
     bool r = debugger.readTrap(i);
     bool w = debugger.writeTrap(i);
 
@@ -623,8 +616,8 @@ bool DebuggerParser::saveScriptFile(string file)
   }
 
   StringList conds = debugger.cpuDebug().m6502().getCondBreakNames();
-  for(unsigned int i=0; i<conds.size(); i++)
-    out << "breakif {" << conds[i] << "}" << endl;
+  for(const auto& cond: conds)
+    out << "breakif {" << cond << "}" << endl;
 
   bool ok = out.good();
   out.close();
@@ -640,36 +633,6 @@ bool DebuggerParser::saveScriptFile(string file)
 void DebuggerParser::executeA()
 {
   debugger.cpuDebug().setA((uInt8)args[0]);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// "bank"
-void DebuggerParser::executeBank()
-{
-  int banks = debugger.cartDebug().bankCount();
-  if(argCount == 0)
-  {
-    commandResult << debugger.cartDebug().getCartType() << ": ";
-    if(banks < 2)
-      commandResult << red("bankswitching not supported by this cartridge");
-    else
-    {
-      commandResult << "current = " << debugger.cartDebug().getBank()
-                    << " out of " << banks << " banks";
-    }
-  }
-  else
-  {
-    if(banks == 1)
-      commandResult << red("bankswitching not supported by this cartridge");
-    else if(args[0] >= banks)
-      commandResult << red("invalid bank number (must be 0 to ")
-                    << (banks - 1) << ")";
-    else if(debugger.setBank(args[0]))
-      commandResult << "switched bank OK";
-    else
-      commandResult << red("error switching banks (bankswitching may not be supported)");
-  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -763,8 +726,7 @@ void DebuggerParser::executeCheat()
   for(int arg = 0; arg < argCount; arg++)
   {
     const string& cheat = argStrings[arg];
-    const Cheat* c = debugger.myOSystem->cheat().add("DBG", cheat);
-    if(c && c->enabled())
+    if(debugger.myOSystem.cheat().add("DBG", cheat))
       commandResult << "Cheat code " << cheat << " enabled" << endl;
     else
       commandResult << red("Invalid cheat code ") << cheat << endl;
@@ -903,7 +865,7 @@ void DebuggerParser::executeDelfunction()
   if(debugger.delFunction(argStrings[0]))
     commandResult << "removed function " << argStrings[0];
   else
-    commandResult << "function " << argStrings[0] << " not found";
+    commandResult << "function " << argStrings[0] << " built-in or not found";
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -913,7 +875,7 @@ void DebuggerParser::executeDelwatch()
   int which = args[0] - 1;
   if(which >= 0 && which < (int)watches.size())
   {
-    watches.remove_at(which);
+    Vec::removeAt(watches, which);
     commandResult << "removed watch";
   }
   else
@@ -945,11 +907,11 @@ void DebuggerParser::executeDisasm()
 // "dump"
 void DebuggerParser::executeDump()
 {
-  for(int i=0; i<8; i++)
+  for(int i = 0; i < 8; ++i)
   {
     int start = args[0] + i*16;
     commandResult << Base::toString(start) << ": ";
-    for(int j = 0; j < 16; j++)
+    for(int j = 0; j < 16; ++j)
     {
       commandResult << Base::toString(debugger.peek(start+j)) << " ";
       if(j == 7) commandResult << "- ";
@@ -1074,9 +1036,9 @@ void DebuggerParser::executeListbreaks()
   ostringstream buf;
   int count = 0;
 
-  for(unsigned int i = 0; i < 0x10000; i++)
+  for(uInt32 i = 0; i < 0x10000; i++)
   {
-    if(debugger.breakpoints().isSet(i))
+    if(debugger.breakPoints().isSet(i))
     {
       buf << debugger.cartDebug().getLabel(i, true, 4) << " ";
       if(! (++count % 8) ) buf << "\n";
@@ -1096,7 +1058,7 @@ void DebuggerParser::executeListbreaks()
   if(conds.size() > 0)
   {
     commandResult << "\nbreakifs:\n";
-    for(unsigned int i = 0; i < conds.size(); i++)
+    for(uInt32 i = 0; i < conds.size(); i++)
     {
       commandResult << i << ": " << conds[i];
       if(i != (conds.size() - 1)) commandResult << endl;
@@ -1125,9 +1087,8 @@ void DebuggerParser::executeListfunctions()
 
   if(functions.size() > 0)
   {
-    FunctionDefMap::const_iterator iter;
-    for(iter = functions.begin(); iter != functions.end(); ++iter)
-      commandResult << iter->first << " -> " << iter->second << endl;
+    for(const auto& iter: functions)
+      commandResult << iter.first << " -> " << iter.second << endl;
   }
   else
     commandResult << "no user-defined functions";
@@ -1139,7 +1100,7 @@ void DebuggerParser::executeListtraps()
 {
   int count = 0;
 
-  for(unsigned int i=0; i<0x10000; i++)
+  for(uInt32 i = 0; i < 0x10000; ++i)
   {
     if(debugger.readTrap(i) || debugger.writeTrap(i))
     {
@@ -1231,7 +1192,7 @@ void DebuggerParser::executeReset()
 {
   debugger.reset();
   debugger.rom().invalidate();
-  commandResult << "reset CPU";
+  commandResult << "reset system";
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1259,7 +1220,7 @@ void DebuggerParser::executeRiot()
 void DebuggerParser::executeRom()
 {
   int addr = args[0];
-  for(int i=1; i<argCount; i++)
+  for(int i = 1; i < argCount; ++i)
   {
     if( !(debugger.patchROM(addr++, args[i])) )
     {
@@ -1316,7 +1277,7 @@ void DebuggerParser::executeRunTo()
   const CartDebug& cartdbg = debugger.cartDebug();
   const CartDebug::DisassemblyList& list = cartdbg.disassembly().list;
 
-  uInt32 count = 0, max_iterations = list.size();
+  uInt32 count = 0, max_iterations = (uInt32)list.size();
 
   // Create a progress dialog box to show the progress searching through the
   // disassembly, since this may be a time-consuming operation
@@ -1426,6 +1387,13 @@ void DebuggerParser::executeSaveses()
     commandResult << "saved session to file " << argStrings[0];
   else
     commandResult << red("I/O error");
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// "savesnap"
+void DebuggerParser::executeSavesnap()
+{
+  debugger.tiaOutput().saveSnapshot();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1610,16 +1578,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeA
-  },
-
-  {
-    "bank",
-    "Show # of banks, or switch to bank xx",
-    false,
-    true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeBank
+    std::mem_fn(&DebuggerParser::executeA)
   },
 
   {
@@ -1628,7 +1587,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_BASE_SPCL, kARG_END_ARGS },
-    &DebuggerParser::executeBase
+    std::mem_fn(&DebuggerParser::executeBase)
   },
 
   {
@@ -1637,7 +1596,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeBreak
+    std::mem_fn(&DebuggerParser::executeBreak)
   },
 
   {
@@ -1646,7 +1605,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeBreakif
+    std::mem_fn(&DebuggerParser::executeBreakif)
   },
 
   {
@@ -1655,7 +1614,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeC
+    std::mem_fn(&DebuggerParser::executeC)
   },
 
   {
@@ -1664,7 +1623,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeCheat
+    std::mem_fn(&DebuggerParser::executeCheat)
   },
 
   {
@@ -1673,7 +1632,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeClearbreaks
+    std::mem_fn(&DebuggerParser::executeClearbreaks)
   },
 
   {
@@ -1682,7 +1641,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeClearconfig
+    std::mem_fn(&DebuggerParser::executeClearconfig)
   },
 
   {
@@ -1691,7 +1650,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeCleartraps
+    std::mem_fn(&DebuggerParser::executeCleartraps)
   },
 
   {
@@ -1700,7 +1659,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeClearwatches
+    std::mem_fn(&DebuggerParser::executeClearwatches)
   },
 
   {
@@ -1709,7 +1668,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeCls
+    std::mem_fn(&DebuggerParser::executeCls)
   },
 
   {
@@ -1718,7 +1677,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeCode
+    std::mem_fn(&DebuggerParser::executeCode)
   },
 
   {
@@ -1727,7 +1686,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeColortest
+    std::mem_fn(&DebuggerParser::executeColortest)
   },
 
   {
@@ -1736,7 +1695,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeD
+    std::mem_fn(&DebuggerParser::executeD)
   },
 
   {
@@ -1745,7 +1704,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeData
+    std::mem_fn(&DebuggerParser::executeData)
   },
 
   {
@@ -1754,7 +1713,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_LABEL, kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDefine
+    std::mem_fn(&DebuggerParser::executeDefine)
   },
 
   {
@@ -1763,7 +1722,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDelbreakif
+    std::mem_fn(&DebuggerParser::executeDelbreakif)
   },
 
   {
@@ -1772,7 +1731,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeDelfunction
+    std::mem_fn(&DebuggerParser::executeDelfunction)
   },
 
   {
@@ -1781,7 +1740,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDelwatch
+    std::mem_fn(&DebuggerParser::executeDelwatch)
   },
 
   {
@@ -1790,7 +1749,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeDisasm
+    std::mem_fn(&DebuggerParser::executeDisasm)
   },
 
   {
@@ -1799,7 +1758,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDump
+    std::mem_fn(&DebuggerParser::executeDump)
   },
 
   {
@@ -1808,7 +1767,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_FILE, kARG_END_ARGS },
-    &DebuggerParser::executeExec
+    std::mem_fn(&DebuggerParser::executeExec)
   },
 
   {
@@ -1817,7 +1776,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeExitRom
+    std::mem_fn(&DebuggerParser::executeExitRom)
   },
 
   {
@@ -1826,7 +1785,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeFrame
+    std::mem_fn(&DebuggerParser::executeFrame)
   },
 
   {
@@ -1835,7 +1794,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_LABEL, kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeFunction
+    std::mem_fn(&DebuggerParser::executeFunction)
   },
 
   {
@@ -1844,7 +1803,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeGfx
+    std::mem_fn(&DebuggerParser::executeGfx)
   },
 
   {
@@ -1853,7 +1812,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeHelp
+    std::mem_fn(&DebuggerParser::executeHelp)
   },
 
   {
@@ -1862,7 +1821,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeJump
+    std::mem_fn(&DebuggerParser::executeJump)
   },
 
   {
@@ -1871,7 +1830,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeListbreaks
+    std::mem_fn(&DebuggerParser::executeListbreaks)
   },
 
   {
@@ -1880,7 +1839,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeListconfig
+    std::mem_fn(&DebuggerParser::executeListconfig)
   },
 
   {
@@ -1889,7 +1848,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeListfunctions
+    std::mem_fn(&DebuggerParser::executeListfunctions)
   },
 
   {
@@ -1898,7 +1857,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeListtraps
+    std::mem_fn(&DebuggerParser::executeListtraps)
   },
 
   {
@@ -1907,7 +1866,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeLoadconfig
+    std::mem_fn(&DebuggerParser::executeLoadconfig)
   },
 
   {
@@ -1916,7 +1875,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeLoadstate
+    std::mem_fn(&DebuggerParser::executeLoadstate)
   },
 
   {
@@ -1925,7 +1884,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeN
+    std::mem_fn(&DebuggerParser::executeN)
   },
 
   {
@@ -1934,7 +1893,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executePc
+    std::mem_fn(&DebuggerParser::executePc)
   },
 
   {
@@ -1943,7 +1902,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executePGfx
+    std::mem_fn(&DebuggerParser::executePGfx)
   },
 
   {
@@ -1952,7 +1911,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executePrint
+    std::mem_fn(&DebuggerParser::executePrint)
   },
 
   {
@@ -1961,16 +1920,16 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeRam
+    std::mem_fn(&DebuggerParser::executeRam)
   },
 
   {
     "reset",
-    "Reset 6507 to init vector (excluding TIA/RIOT)",
+    "Reset system to power-on state",
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeReset
+    std::mem_fn(&DebuggerParser::executeReset)
   },
 
   {
@@ -1979,7 +1938,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeRewind
+    std::mem_fn(&DebuggerParser::executeRewind)
   },
 
   {
@@ -1988,7 +1947,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeRiot
+    std::mem_fn(&DebuggerParser::executeRiot)
   },
 
   {
@@ -1997,7 +1956,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeRom
+    std::mem_fn(&DebuggerParser::executeRom)
   },
 
   {
@@ -2006,7 +1965,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeRow
+    std::mem_fn(&DebuggerParser::executeRow)
   },
 
   {
@@ -2015,7 +1974,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeRun
+    std::mem_fn(&DebuggerParser::executeRun)
   },
 
   {
@@ -2024,7 +1983,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeRunTo
+    std::mem_fn(&DebuggerParser::executeRunTo)
   },
 
   {
@@ -2033,7 +1992,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeRunToPc
+    std::mem_fn(&DebuggerParser::executeRunToPc)
   },
 
   {
@@ -2042,7 +2001,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeS
+    std::mem_fn(&DebuggerParser::executeS)
   },
 
   {
@@ -2051,7 +2010,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_FILE, kARG_END_ARGS },
-    &DebuggerParser::executeSave
+    std::mem_fn(&DebuggerParser::executeSave)
   },
 
   {
@@ -2060,7 +2019,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeSaveconfig
+    std::mem_fn(&DebuggerParser::executeSaveconfig)
   },
 
   {
@@ -2069,7 +2028,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeSavedisassembly
+    std::mem_fn(&DebuggerParser::executeSavedisassembly)
   },
 
   {
@@ -2078,7 +2037,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeSaverom
+    std::mem_fn(&DebuggerParser::executeSaverom)
   },
 
   {
@@ -2087,7 +2046,16 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_FILE, kARG_END_ARGS },
-    &DebuggerParser::executeSaveses
+    std::mem_fn(&DebuggerParser::executeSaveses)
+  },
+
+  {
+    "savesnap",
+    "Save current TIA image to PNG file",
+    false,
+    false,
+    { kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeSavesnap)
   },
 
   {
@@ -2096,7 +2064,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeSavestate
+    std::mem_fn(&DebuggerParser::executeSavestate)
   },
 
   {
@@ -2105,7 +2073,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeScanline
+    std::mem_fn(&DebuggerParser::executeScanline)
   },
 
   {
@@ -2114,7 +2082,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeStep
+    std::mem_fn(&DebuggerParser::executeStep)
   },
 
   {
@@ -2123,7 +2091,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeTia
+    std::mem_fn(&DebuggerParser::executeTia)
   },
 
   {
@@ -2132,7 +2100,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeTrace
+    std::mem_fn(&DebuggerParser::executeTrace)
   },
 
   {
@@ -2141,7 +2109,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeTrap
+    std::mem_fn(&DebuggerParser::executeTrap)
   },
 
   {
@@ -2150,7 +2118,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeTrapread
+    std::mem_fn(&DebuggerParser::executeTrapread)
   },
 
   {
@@ -2159,7 +2127,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeTrapwrite
+    std::mem_fn(&DebuggerParser::executeTrapwrite)
   },
 
   {
@@ -2168,7 +2136,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeType
+    std::mem_fn(&DebuggerParser::executeType)
   },
 
   {
@@ -2177,7 +2145,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeUHex
+    std::mem_fn(&DebuggerParser::executeUHex)
   },
 
   {
@@ -2186,7 +2154,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeUndef
+    std::mem_fn(&DebuggerParser::executeUndef)
   },
 
   {
@@ -2195,7 +2163,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeV
+    std::mem_fn(&DebuggerParser::executeV)
   },
 
   {
@@ -2204,7 +2172,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeWatch
+    std::mem_fn(&DebuggerParser::executeWatch)
   },
 
   {
@@ -2213,7 +2181,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeX
+    std::mem_fn(&DebuggerParser::executeX)
   },
 
   {
@@ -2222,7 +2190,7 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeY
+    std::mem_fn(&DebuggerParser::executeY)
   },
 
   {
@@ -2231,6 +2199,6 @@ DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeZ
+    std::mem_fn(&DebuggerParser::executeZ)
   }
 };

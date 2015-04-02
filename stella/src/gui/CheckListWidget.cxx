@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CheckListWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CheckListWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CheckListWidget.hxx"
@@ -33,7 +33,7 @@ CheckListWidget::CheckListWidget(GuiObject* boss, const GUI::Font& font,
   _rows = h / _fontHeight;
 
   // Create a CheckboxWidget for each row in the list
-  CheckboxWidget* t;
+  CheckboxWidget* t = nullptr;
   for(int i = 0; i < _rows; ++i)
   {
     t = new CheckboxWidget(boss, font, _x + 2, ypos, "", kCheckActionCmd);
@@ -65,7 +65,7 @@ void CheckListWidget::setList(const StringList& list, const BoolArray& state)
 
   // Then turn off any extras
   if((int)_stateList.size() < _rows)
-    for(int i = _stateList.size(); i < _rows; ++i)
+    for(int i = (int)_stateList.size(); i < _rows; ++i)
       _checkList[i]->clearFlags(WIDGET_ENABLED);
 
   ListWidget::recalc();
@@ -86,9 +86,8 @@ void CheckListWidget::drawWidget(bool hilite)
 {
 //cerr << "CheckListWidget::drawWidget\n";
   FBSurface& s = _boss->dialog().surface();
-  int i, pos, len = _list.size();
+  int i, pos, len = (int)_list.size();
   string buffer;
-  int deltax;
 
   // Draw a thin frame around the list and to separate columns
   s.hLine(_x, _y, _x + _w - 1, kColor);
@@ -124,15 +123,13 @@ void CheckListWidget::drawWidget(bool hilite)
     {
       buffer = _editString;
       adjustOffset();
-      deltax = -_editScrollOffset;
 
       s.drawString(_font, buffer, _x + r.left, y, r.width(), kTextColor,
-                   kTextAlignLeft, deltax, false);
+                   kTextAlignLeft, -_editScrollOffset, false);
     }
     else
     {
       buffer = _list[pos];
-      deltax = 0;
       s.drawString(_font, buffer, _x + r.left, y, r.width(), kTextColor);
     }
   }

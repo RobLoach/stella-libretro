@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: TIADebug.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: TIADebug.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef TIA_DEBUG_HXX
@@ -24,16 +24,11 @@ class Debugger;
 class TiaDebug;
 class TIA;
 
-#include "Array.hxx"
 #include "DebuggerSystem.hxx"
 
-// pointer types for TIADebug instance methods
-// (used by TiaMethodExpression)
+// Function type for TIADebug instance methods
 class TIADebug;
-typedef int (TIADebug::*TIADEBUG_INT_METHOD)();
-
-// call the pointed-to method on the (global) debugger object.
-#define CALL_TIADEBUG_METHOD(method) ( ( Debugger::debugger().tiaDebug().*method)() )
+using TiaMethod = int (TIADebug::*)() const;
 
 // Indices for various IntArray in TiaState
 enum {
@@ -155,13 +150,13 @@ class TIADebug : public DebuggerSystem
     void strobeCxclr() { mySystem.poke(CXCLR, 0); }
 
     // Read-only internal TIA state
-    int scanlines();
-    int frameCount();
-    int clocksThisLine();
-    bool vsync();
-    bool vblank();
-    int vsyncAsInt()  { return int(vsync());  } // so we can use _vsync pseudo-register
-    int vblankAsInt() { return int(vblank()); } // so we can use _vblank pseudo-register
+    int scanlines() const;
+    int frameCount() const;
+    int clocksThisLine() const;
+    bool vsync() const;
+    bool vblank() const;
+    int vsyncAsInt() const  { return int(vsync());  } // so we can use _vsync pseudo-register
+    int vblankAsInt() const { return int(vblank()); } // so we can use _vblank pseudo-register
 
   private:
     /** Display a color patch for color at given index in the palette */

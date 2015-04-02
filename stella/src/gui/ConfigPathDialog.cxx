@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ConfigPathDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ConfigPathDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -30,13 +30,13 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ConfigPathDialog::ConfigPathDialog(
-      OSystem* osystem, DialogContainer* parent,
+      OSystem& osystem, DialogContainer& parent,
       const GUI::Font& font, GuiObject* boss,
       int max_w, int max_h)
-  : Dialog(osystem, parent, 0, 0, 0, 0),
+  : Dialog(osystem, parent),
     CommandSender(boss),
-    myBrowser(NULL),
-    myIsGlobal(boss != 0)
+    myBrowser(nullptr),
+    myIsGlobal(boss != nullptr)
 {
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
@@ -130,13 +130,12 @@ ConfigPathDialog::ConfigPathDialog(
   }
 
   // Create file browser dialog
-  myBrowser = new BrowserDialog(this, font, max_w, max_h);
+  myBrowser = make_ptr<BrowserDialog>(this, font, max_w, max_h);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ConfigPathDialog::~ConfigPathDialog()
 {
-  delete myBrowser;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

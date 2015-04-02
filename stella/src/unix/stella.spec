@@ -1,8 +1,7 @@
 %define name    stella
-%define version 3.9.3
+%define version 4.6
 %define rel     1
 
-%define enable_gl 1
 %define enable_sound 1
 %define enable_debugger 1
 %define enable_joystick 1
@@ -20,7 +19,7 @@ License:        GPL
 URL:            http://stella.sourceforge.net
 Source:         %{name}-%{version}.tar.bz2
 BuildRoot:      %_tmppath/%name-%version-%release-root
-BuildRequires:  SDL-devel MesaGLU-devel
+BuildRequires:  SDL2-devel MesaGLU-devel
 
 %description
 The Atari 2600 Video Computer System (VCS), introduced in 1977, was the most
@@ -35,11 +34,6 @@ on your PC.
 %build
 export CXXFLAGS=$RPM_OPT_FLAGS
 %configure \
-%if %enable_gl
-  --enable-gl \
-%else
-  --disable-gl \
-%endif
 %if %enable_sound
   --enable-sound \
 %else
@@ -66,8 +60,7 @@ export CXXFLAGS=$RPM_OPT_FLAGS
   --enable-shared \
 %endif
   --force-builtin-libpng --force-builtin-zlib \
-  --docdir=%{_docdir}/stella \
-  --x-libraries=%{_prefix}/X11R6/%{_lib}
+  --docdir=%{_docdir}/stella
 
 %make
 
@@ -108,6 +101,24 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %_datadir/icons/large/%{name}.png
 
 %changelog
+* Sat Mar 21 2015 Stephen Anthony <stephena@users.sf.net> 4.6-1
+- Version 4.6 release
+
+* Thu Jan 1 2015 Stephen Anthony <stephena@users.sf.net> 4.5-1
+- Version 4.5 release
+
+* Tue Oct 28 2014 Stephen Anthony <stephena@users.sf.net> 4.2-1
+- Version 4.2 release
+
+* Sun Sep 14 2014 Stephen Anthony <stephena@users.sf.net> 4.1.1-1
+- Version 4.1.1 release
+
+* Mon Sep 1 2014 Stephen Anthony <stephena@users.sf.net> 4.1-1
+- Version 4.1 release
+
+* Tue Jul 1 2014 Stephen Anthony <stephena@users.sf.net> 4.0-1
+- Version 4.0 release
+
 * Mon Jan 20 2014 Stephen Anthony <stephena@users.sf.net> 3.9.3-1
 - Version 3.9.3 release
 

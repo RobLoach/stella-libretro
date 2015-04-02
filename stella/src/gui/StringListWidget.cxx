@@ -8,24 +8,25 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: StringListWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: StringListWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
+#include "bspf.hxx"
+#include "Settings.hxx"
 #include "ScrollBarWidget.hxx"
 #include "StringListWidget.hxx"
-
-#include "bspf.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 StringListWidget::StringListWidget(GuiObject* boss, const GUI::Font& font,
                                    int x, int y, int w, int h, bool hilite)
-  : ListWidget(boss, font, x, y, w, h),
+  : ListWidget(boss, font, x, y, w, h,
+               boss->instance().settings().getInt("listdelay") >= 300),
     _hilite(hilite)
 {
 }
@@ -46,11 +47,9 @@ void StringListWidget::setList(const StringList& list)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void StringListWidget::drawWidget(bool hilite)
 {
-//cerr << "StringListWidget::drawWidget\n";
   FBSurface& s = _boss->dialog().surface();
-  int i, pos, len = _list.size();
+  int i, pos, len = (int)_list.size();
   string buffer;
-  int deltax;
 
   // Draw a thin frame around the list.
   s.hLine(_x, _y, _x + _w - 1, kColor);
@@ -76,15 +75,13 @@ void StringListWidget::drawWidget(bool hilite)
     {
       buffer = _editString;
       adjustOffset();
-      deltax = -_editScrollOffset;
 
       s.drawString(_font, buffer, _x + r.left, y, r.width(), kTextColor,
-                   kTextAlignLeft, deltax, false);
+                   kTextAlignLeft, -_editScrollOffset, false);
     }
     else
     {
       buffer = _list[pos];
-      deltax = 0;
       s.drawString(_font, buffer, _x + r.left, y, r.width(), kTextColor);
     }
   }

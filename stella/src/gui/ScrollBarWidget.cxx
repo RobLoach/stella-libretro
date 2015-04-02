@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ScrollBarWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ScrollBarWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "OSystem.hxx"
@@ -33,7 +33,7 @@
 #define UP_DOWN_BOX_HEIGHT	18
 
 // Up arrow
-static unsigned int up_arrow[8] = {
+static uInt32 up_arrow[8] = {
   0x00011000,
   0x00011000,
   0x00111100,
@@ -45,7 +45,7 @@ static unsigned int up_arrow[8] = {
 };
 
 // Down arrow
-static unsigned int down_arrow[8] = {
+static uInt32 down_arrow[8] = {
   0x11111111,
   0x11111111,
   0x01111110,

@@ -8,23 +8,23 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: GlobalPropsDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: GlobalPropsDialog.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
 
+#include "Cart.hxx"
 #include "Control.hxx"
 #include "Dialog.hxx"
 #include "OSystem.hxx"
 #include "PopUpWidget.hxx"
 #include "Settings.hxx"
-#include "StringList.hxx"
 #include "Widget.hxx"
 #include "LauncherDialog.hxx"
 
@@ -32,7 +32,7 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 GlobalPropsDialog::GlobalPropsDialog(GuiObject* boss, const GUI::Font& font)
-  : Dialog(&boss->instance(), &boss->parent(), 0, 0, 0, 0),
+  : Dialog(boss->instance(), boss->parent()),
     CommandSender(boss)
 {
   const int lineHeight   = font.getLineHeight(),
@@ -45,7 +45,7 @@ GlobalPropsDialog::GlobalPropsDialog(GuiObject* boss, const GUI::Font& font)
       pwidth = font.getStringWidth("CM (SpectraVideo CompuMate)");
   WidgetArray wid;
   VariantList items;
-  const GUI::Font& infofont = instance().infoFont();
+  const GUI::Font& infofont = instance().frameBuffer().infoFont();
 
   // Set real dimensions
   _w = lwidth + pwidth + fontWidth*3 + 15;
@@ -53,58 +53,11 @@ GlobalPropsDialog::GlobalPropsDialog(GuiObject* boss, const GUI::Font& font)
 
   xpos = 10;  ypos = 10;
 
-  ////////////////////////////////////////////////////////////////////
-  // The following items are also present in GameInfoDialog
-  // If any changes are ever made here, GameInfoDialog should also
-  // be updated accordingly
-  ////////////////////////////////////////////////////////////////////
-
   // Bankswitch type
   new StaticTextWidget(this, font, xpos, ypos+1, lwidth, fontHeight,
                        "Bankswitch type:", kTextAlignLeft);
-  items.clear();
-  items.push_back("Auto-detect",                 "AUTO"  );
-  items.push_back("0840 (8K ECONObank)",         "0840"  );
-  items.push_back("2IN1 Multicart (4-32K)",      "2IN1"  );
-  items.push_back("4IN1 Multicart (8-32K)",      "4IN1"  );
-  items.push_back("8IN1 Multicart (16-64K)",     "8IN1"  );
-  items.push_back("16IN1 Multicart (32-128K)",   "16IN1" );
-  items.push_back("32IN1 Multicart (64/128K)",   "32IN1" );
-  items.push_back("64IN1 Multicart (128/256K)",  "64IN1" );
-  items.push_back("128IN1 Multicart (256/512K)", "128IN1");
-  items.push_back("2K (64-2048 bytes Atari)",    "2K"    );
-  items.push_back("3E (32K Tigervision)",        "3E"    );
-  items.push_back("3F (512K Tigervision)",       "3F"    );
-  items.push_back("4A50 (64K 4A50 + ram)",       "4A50"  );
-  items.push_back("4K (4K Atari)",               "4K"    );
-  items.push_back("4KSC (CPUWIZ 4K + ram)",      "4KSC"  );
-  items.push_back("AR (Supercharger)",           "AR"    );
-  items.push_back("BF (CPUWIZ 256K)",            "BF"    );
-  items.push_back("BFSC (CPUWIZ 256K + ram)",    "BFSC"  );
-  items.push_back("CV (Commavid extra ram)",     "CV"    );
-  items.push_back("CM (SpectraVideo CompuMate)", "CM"    );
-  items.push_back("DF (CPUWIZ 128K)",            "DF"    );
-  items.push_back("DFSC (CPUWIZ 128K + ram)",    "DFSC"  );
-  items.push_back("DPC (Pitfall II)",            "DPC"   );
-  items.push_back("DPC+ (Enhanced DPC)",         "DPC+"  );
-  items.push_back("E0 (8K Parker Bros)",         "E0"    );
-  items.push_back("E7 (16K M-network)",          "E7"    );
-  items.push_back("EF (64K H. Runner)",          "EF"    );
-  items.push_back("EFSC (64K H. Runner + ram)",  "EFSC"  );
-  items.push_back("F0 (Dynacom Megaboy)",        "F0"    );
-  items.push_back("F4 (32K Atari)",              "F4"    );
-  items.push_back("F4SC (32K Atari + ram)",      "F4SC"  );
-  items.push_back("F6 (16K Atari)",              "F6"    );
-  items.push_back("F6SC (16K Atari + ram)",      "F6SC"  );
-  items.push_back("F8 (8K Atari)",               "F8"    );
-  items.push_back("F8SC (8K Atari + ram)",       "F8SC"  );
-  items.push_back("FA (CBS RAM Plus)",           "FA"    );
-  items.push_back("FA2 (CBS RAM Plus 24/28K)",   "FA2"   );
-  items.push_back("FE (8K Decathlon)",           "FE"    );
-  items.push_back("MC (C. Wilkson Megacart)",    "MC"    );
-  items.push_back("SB (128-256K SUPERbank)",     "SB"    );
-  items.push_back("UA (8K UA Ltd.)",             "UA"    );
-  items.push_back("X07 (64K AtariAge)",          "X07"   );
+  for(int i = 0; i < Cartridge::ourNumBSTypes; ++i)
+    VarList::push_back(items, Cartridge::ourBSList[i].desc, Cartridge::ourBSList[i].type);
   myBSType = new PopUpWidget(this, font, xpos+lwidth, ypos,
                              pwidth, lineHeight, items, "", 0, 0);
   wid.push_back(myBSType);
@@ -115,9 +68,9 @@ GlobalPropsDialog::GlobalPropsDialog(GuiObject* boss, const GUI::Font& font)
   new StaticTextWidget(this, font, xpos, ypos+1, lwidth, fontHeight,
                        "Left Difficulty:", kTextAlignLeft);
   items.clear();
-  items.push_back("Default", "DEFAULT");
-  items.push_back("B", "B");
-  items.push_back("A", "A");
+  VarList::push_back(items, "Default", "DEFAULT");
+  VarList::push_back(items, "B", "B");
+  VarList::push_back(items, "A", "A");
   myLeftDiff = new PopUpWidget(this, font, xpos+lwidth, ypos,
                                pwidth, lineHeight, items, "", 0, 0);
   wid.push_back(myLeftDiff);
@@ -136,9 +89,9 @@ GlobalPropsDialog::GlobalPropsDialog(GuiObject* boss, const GUI::Font& font)
   new StaticTextWidget(this, font, xpos, ypos+1, lwidth, fontHeight,
                        "TV Type:", kTextAlignLeft);
   items.clear();
-  items.push_back("Default", "DEFAULT");
-  items.push_back("Color", "COLOR");
-  items.push_back("B & W", "BW");
+  VarList::push_back(items, "Default", "DEFAULT");
+  VarList::push_back(items, "Color", "COLOR");
+  VarList::push_back(items, "B & W", "BW");
   myTVType = new PopUpWidget(this, font, xpos+lwidth, ypos,
                              pwidth, lineHeight, items, "", 0, 0);
   wid.push_back(myTVType);
@@ -148,8 +101,8 @@ GlobalPropsDialog::GlobalPropsDialog(GuiObject* boss, const GUI::Font& font)
   new StaticTextWidget(this, font, xpos, ypos+1, lwidth, fontHeight,
                        "Startup Mode:", kTextAlignLeft);
   items.clear();
-  items.push_back("Console", "false");
-  items.push_back("Debugger", "true");
+  VarList::push_back(items, "Console", "false");
+  VarList::push_back(items, "Debugger", "true");
   myDebug = new PopUpWidget(this, font, xpos+lwidth, ypos,
                             pwidth, lineHeight, items, "", 0, 0);
   wid.push_back(myDebug);

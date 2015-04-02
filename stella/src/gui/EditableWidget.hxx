@@ -8,17 +8,19 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: EditableWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: EditableWidget.hxx 3148 2015-03-15 17:36:46Z stephena $
 //============================================================================
 
 #ifndef EDITABLE_WIDGET_HXX
 #define EDITABLE_WIDGET_HXX
+
+#include <functional>
 
 #include "Widget.hxx"
 #include "Rect.hxx"
@@ -30,6 +32,9 @@
 class EditableWidget : public Widget, public CommandSender
 {
   public:
+    /** Function used by 'tryInsertChar' to test validity of a character */
+    using TextFilter = std::function<bool(char)>;
+
     enum {
       kAcceptCmd  = 'EDac',
       kCancelCmd  = 'EDcl',
@@ -47,10 +52,14 @@ class EditableWidget : public Widget, public CommandSender
     bool isEditable() const	 { return _editable; }
     void setEditable(bool editable);
 
-    virtual bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
+    virtual bool handleText(char text);
+    virtual bool handleKeyDown(StellaKey key, StellaMod mod);
 
     // We only want to focus this widget when we can edit its contents
     virtual bool wantsFocus() { return _editable; }
+
+    // Set filter used by 'tryInsertChar'
+    void setTextFilter(TextFilter& filter) { _filter = filter; }
 
   protected:
     virtual void startEditMode() { setFlags(WIDGET_WANTS_RAWDATA);   }
@@ -63,11 +72,14 @@ class EditableWidget : public Widget, public CommandSender
     bool setCaretPos(int newPos);
     bool adjustOffset();
 	
+    // This method will use the current TextFilter to insert a character
+    // Note that classes which override this method will no longer use the
+    // current TextFilter, and will assume all responsibility for filtering
     virtual bool tryInsertChar(char c, int pos);
 
   private:
     // Line editing
-    bool specialKeys(StellaKey key, char ascii);
+    bool specialKeys(StellaKey key);
     bool killChar(int direction);
     bool killLine(int direction);
     bool killLastWord();
@@ -90,6 +102,9 @@ class EditableWidget : public Widget, public CommandSender
     int   _editScrollOffset;
 
     static string _clippedText;
+
+  private:
+    TextFilter _filter;
 };
 
 #endif

@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartE0Widget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartE0Widget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "CartE0.hxx"
@@ -67,9 +67,9 @@ CartridgeE0Widget::CartridgeE0Widget(
   VariantList items0, items1, items2;
   for(int i = 0; i < 8; ++i)
   {
-    items0.push_back(seg0[i]);
-    items1.push_back(seg1[i]);
-    items2.push_back(seg2[i]);
+    VarList::push_back(items0, seg0[i]);
+    VarList::push_back(items1, seg1[i]);
+    VarList::push_back(items2, seg2[i]);
   }
 
   const int lwidth = _font.getStringWidth("Set slice for segment X: ");

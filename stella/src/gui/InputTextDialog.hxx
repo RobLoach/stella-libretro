@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: InputTextDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: InputTextDialog.hxx 3146 2015-02-09 17:14:28Z stephena $
 //============================================================================
 
 #ifndef INPUT_TEXT_DIALOG_HXX
@@ -26,6 +26,7 @@ class EditTextWidget;
 
 #include "Dialog.hxx"
 #include "Command.hxx"
+#include "EditableWidget.hxx"
 
 class InputTextDialog : public Dialog, public CommandSender
 {
@@ -45,6 +46,8 @@ class InputTextDialog : public Dialog, public CommandSender
     const string& getResult(int idx = 0);
 
     void setText(const string& str, int idx = 0);
+    void setTextFilter(EditableWidget::TextFilter& f, int idx = 0);
+
     void setEmitSignal(int cmd) { myCmd = cmd; }
     void setTitle(const string& title);
 
@@ -56,12 +59,10 @@ class InputTextDialog : public Dialog, public CommandSender
   protected:
     void initialize(const GUI::Font& lfont, const GUI::Font& nfont,
                     const StringList& labels);
-    virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
+    void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
   private:
-    typedef Common::Array<EditTextWidget*> InputWidget;
-
-    InputWidget       myInput;
+    vector<EditTextWidget*> myInput;
     StaticTextWidget* myTitle;
 
     bool myEnableCenter;

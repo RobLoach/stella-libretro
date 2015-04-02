@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Debugger.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Debugger.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef DEBUGGER_HXX
@@ -26,7 +26,6 @@ class CartDebug;
 class CpuDebug;
 class RiotDebug;
 class TIADebug;
-class M6502;
 class TiaInfoWidget;
 class TiaOutputWidget;
 class TiaZoomWidget;
@@ -40,27 +39,17 @@ class ButtonWidget;
 
 #include <map>
 
-#include "Array.hxx"
 #include "Base.hxx"
 #include "DialogContainer.hxx"
 #include "DebuggerDialog.hxx"
 #include "DebuggerParser.hxx"
+#include "M6502.hxx"
 #include "System.hxx"
 #include "Stack.hxx"
 #include "bspf.hxx"
 
-typedef map<string,Expression*> FunctionMap;
-typedef map<string,string> FunctionDefMap;
-
-/*
-// These will probably turn out to be unneeded, left for reference for now
-// pointer types for Debugger instance methods
-typedef uInt8 (Debugger::*DEBUGGER_BYTE_METHOD)();
-typedef uInt16 (Debugger::*DEBUGGER_WORD_METHOD)();
-
-// call the pointed-to method on the (static) debugger object.
-#define CALL_DEBUGGER_METHOD(method) ( ( Debugger::debugger().*method)() )
-*/
+using FunctionMap = map<string,unique_ptr<Expression>>;
+using FunctionDefMap = map<string,string>;
 
 
 /**
@@ -68,7 +57,7 @@ typedef uInt16 (Debugger::*DEBUGGER_WORD_METHOD)();
   for all debugging operations in Stella (parser, 6502 debugger, etc).
 
   @author  Stephen Anthony
-  @version $Id: Debugger.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Debugger.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Debugger : public DialogContainer
 {
@@ -119,7 +108,7 @@ class Debugger : public DialogContainer
     bool addFunction(const string& name, const string& def,
                      Expression* exp, bool builtin = false);
     bool delFunction(const string& name);
-    const Expression* getFunction(const string& name) const;
+    const Expression& getFunction(const string& name) const;
 
     const string& getFunctionDef(const string& name) const;
     const FunctionDefMap getFunctionDefMap() const;
@@ -156,14 +145,16 @@ class Debugger : public DialogContainer
     */
     TIADebug& tiaDebug() const { return *myTiaDebug; }
 
-    const GUI::Font& lfont() const      { return myDialog->lfont();  }
-    const GUI::Font& nlfont() const     { return myDialog->nfont();  }
-    DebuggerParser& parser() const      { return *myParser;          }
-    PackedBitArray& breakpoints() const { return *myBreakPoints;     }
-    PackedBitArray& readtraps() const   { return *myReadTraps;       }
-    PackedBitArray& writetraps() const  { return *myWriteTraps;      }
-    PromptWidget& prompt() const        { return myDialog->prompt(); }
-    RomWidget& rom() const              { return myDialog->rom();    }
+    const GUI::Font& lfont() const      { return myDialog->lfont();     }
+    const GUI::Font& nlfont() const     { return myDialog->nfont();     }
+    DebuggerParser& parser() const      { return *myParser;             }
+    PromptWidget& prompt() const        { return myDialog->prompt();    }
+    RomWidget& rom() const              { return myDialog->rom();       }
+    TiaOutputWidget& tiaOutput() const  { return myDialog->tiaOutput(); }
+
+    PackedBitArray& breakPoints() const { return mySystem.m6502().breakPoints(); }
+    PackedBitArray& readTraps() const   { return mySystem.m6502().readTraps();   }
+    PackedBitArray& writeTraps() const  { return mySystem.m6502().writeTraps();  }
 
     /**
       Run the debugger command and return the result.
@@ -173,7 +164,7 @@ class Debugger : public DialogContainer
     /**
       The current cycle count of the System.
     */
-    int cycles();
+    int cycles() const { return mySystem.cycles(); }
 
     string autoExec();
 
@@ -230,14 +221,13 @@ class Debugger : public DialogContainer
     /* These are now exposed so Expressions can use them. */
     int peek(int addr) { return mySystem.peek(addr); }
     int dpeek(int addr) { return mySystem.peek(addr) | (mySystem.peek(addr+1) << 8); }
-    int getAccessFlags(uInt16 addr)
+    int getAccessFlags(uInt16 addr) const
       { return mySystem.getAccessFlags(addr); }
     void setAccessFlags(uInt16 addr, uInt8 flags)
       { mySystem.setAccessFlags(addr, flags); }
 
     void setBreakPoint(int bp, bool set);
 
-    bool setBank(int bank);
     bool patchROM(int addr, int value);
 
     /**
@@ -297,20 +287,16 @@ class Debugger : public DialogContainer
     System&  mySystem;
 
     DebuggerDialog* myDialog;
-    DebuggerParser* myParser;
-    CartDebug*      myCartDebug;
-    CpuDebug*       myCpuDebug;
-    RiotDebug*      myRiotDebug;
-    TIADebug*       myTiaDebug;
-
-    PackedBitArray* myBreakPoints;
-    PackedBitArray* myReadTraps;
-    PackedBitArray* myWriteTraps;
+    unique_ptr<DebuggerParser> myParser;
+    unique_ptr<CartDebug>      myCartDebug;
+    unique_ptr<CpuDebug>       myCpuDebug;
+    unique_ptr<RiotDebug>      myRiotDebug;
+    unique_ptr<TIADebug>       myTiaDebug;
 
     static Debugger* myStaticDebugger;
 
-    FunctionMap functions;
-    FunctionDefMap functionDefs;
+    FunctionMap myFunctions;
+    FunctionDefMap myFunctionDefs;
 
     // Dimensions of the entire debugger window
     uInt32 myWidth;
@@ -328,7 +314,7 @@ class Debugger : public DialogContainer
       public:
         bool addState();
         bool rewindState();
-        bool isEmpty();
+        bool empty();
         void clear();
 
       private:
@@ -338,7 +324,7 @@ class Debugger : public DialogContainer
         Serializer* myStateList[MAX_SIZE];
         uInt32 mySize, myTop;
     };
-    RewindManager* myRewindManager;
+    unique_ptr<RewindManager> myRewindManager;
 };
 
 #endif

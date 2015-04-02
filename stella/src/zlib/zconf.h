@@ -3,15 +3,11 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-/* @(#) $Id: zconf.h 2723 2013-05-07 14:44:50Z stephena $ */
+/* @(#) $Id: zconf.h 3085 2014-11-17 20:57:15Z stephena $ */
 
 #ifndef ZCONF_H
 #define ZCONF_H
 
-/**  Added by SA  *********/
-#ifdef HAVE_INTTYPES
-  #define Z_HAVE_UNISTD_H
-#endif
 #define ZLIB_CONST
 /**************************/
 

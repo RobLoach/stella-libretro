@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cheat.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Cheat.hxx 3144 2015-02-06 16:34:01Z stephena $
 //============================================================================
 
 #ifndef CHEAT_HXX
@@ -22,21 +22,19 @@
 
 class OSystem;
 
-#include "StringList.hxx"
+#include <regex>
+
 #include "bspf.hxx"
 
 class Cheat
 {
   public:
-    Cheat(OSystem* osystem, const string& name, const string& code)
+    Cheat(OSystem& osystem, const string& name, const string& code)
       : myOSystem(osystem),
-        myName(name),
+        myName(name == "" ? code : name),
         myCode(code),
         myEnabled(false)
-    {
-      if(name == "") myName = code;
-      myName = StringList::removePattern(myName, "\":");
-    }
+    { }
     virtual ~Cheat() { }
 
     bool enabled() const { return myEnabled; }
@@ -52,10 +50,8 @@ class Cheat
     static uInt16 unhex(const string& hex)
     {
       int ret = 0;
-
-      for(unsigned int i=0; i<hex.size(); i++) {
-        char c = hex[i];
-
+      for(char c: hex)
+      {
         ret *= 16;
         if(c >= '0' && c <= '9')
           ret += c - '0';
@@ -68,7 +64,7 @@ class Cheat
     }
 
   protected:
-    OSystem* myOSystem;
+    OSystem& myOSystem;
 
     string myName;
     string myCode;

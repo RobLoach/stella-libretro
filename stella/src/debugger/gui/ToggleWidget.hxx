@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: ToggleWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: ToggleWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef TOGGLE_WIDGET_HXX
@@ -22,7 +22,6 @@
 
 #include "Widget.hxx"
 #include "Command.hxx"
-#include "Array.hxx"
 
 /* ToggleWidget */
 class ToggleWidget : public Widget, public CommandSender
@@ -44,7 +43,7 @@ class ToggleWidget : public Widget, public CommandSender
 
     virtual void handleMouseDown(int x, int y, int button, int clickCount);
     virtual void handleMouseUp(int x, int y, int button, int clickCount);
-    virtual bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
+    virtual bool handleKeyDown(StellaKey key, StellaMod mod);
     virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
     virtual bool wantsFocus() { return true; }
@@ -61,8 +60,8 @@ class ToggleWidget : public Widget, public CommandSender
     int  _cols;
     int  _currentRow;
     int  _currentCol;
-    int  _rowHeight;
-    int  _colWidth;
+    int  _rowHeight;   // explicitly set in child classes
+    int  _colWidth;    // explicitly set in child classes
     int  _selectedItem;
     bool _editable;
 

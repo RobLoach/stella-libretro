@@ -8,22 +8,19 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: NTSCFilter.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: NTSCFilter.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
-#include "FrameBuffer.hxx"
+#include "TIASurface.hxx"
 #include "Settings.hxx"
 
 #include "NTSCFilter.hxx"
-
-#define SCALE_FROM_100(x) ((x/50.0)-1.0)
-#define SCALE_TO_100(x) (uInt32)(50*(x+1.0))
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 NTSCFilter::NTSCFilter()
@@ -34,12 +31,7 @@ NTSCFilter::NTSCFilter()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-NTSCFilter::~NTSCFilter()
-{
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void NTSCFilter::setTIAPalette(const FrameBuffer& fb, const uInt32* palette)
+void NTSCFilter::setTIAPalette(const TIASurface& tiaSurface, const uInt32* palette)
 {
   // Normal TIA palette contains 256 colours, where every odd indexed colour
   // is used for PAL colour-loss effect
@@ -61,9 +53,9 @@ void NTSCFilter::setTIAPalette(const FrameBuffer& fb, const uInt32* palette)
       uInt8 gj = (palette[j] >> 8) & 0xff;
       uInt8 bj = palette[j] & 0xff;
 
-      *ptr++ = fb.getPhosphor(ri, rj);
-      *ptr++ = fb.getPhosphor(gi, gj);
-      *ptr++ = fb.getPhosphor(bi, bj);
+      *ptr++ = tiaSurface.getPhosphor(ri, rj);
+      *ptr++ = tiaSurface.getPhosphor(gi, gj);
+      *ptr++ = tiaSurface.getPhosphor(bi, bj);
     }
   }
   // Set palette for normal fill
@@ -194,36 +186,36 @@ string NTSCFilter::decreaseAdjustable()
 void NTSCFilter::loadConfig(const Settings& settings)
 {
   // Load adjustables for custom mode
-  myCustomSetup.hue = BSPF_clamp(settings.getFloat("tv_hue"), -1.0f, 1.0f);
-  myCustomSetup.saturation = BSPF_clamp(settings.getFloat("tv_saturation"), -1.0f, 1.0f);
-  myCustomSetup.contrast = BSPF_clamp(settings.getFloat("tv_contrast"), -1.0f, 1.0f);
-  myCustomSetup.brightness = BSPF_clamp(settings.getFloat("tv_brightness"), -1.0f, 1.0f);
-  myCustomSetup.sharpness = BSPF_clamp(settings.getFloat("tv_sharpness"), -1.0f, 1.0f);
-  myCustomSetup.gamma = BSPF_clamp(settings.getFloat("tv_gamma"), -1.0f, 1.0f);
-  myCustomSetup.resolution = BSPF_clamp(settings.getFloat("tv_resolution"), -1.0f, 1.0f);
-  myCustomSetup.artifacts = BSPF_clamp(settings.getFloat("tv_artifacts"), -1.0f, 1.0f);
-  myCustomSetup.fringing = BSPF_clamp(settings.getFloat("tv_fringing"), -1.0f, 1.0f);
-  myCustomSetup.bleed = BSPF_clamp(settings.getFloat("tv_bleed"), -1.0f, 1.0f);
+  myCustomSetup.hue = BSPF_clamp(settings.getFloat("tv.hue"), -1.0f, 1.0f);
+  myCustomSetup.saturation = BSPF_clamp(settings.getFloat("tv.saturation"), -1.0f, 1.0f);
+  myCustomSetup.contrast = BSPF_clamp(settings.getFloat("tv.contrast"), -1.0f, 1.0f);
+  myCustomSetup.brightness = BSPF_clamp(settings.getFloat("tv.brightness"), -1.0f, 1.0f);
+  myCustomSetup.sharpness = BSPF_clamp(settings.getFloat("tv.sharpness"), -1.0f, 1.0f);
+  myCustomSetup.gamma = BSPF_clamp(settings.getFloat("tv.gamma"), -1.0f, 1.0f);
+  myCustomSetup.resolution = BSPF_clamp(settings.getFloat("tv.resolution"), -1.0f, 1.0f);
+  myCustomSetup.artifacts = BSPF_clamp(settings.getFloat("tv.artifacts"), -1.0f, 1.0f);
+  myCustomSetup.fringing = BSPF_clamp(settings.getFloat("tv.fringing"), -1.0f, 1.0f);
+  myCustomSetup.bleed = BSPF_clamp(settings.getFloat("tv.bleed"), -1.0f, 1.0f);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void NTSCFilter::saveConfig(Settings& settings) const
 {
   // Save adjustables for custom mode
-  settings.setValue("tv_hue", myCustomSetup.hue);
-  settings.setValue("tv_saturation", myCustomSetup.saturation);
-  settings.setValue("tv_contrast", myCustomSetup.contrast);
-  settings.setValue("tv_brightness", myCustomSetup.brightness);
-  settings.setValue("tv_sharpness", myCustomSetup.sharpness);
-  settings.setValue("tv_gamma", myCustomSetup.gamma);
-  settings.setValue("tv_resolution", myCustomSetup.resolution);
-  settings.setValue("tv_artifacts", myCustomSetup.artifacts);
-  settings.setValue("tv_fringing", myCustomSetup.fringing);
-  settings.setValue("tv_bleed", myCustomSetup.bleed);
+  settings.setValue("tv.hue", myCustomSetup.hue);
+  settings.setValue("tv.saturation", myCustomSetup.saturation);
+  settings.setValue("tv.contrast", myCustomSetup.contrast);
+  settings.setValue("tv.brightness", myCustomSetup.brightness);
+  settings.setValue("tv.sharpness", myCustomSetup.sharpness);
+  settings.setValue("tv.gamma", myCustomSetup.gamma);
+  settings.setValue("tv.resolution", myCustomSetup.resolution);
+  settings.setValue("tv.artifacts", myCustomSetup.artifacts);
+  settings.setValue("tv.fringing", myCustomSetup.fringing);
+  settings.setValue("tv.bleed", myCustomSetup.bleed);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void NTSCFilter::getAdjustables(Adjustable& adjustable, Preset preset)
+void NTSCFilter::getAdjustables(Adjustable& adjustable, Preset preset) const
 {
   switch(preset)
   {

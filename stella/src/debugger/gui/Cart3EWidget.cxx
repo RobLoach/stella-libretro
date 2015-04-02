@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cart3EWidget.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Cart3EWidget.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include "Cart3E.hxx"
@@ -54,13 +54,13 @@ Cartridge3EWidget::Cartridge3EWidget(
 
   VariantList romitems;
   for(uInt32 i = 0; i < myNumRomBanks; ++i)
-    romitems.push_back(i);
-  romitems.push_back("Inactive", "");
+    VarList::push_back(romitems, i);
+  VarList::push_back(romitems, "Inactive", "");
 
   VariantList ramitems;
   for(uInt32 i = 0; i < myNumRamBanks; ++i)
-    ramitems.push_back(i);
-  ramitems.push_back("Inactive", "");
+    VarList::push_back(ramitems, i);
+  VarList::push_back(ramitems, "Inactive", "");
 
   ostringstream label;
   label << "Set bank ($" << Common::Base::HEX4 << start << " - $"
@@ -85,6 +85,17 @@ Cartridge3EWidget::Cartridge3EWidget(
                     _font.getStringWidth("RAM ($3E): "), kRAMBankChanged);
   myRAMBank->setTarget(this);
   addFocusWidget(myRAMBank);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void Cartridge3EWidget::saveOldState()
+{
+  myOldState.internalram.clear();
+  
+  for(uInt32 i = 0; i < this->internalRamSize();i++)
+  {
+    myOldState.internalram.push_back(myCart.myRAM[i]);
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -156,4 +167,57 @@ string Cartridge3EWidget::bankState()
     buf << "ROM inactive, RAM bank " << bank % myNumRomBanks;
 
   return buf.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 Cartridge3EWidget::internalRamSize() 
+{
+  return 32*1024;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt32 Cartridge3EWidget::internalRamRPort(int start)
+{
+  return 0x0000 + start;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+string Cartridge3EWidget::internalRamDescription() 
+{
+  ostringstream desc;
+  desc << "Accessible 1K at a time via:\n"
+       << "  $F000 - $F3FF used for Read Access\n"
+       << "  $F400 - $F7FF used for Write Access";
+  
+  return desc.str();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& Cartridge3EWidget::internalRamOld(int start, int count)
+{
+  myRamOld.clear();
+  for(int i = 0; i < count; i++)
+    myRamOld.push_back(myOldState.internalram[start + i]);
+  return myRamOld;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+const ByteArray& Cartridge3EWidget::internalRamCurrent(int start, int count)
+{
+  myRamCurrent.clear();
+  for(int i = 0; i < count; i++)
+    myRamCurrent.push_back(myCart.myRAM[start + i]);
+  return myRamCurrent;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void Cartridge3EWidget::internalRamSetValue(int addr, uInt8 value)
+{
+  myCart.myRAM[addr] = value;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+uInt8 Cartridge3EWidget::internalRamGetValue(int addr)
+{
+  return myCart.myRAM[addr];
 }

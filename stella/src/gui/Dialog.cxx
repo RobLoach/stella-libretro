@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Dialog.cxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Dialog.cxx 3148 2015-03-15 17:36:46Z stephena $
 //
 //   Based on code from ScummVM - Scumm Interpreter
 //   Copyright (C) 2002-2004 The ScummVM project
@@ -26,6 +26,7 @@
 #include "Dialog.hxx"
 #include "Widget.hxx"
 #include "TabWidget.hxx"
+#include "Vec.hxx"
 
 /*
  * TODO list
@@ -36,18 +37,17 @@
  * ...
  */
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Dialog::Dialog(OSystem* instance, DialogContainer* parent,
-               int x, int y, int w, int h, bool isBase)
-  : GuiObject(*instance, *parent, *this, x, y, w, h),
-    _mouseWidget(0),
-    _focusedWidget(0),
-    _dragWidget(0),
-    _okWidget(0),
-    _cancelWidget(0),
+Dialog::Dialog(OSystem& instance, DialogContainer& parent,
+               int x, int y, int w, int h)
+  : GuiObject(instance, parent, *this, x, y, w, h),
+    _mouseWidget(nullptr),
+    _focusedWidget(nullptr),
+    _dragWidget(nullptr),
+    _okWidget(nullptr),
+    _cancelWidget(nullptr),
     _visible(false),
-    _isBase(isBase),
     _processCancel(false),
-    _surface(0),
+    _surface(nullptr),
     _tabID(0)
 {
 }
@@ -59,7 +59,7 @@ Dialog::~Dialog()
   _myTabList.clear();
 
   delete _firstWidget;
-  _firstWidget = NULL;
+  _firstWidget = nullptr;
 
   _buttonGroup.clear();
 }
@@ -70,17 +70,8 @@ void Dialog::open(bool refresh)
   // Make sure we have a valid surface to draw into
   // Technically, this shouldn't be needed until drawDialog(), but some
   // dialogs cause drawing to occur within loadConfig()
-  // Base surfaces are typically large, and will probably cause slow
-  // performance if we update the whole area each frame
-  // Instead, dirty rectangle updates should be performed
-  // However, this policy is left entirely to the framebuffer
-  // We suggest the hint here, but specific framebuffers are free to
-  // ignore it
-  if(_surface == NULL)
-  {
-    uInt32 surfaceID = instance().frameBuffer().allocateSurface(_w, _h, _isBase);
-    _surface = instance().frameBuffer().surface(surfaceID);
-  }
+  if(_surface == nullptr)
+    _surface = instance().frameBuffer().allocateSurface(_w, _h);
   parent().addDialog(this);
 
   center();
@@ -91,9 +82,6 @@ void Dialog::open(bool refresh)
   buildCurrentFocusList();
 
   _visible = true;
-
-  if(refresh)
-    instance().frameBuffer().refresh();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -110,9 +98,6 @@ void Dialog::close(bool refresh)
   _visible = false;
 
   parent().removeDialog();
-
-  if(refresh)
-    instance().frameBuffer().refresh();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -120,10 +105,10 @@ void Dialog::center()
 {
   if(_surface)
   {
-    const GUI::Rect& screen = instance().frameBuffer().screenRect();
-    uInt32 x = (screen.width() - getWidth()) >> 1;
-    uInt32 y = (screen.height() - getHeight()) >> 1;
-    _surface->setPos(x, y);
+    const GUI::Size& screen = instance().frameBuffer().screenSize();
+    uInt32 x = (screen.w - getWidth()) >> 1;
+    uInt32 y = (screen.h - getHeight()) >> 1;
+    _surface->setDstPos(x, y);
   }
 }
 
@@ -154,10 +139,10 @@ void Dialog::addFocusWidget(Widget* w)
 void Dialog::addToFocusList(WidgetArray& list)
 {
   // All focusable widgets should retain focus
-  for(uInt32 i = 0; i < list.size(); ++i)
-    list[i]->setFlags(WIDGET_RETAIN_FOCUS);
+  for(const auto& w: list)
+    w->setFlags(WIDGET_RETAIN_FOCUS);
 
-  _myFocus.list.push_back(list);
+  Vec::append(_myFocus.list, list);
   _focusList = _myFocus.list;
 
   if(list.size() > 0)
@@ -174,8 +159,8 @@ void Dialog::addToFocusList(WidgetArray& list, TabWidget* w, int tabId)
   assert(w == _myTabList[w->getID()].widget);
 
   // All focusable widgets should retain focus
-  for(uInt32 i = 0; i < list.size(); ++i)
-    list[i]->setFlags(WIDGET_RETAIN_FOCUS);
+  for(const auto& fw: list)
+    fw->setFlags(WIDGET_RETAIN_FOCUS);
 
   // First get the appropriate focus list
   FocusList& focus = _myTabList[w->getID()].focus;
@@ -183,14 +168,14 @@ void Dialog::addToFocusList(WidgetArray& list, TabWidget* w, int tabId)
   // Now insert in the correct place in that focus list
   uInt32 id = tabId;
   if(id < focus.size())
-    focus[id].list.push_back(list);
+    Vec::append(focus[id].list, list);
   else
   {
     // Make sure the array is large enough
     while(focus.size() <= id)
       focus.push_back(Focus());
 
-    focus[id].list.push_back(list);
+    Vec::append(focus[id].list, list);
   }
 
   if(list.size() > 0)
@@ -235,7 +220,7 @@ void Dialog::buildCurrentFocusList(int tabID)
 
   // Remember which tab item previously had focus, if applicable
   // This only applies if this method was called for a tab change
-  Widget* tabFocusWidget = 0;
+  Widget* tabFocusWidget = nullptr;
   if(tabID >= 0 && tabID < (int)_myTabList.size())
   {
     // Save focus in previously selected tab column,
@@ -252,13 +237,13 @@ void Dialog::buildCurrentFocusList(int tabID)
     _myTabList[id].appendFocusList(_focusList);
 
   // Add remaining items from main focus list
-  _focusList.push_back(_myFocus.list);
+  Vec::append(_focusList, _myFocus.list);
 
   // Add button group at end of current focus list
   // We do it this way for TabWidget, so that buttons are scanned
   // *after* the widgets in the current tab
   if(_buttonGroup.size() > 0)
-    _focusList.push_back(_buttonGroup);
+    Vec::append(_focusList, _buttonGroup);
 
   // Finally, the moment we've all been waiting for :)
   // Set the actual focus widget
@@ -273,6 +258,12 @@ void Dialog::redrawFocus()
 {
   if(_focusedWidget)
     _focusedWidget = Widget::setFocusForChain(this, getFocusList(), _focusedWidget, 0);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void Dialog::addSurface(shared_ptr<FBSurface> surface)
+{
+  mySurfaceStack.push(surface);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -291,7 +282,6 @@ void Dialog::drawDialog()
   if(_dirty)
   {
 //    cerr << "Dialog::drawDialog(): w = " << _w << ", h = " << _h << " @ " << &s << endl << endl;
-
     s.fillRect(_x, _y, _w, _h, kDlgColor);
     s.box(_x, _y, _w, _h, kColor, kShadowColor);
 
@@ -310,17 +300,34 @@ void Dialog::drawDialog()
     // Draw outlines for focused widgets
     redrawFocus();
 
-    // Tell the surface this area is dirty
-    s.addDirtyRect(_x, _y, _w, _h);
+    // Tell the surface(s) this area is dirty
+    s.setDirty();
+
     _dirty = false;
   }
 
-  // Commit surface changes to screen
-  s.update();
+  // Commit surface changes to screen; also render any extra surfaces
+  // Extra surfaces must be rendered afterwards, so they are drawn on top
+  if(s.render())
+  {
+    for(int i = 0; i < mySurfaceStack.size(); ++i)
+    {
+      mySurfaceStack[i]->setDirty();
+      mySurfaceStack[i]->render();
+    }
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Dialog::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
+void Dialog::handleText(char text)
+{
+  // Focused widget receives text events
+  if(_focusedWidget)
+    _focusedWidget->handleText(text);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void Dialog::handleKeyDown(StellaKey key, StellaMod mod)
 {
   // Test for TAB character
   // Shift-left/shift-right cursor selects next tab
@@ -329,8 +336,6 @@ void Dialog::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
   Event::Type e = Event::NoType;
 
   // Detect selection of previous and next tab headers and objects
-  // For some strange reason, 'tab' needs to be interpreted as keycode,
-  // not ascii??
   if(instance().eventHandler().kbdShift(mod))
   {
     if(key == KBDK_LEFT && cycleTab(-1))
@@ -353,18 +358,18 @@ void Dialog::handleKeyDown(StellaKey key, StellaMod mod, char ascii)
   if(!handleNavEvent(e) && _focusedWidget)
   {
     if(_focusedWidget->wantsRaw() || e == Event::NoType)
-      _focusedWidget->handleKeyDown(key, mod, ascii);
+      _focusedWidget->handleKeyDown(key, mod);
     else
       _focusedWidget->handleEvent(e);
   }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Dialog::handleKeyUp(StellaKey key, StellaMod mod, char ascii)
+void Dialog::handleKeyUp(StellaKey key, StellaMod mod)
 {
   // Focused widget receives keyup events
   if(_focusedWidget)
-    _focusedWidget->handleKeyUp(key, mod, ascii);
+    _focusedWidget->handleKeyUp(key, mod);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -643,7 +648,7 @@ void Dialog::handleCommand(CommandSender* sender, int cmd, int data, int id)
  * in the local coordinate system, i.e. relative to the top left of the dialog.
  */
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Widget* Dialog::findWidget(int x, int y)
+Widget* Dialog::findWidget(int x, int y) const
 {
   return Widget::findWidgetInChain(_firstWidget, x, y);
 }
@@ -658,7 +663,7 @@ void Dialog::addOKCancelBGroup(WidgetArray& wid, const GUI::Font& font,
                       font.getStringWidth(okText))) + 15;
   int buttonHeight = font.getLineHeight() + 4;
   ButtonWidget* b;
-#ifndef MAC_OSX
+#ifndef BSPF_MAC_OSX
   b = new ButtonWidget(this, font, _w - 2 * (buttonWidth + 7), _h - buttonHeight - 10,
                        buttonWidth, buttonHeight,
                        okText == "" ? "OK" : okText, kOKCmd);
@@ -692,7 +697,6 @@ Dialog::Focus::Focus(Widget* w)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Dialog::Focus::~Focus()
 {
-  list.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -705,7 +709,6 @@ Dialog::TabFocus::TabFocus(TabWidget* w)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Dialog::TabFocus::~TabFocus()
 {
-  focus.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -714,7 +717,7 @@ void Dialog::TabFocus::appendFocusList(WidgetArray& list)
   int active = widget->getActiveTab();
 
   if(active >= 0 && active < (int)focus.size())
-    list.push_back(focus[active].list);
+    Vec::append(list, focus[active].list);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -730,5 +733,5 @@ Widget* Dialog::TabFocus::getNewFocus()
 {
   currentTab = widget->getActiveTab();
 
-  return (currentTab < focus.size()) ? focus[currentTab].widget : 0;
+  return (currentTab < focus.size()) ? focus[currentTab].widget : nullptr;
 }

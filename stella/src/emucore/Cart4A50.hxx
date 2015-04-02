@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cart4A50.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Cart4A50.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGE4A50_HXX
@@ -47,7 +47,7 @@ class System;
   have changed on every poke operation (for any RAM) or an actual bankswitch.
 
   @author  Eckhard Stolberg & Stephen Anthony
-  @version $Id: Cart4A50.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Cart4A50.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Cartridge4A50 : public Cartridge
 {
@@ -81,23 +81,6 @@ class Cartridge4A50 : public Cartridge
       @param system The system the device should install itself in
     */
     void install(System& system);
-
-    /**
-      Install pages for the specified bank in the system.
-
-      @param bank The bank that should be installed in the system
-    */
-    bool bank(uInt16 bank);
-
-    /**
-      Get the current bank.
-    */
-    uInt16 bank() const;
-
-    /**
-      Query the number of banks supported by the cartridge.
-    */
-    uInt16 bankCount() const;
 
     /**
       Patch the cartridge ROM.
@@ -175,7 +158,7 @@ class Cartridge4A50 : public Cartridge
       @param address The address to modify
       @param flags A bitfield of DisasmType directives for the given address
     */
-    uInt8 getAccessFlags(uInt16 address);
+    uInt8 getAccessFlags(uInt16 address) const;
     void setAccessFlags(uInt16 address, uInt8 flags);
 
     /**

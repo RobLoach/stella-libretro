@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: DataGridWidget.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: DataGridWidget.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef DATA_GRID_WIDGET_HXX
@@ -27,7 +27,6 @@ class ScrollBarWidget;
 #include "Command.hxx"
 #include "Debugger.hxx"
 #include "EditableWidget.hxx"
-#include "Array.hxx"
 #include "Base.hxx"
 #include "Rect.hxx"
 
@@ -75,8 +74,9 @@ class DataGridWidget : public EditableWidget
     virtual void handleMouseDown(int x, int y, int button, int clickCount);
     virtual void handleMouseUp(int x, int y, int button, int clickCount);
     virtual void handleMouseWheel(int x, int y, int direction);
-    virtual bool handleKeyDown(StellaKey key, StellaMod mod, char ascii);
-    virtual bool handleKeyUp(StellaKey key, StellaMod mod, char ascii);
+    virtual bool handleText(char text);
+    virtual bool handleKeyDown(StellaKey key, StellaMod mod);
+    virtual bool handleKeyUp(StellaKey key, StellaMod mod);
     virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
 
     virtual bool wantsFocus() { return true; }

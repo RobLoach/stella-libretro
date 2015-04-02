@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: CartDPC.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: CartDPC.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGE_DPC_HXX
@@ -38,7 +38,7 @@ class System;
   Patent Number 4,644,495.
 
   @author  Bradford W. Mott
-  @version $Id: CartDPC.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: CartDPC.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class CartridgeDPC : public Cartridge
 {
@@ -90,7 +90,7 @@ class CartridgeDPC : public Cartridge
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const;
 
     /**
       Query the number of banks supported by the cartridge.

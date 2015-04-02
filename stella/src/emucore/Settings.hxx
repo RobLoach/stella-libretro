@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Settings.hxx 2838 2014-01-17 23:34:03Z stephena $
+// $Id: Settings.hxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #ifndef SETTINGS_HXX
@@ -22,7 +22,6 @@
 
 class OSystem;
 
-#include "Array.hxx"
 #include "Variant.hxx"
 #include "bspf.hxx"
 
@@ -30,7 +29,7 @@ class OSystem;
   This class provides an interface for accessing frontend specific settings.
 
   @author  Stephen Anthony
-  @version $Id: Settings.hxx 2838 2014-01-17 23:34:03Z stephena $
+  @version $Id: Settings.hxx 3131 2015-01-01 03:49:32Z stephena $
 */
 class Settings
 {
@@ -40,7 +39,7 @@ class Settings
     /**
       Create a new settings abstract class
     */
-    Settings(OSystem* osystem);
+    Settings(OSystem& osystem);
 
     /**
       Destructor
@@ -64,7 +63,7 @@ class Settings
     /**
       This method should be called to display usage information.
     */
-    void usage();
+    void usage() const;
 
     /**
       Get the value assigned to the specified key.
@@ -98,18 +97,16 @@ class Settings
     /**
       This method will be called to load the current settings from an rc file.
     */
-    //virtual void loadConfig();
+    virtual void loadConfig();
 
     /**
       This method will be called to save the current settings to an rc file.
     */
-    //virtual void saveConfig();
+    virtual void saveConfig();
 
   private:
-    // Copy constructor isn't supported by this class so make it private
+    // Copy constructor and assignment operator not supported
     Settings(const Settings&);
-
-    // Assignment operator isn't supported by this class so make it private
     Settings& operator = (const Settings&);
 
     // Trim leading and following whitespace from a string
@@ -122,7 +119,7 @@ class Settings
 
   protected:
     // The parent OSystem object
-    OSystem* myOSystem;
+    OSystem& myOSystem;
 
     // Structure used for storing settings
     struct Setting
@@ -131,7 +128,7 @@ class Settings
       Variant value;
       Variant initialValue;
     };
-    typedef Common::Array<Setting> SettingsArray;
+    using SettingsArray = vector<Setting>;
 
     const SettingsArray& getInternalSettings() const
       { return myInternalSettings; }

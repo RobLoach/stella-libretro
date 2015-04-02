@@ -8,13 +8,13 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2015 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
 //
-// $Id: Cart.cxx 2839 2014-01-19 19:41:27Z stephena $
+// $Id: Cart.cxx 3131 2015-01-01 03:49:32Z stephena $
 //============================================================================
 
 #include <cassert>
@@ -34,6 +34,7 @@
 #include "CartCM.hxx"
 #include "CartCTY.hxx"
 #include "CartCV.hxx"
+#include "CartDASH.hxx"
 #include "CartDPC.hxx"
 #include "CartDPCPlus.hxx"
 #include "CartE0.hxx"
@@ -55,8 +56,10 @@
 #include "CartFA2.hxx"
 #include "CartFE.hxx"
 #include "CartMC.hxx"
+#include "CartMDM.hxx"
 #include "CartSB.hxx"
 #include "CartUA.hxx"
+#include "CartWD.hxx"
 #include "CartX07.hxx"
 #include "MD5.hxx"
 #include "Props.hxx"
@@ -70,7 +73,7 @@
 Cartridge* Cartridge::create(const uInt8* image, uInt32 size, string& md5,
      string& dtype, string& id, const OSystem& osystem, Settings& settings)
 {
-  Cartridge* cartridge = 0;
+  Cartridge* cartridge = nullptr;
   string type = dtype;
 
   // Collect some info about the ROM
@@ -199,6 +202,8 @@ Cartridge* Cartridge::create(const uInt8* image, uInt32 size, string& md5,
     cartridge = new CartridgeCTY(image, size, osystem);
   else if(type == "CV")
     cartridge = new CartridgeCV(image, size, settings);
+  else if(type == "DASH")
+    cartridge = new CartridgeDASH(image, size, settings);
   else if(type == "DPC")
     cartridge = new CartridgeDPC(image, size, settings);
   else if(type == "DPC+")
@@ -241,10 +246,14 @@ Cartridge* Cartridge::create(const uInt8* image, uInt32 size, string& md5,
     cartridge = new CartridgeFE(image, size, settings);
   else if(type == "MC")
     cartridge = new CartridgeMC(image, size, settings);
+  else if(type == "MDM")
+    cartridge = new CartridgeMDM(image, size, settings);
   else if(type == "UA")
     cartridge = new CartridgeUA(image, size, settings);
   else if(type == "SB")
     cartridge = new CartridgeSB(image, size, settings);
+  else if(type == "WD")
+    cartridge = new CartridgeWD(image, size, settings);
   else if(type == "X07")
     cartridge = new CartridgeX07(image, size, settings);
   else if(dtype == "WRONG_SIZE")
@@ -296,7 +305,7 @@ Cartridge::Cartridge(const Settings& settings)
   : mySettings(settings),
     myStartBank(0),
     myBankChanged(true),
-    myCodeAccessBase(NULL),
+    myCodeAccessBase(nullptr),
     myBankLocked(false)
 {
 }
@@ -304,8 +313,7 @@ Cartridge::Cartridge(const Settings& settings)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Cartridge::~Cartridge()
 {
-  if(myCodeAccessBase)
-    delete[] myCodeAccessBase;
+  delete[] myCodeAccessBase;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -320,8 +328,7 @@ bool Cartridge::save(ofstream& out)
     return false;
   }
 
-  for(int i=0; i<size; i++)
-    out << image[i];
+  out.write((const char*)image, size);
 
   return true;
 }
@@ -341,20 +348,6 @@ bool Cartridge::bankChanged()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Cartridge::registerRamArea(uInt16 start, uInt16 size,
-                                uInt16 roffset, uInt16 woffset)
-{
-#ifdef DEBUGGER_SUPPORT
-  RamArea area;
-  area.start   = start;
-  area.size    = size;
-  area.roffset = roffset;
-  area.woffset = woffset;
-  myRamAreaList.push_back(area);
-#endif
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Cartridge::triggerReadFromWritePort(uInt16 address)
 {
 #ifdef DEBUGGER_SUPPORT
@@ -370,7 +363,7 @@ void Cartridge::createCodeAccessBase(uInt32 size)
   myCodeAccessBase = new uInt8[size];
   memset(myCodeAccessBase, CartDebug::ROW, size);
 #else
-  myCodeAccessBase = NULL;
+  myCodeAccessBase = nullptr;
 #endif
 }
 
@@ -378,7 +371,7 @@ void Cartridge::createCodeAccessBase(uInt32 size)
 string Cartridge::autodetectType(const uInt8* image, uInt32 size)
 {
   // Guess type based on size
-  const char* type = 0;
+  const char* type = nullptr;
 
   if((size % 8448) == 0 || size == 6144)
   {
@@ -426,6 +419,10 @@ string Cartridge::autodetectType(const uInt8* image, uInt32 size)
       type = "0840";
     else
       type = "F8";
+  }
+  else if(size == 8*1024 + 3)  // 8195 bytes (Experimental)
+  {
+    type = "WD";
   }
   else if(size >= 10240 && size <= 10496)  // ~10K - Pitfall2
   {
@@ -529,6 +526,12 @@ string Cartridge::autodetectType(const uInt8* image, uInt32 size)
       type = "4K";  // Most common bankswitching type
   }
 
+  // Variable sized ROM formats are independent of image size and comes last
+  if(isProbablyDASH(image, size))
+    type = "DASH";
+  else if(isProbablyMDM(image, size))
+    type = "MDM";
+
   return type;
 }
 
@@ -579,6 +582,7 @@ bool Cartridge::isProbablySC(const uInt8* image, uInt32 size)
   return true;
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge::isProbably4KSC(const uInt8* image, uInt32 size)
 {
   // We check if the first 256 bytes are identical *and* if there's
@@ -594,7 +598,6 @@ bool Cartridge::isProbably4KSC(const uInt8* image, uInt32 size)
 
   return false;
 }
-
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge::isProbablyARM(const uInt8* image, uInt32 size)
@@ -694,6 +697,14 @@ bool Cartridge::isProbablyCV(const uInt8* image, uInt32 size)
     return true;
   else
     return searchForBytes(image, size, signature[1], 3, 1);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+bool Cartridge::isProbablyDASH(const uInt8* image, uInt32 size)
+{
+  // DASH cart is identified key 'TJAD' in the ROM
+  uInt8 signature[] = { 'T', 'J', 'A', 'D' };
+  return searchForBytes(image, size, signature, 4, 1);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -882,6 +893,14 @@ bool Cartridge::isProbablyFE(const uInt8* image, uInt32 size)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+bool Cartridge::isProbablyMDM(const uInt8* image, uInt32 size)
+{
+  // MDM cart is identified key 'MDMC' in the first 4K of ROM
+  uInt8 signature[] = { 'M', 'D', 'M', 'C' };
+  return searchForBytes(image, 4096, signature, 4, 1);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge::isProbablySB(const uInt8* image, uInt32 size)
 {
   // SB cart bankswitching switches banks by accessing address 0x0800
@@ -932,18 +951,53 @@ bool Cartridge::isProbablyX07(const uInt8* image, uInt32 size)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Cartridge::Cartridge(const Cartridge& cart)
-  : mySettings(cart.mySettings)
-{
-  assert(false);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Cartridge& Cartridge::operator = (const Cartridge&)
-{
-  assert(false);
-  return *this;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 string Cartridge::myAboutString= "";
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Cartridge::BankswitchType Cartridge::ourBSList[] = {
+  { "AUTO",     "Auto-detect"                   },
+  { "0840",     "0840 (8K ECONObank)"           },
+  { "2IN1",     "2IN1 Multicart (4-32K)"        },
+  { "4IN1",     "4IN1 Multicart (8-32K)"        },
+  { "8IN1",     "8IN1 Multicart (16-64K)"       },
+  { "16IN1",    "16IN1 Multicart (32-128K)"     },
+  { "32IN1",    "32IN1 Multicart (64/128K)"     },
+  { "64IN1",    "64IN1 Multicart (128/256K)"    },
+  { "128IN1",   "128IN1 Multicart (256/512K)"   },
+  { "2K",       "2K (64-2048 bytes Atari)"      },
+  { "3E",       "3E (32K Tigervision)"          },
+  { "3F",       "3F (512K Tigervision)"         },
+  { "4A50",     "4A50 (64K 4A50 + ram)"         },
+  { "4K",       "4K (4K Atari)"                 },
+  { "4KSC",     "4KSC (CPUWIZ 4K + ram)"        },
+  { "AR",       "AR (Supercharger)"             },
+  { "BF",       "BF (CPUWIZ 256K)"              },
+  { "BFSC",     "BFSC (CPUWIZ 256K + ram)"      },
+  { "CV",       "CV (Commavid extra ram)"       },
+  { "CM",       "CM (SpectraVideo CompuMate)"   },
+  { "DASH",     "DASH (Experimental)"           },
+  { "DF",       "DF (CPUWIZ 128K)"              },
+  { "DFSC",     "DFSC (CPUWIZ 128K + ram)"      },
+  { "DPC",      "DPC (Pitfall II)"              },
+  { "DPC+",     "DPC+ (Enhanced DPC)"           },
+  { "E0",       "E0 (8K Parker Bros)"           },
+  { "E7",       "E7 (16K M-network)"            },
+  { "EF",       "EF (64K H. Runner)"            },
+  { "EFSC",     "EFSC (64K H. Runner + ram)"    },
+  { "F0",       "F0 (Dynacom Megaboy)"          },
+  { "F4",       "F4 (32K Atari)"                },
+  { "F4SC",     "F4SC (32K Atari + ram)"        },
+  { "F6",       "F6 (16K Atari)"                },
+  { "F6SC",     "F6SC (16K Atari + ram)"        },
+  { "F8",       "F8 (8K Atari)"                 },
+  { "F8SC",     "F8SC (8K Atari + ram)"         },
+  { "FA",       "FA (CBS RAM Plus)"             },
+  { "FA2",      "FA2 (CBS RAM Plus 24/28K)"     },
+  { "FE",       "FE (8K Decathlon)"             },
+  { "MC",       "MC (C. Wilkson Megacart)"      },
+  { "MDM",      "MDM (Menu Driven Megacart)"    },
+  { "SB",       "SB (128-256K SUPERbank)"       },
+  { "UA",       "UA (8K UA Ltd.)"               },
+  { "WD",       "WD (Experimental)"             },
+  { "X07",      "X07 (64K AtariAge)"            }
+};
