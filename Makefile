@@ -271,6 +271,15 @@ else
    LDFLAGS += -static-libgcc -static-libstdc++ -lwinmm
 endif
 
+# BSPF
+ifeq ($(system_platform), unix)
+	FLAGS += -DBSPF_UNIX=1
+else ifeq ($(system_platform), win)
+	FLAGS += -DBSPF_WINDOWS=1
+else ifeq ($(system_platform), osx)
+	FLAGS += -DBSPF_MAC_OSX=1
+endif
+
 CORE_DIR     := stella
 LIBRETRO_DIR := .
 
