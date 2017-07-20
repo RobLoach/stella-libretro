@@ -67,10 +67,10 @@ my @prop_defaults = (
   "NO",
   "AUTO",
   "AUTO",
-  "34",
-  "210",
+  "0",
+  "0",
   "NO",
-  "77"
+  "0"
 );
 
 # Load and parse a properties file into an hash table of property
@@ -126,7 +126,8 @@ sub save_prop_set {
   print "Saving " . keys(%$hashref) . " properties to file: $file\n";
 
   open(OUTFILE, ">$file");
-  while (($md5, $props) = each(%$hashref)) {
+  foreach my $md5 (sort keys %$hashref) {
+    my $props = %$hashref{$md5};
     my @array = @$props;
     for (my $i = 0; $i < @array; $i++) {
       if ($array[$i] ne "") {

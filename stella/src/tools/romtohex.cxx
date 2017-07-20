@@ -2,14 +2,18 @@
   Simple program that produces a hex list of a binary object file
 
   @author  Bradford W. Mott
-  @version $Id: romtohex.cxx 2453 2012-04-29 19:43:28Z stephena $
 */
 
 #include <iomanip>
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+
+#include "../common/UniquePtr.hxx"
 using namespace std;
+
+using uInt8 = unsigned char;
+using uInt32 = unsigned int;
 
 int main(int ac, char* av[])
 {
@@ -26,16 +30,15 @@ int main(int ac, char* av[])
   int values_per_line = ac >= 3 ? atoi(av[2]) : 8;
   int offset = ac >= 4 ? atoi(av[3]) : 0;
 
-  ifstream in;
-  in.open(av[1]);
+  ifstream in(av[1]);
   if(in.is_open())
   {
     in.seekg(0, ios::end);
     int len = (int)in.tellg();
     in.seekg(0, ios::beg);
 
-    unsigned char* data = new unsigned char[len];
-    in.read((char*)data, len);
+    unique_ptr<uInt8[]> data = make_ptr<uInt8[]>(len);
+    in.read((char*)data.get(), len);
     in.close();
 
     cout << "SIZE = " << len << endl << "  ";
@@ -50,6 +53,5 @@ int main(int ac, char* av[])
         cout << endl << "  ";
     }
     cout << endl;
-    delete[] data;
   }
 }

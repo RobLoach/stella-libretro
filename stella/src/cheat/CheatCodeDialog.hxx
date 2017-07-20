@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CheatCodeDialog.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CHEAT_CODE_DIALOG_HXX
@@ -27,23 +25,23 @@ class ButtonWidget;
 class StaticTextWidget;
 class CheckListWidget;
 class EditTextWidget;
-class InputTextDialog;
 class OptionsDialog;
 class OSystem;
 
 #include "Dialog.hxx"
+#include "InputTextDialog.hxx"
 
 class CheatCodeDialog : public Dialog
 {
   public:
-    CheatCodeDialog(OSystem* osystem, DialogContainer* parent,
+    CheatCodeDialog(OSystem& osystem, DialogContainer& parent,
                    const GUI::Font& font);
-    ~CheatCodeDialog();
+    virtual ~CheatCodeDialog() = default;
 
   protected:
-    virtual void handleCommand(CommandSender* sender, int cmd, int data, int id);
-    void loadConfig();
-    void saveConfig();
+    void handleCommand(CommandSender* sender, int cmd, int data, int id) override;
+    void loadConfig() override;
+    void saveConfig() override;
 
   private:
     void addCheat();
@@ -53,7 +51,7 @@ class CheatCodeDialog : public Dialog
 
   private:
     CheckListWidget* myCheatList;
-    InputTextDialog* myCheatInput;
+    unique_ptr<InputTextDialog> myCheatInput;
 
     ButtonWidget* myEditButton;
     ButtonWidget* myRemoveButton;
@@ -67,6 +65,14 @@ class CheatCodeDialog : public Dialog
       kOneShotCheatAdded = 'CHoa',
       kRemCheatCmd       = 'CHTr'
     };
+
+  private:
+    // Following constructors and assignment operators not supported
+    CheatCodeDialog() = delete;
+    CheatCodeDialog(const CheatCodeDialog&) = delete;
+    CheatCodeDialog(CheatCodeDialog&&) = delete;
+    CheatCodeDialog& operator=(const CheatCodeDialog&) = delete;
+    CheatCodeDialog& operator=(CheatCodeDialog&&) = delete;
 };
 
 #endif

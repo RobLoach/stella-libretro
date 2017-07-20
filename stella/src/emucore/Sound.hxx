@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Sound.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef SOUND_HXX
@@ -30,7 +28,6 @@ class OSystem;
   It has no functionality whatsoever.
 
   @author Stephen Anthony
-  @version $Id: Sound.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Sound : public Serializable
 {
@@ -39,14 +36,10 @@ class Sound : public Serializable
       Create a new sound object.  The init method must be invoked before
       using the object.
     */
-    Sound(OSystem* osystem) { myOSystem = osystem; }
+    Sound(OSystem& osystem) : myOSystem(osystem) { }
+    virtual ~Sound() = default;
 
-    /**
-      Destructor
-    */
-    virtual ~Sound() { };
-
-  public: 
+  public:
     /**
       Enables/disables the sound subsystem.
 
@@ -129,7 +122,15 @@ class Sound : public Serializable
 
   protected:
     // The OSystem for this sound object
-    OSystem* myOSystem;
+    OSystem& myOSystem;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Sound() = delete;
+    Sound(const Sound&) = delete;
+    Sound(Sound&&) = delete;
+    Sound& operator=(const Sound&) = delete;
+    Sound& operator=(Sound&&) = delete;
 };
 
 #endif

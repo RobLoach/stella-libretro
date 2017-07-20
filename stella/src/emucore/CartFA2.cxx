@@ -1,24 +1,19 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartFA2.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
-
-#include <cassert>
-#include <cstring>
 
 #include "OSystem.hxx"
 #include "Serializer.hxx"
@@ -26,48 +21,33 @@
 #include "CartFA2.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartridgeFA2::CartridgeFA2(const uInt8* image, uInt32 size, const OSystem& osystem)
+CartridgeFA2::CartridgeFA2(const BytePtr& image, uInt32 size,
+                           const OSystem& osystem)
   : Cartridge(osystem.settings()),
     myOSystem(osystem),
+    mySize(28 * 1024),
     myRamAccessTimeout(0),
-    mySize(size)
+    myCurrentBank(0)
 {
   // 29/32K version of FA2 has valid data @ 1K - 29K
+  const uInt8* img_ptr = image.get();
   if(size >= 29 * 1024)
-  {
-    image += 1024;
-    mySize = 28 * 1024; 
-  }
-
-  // Allocate array for the ROM image
-  myImage = new uInt8[mySize];
+    img_ptr += 1024;
+  else if(size < mySize)
+    mySize = size;
 
   // Copy the ROM image into my buffer
-  memcpy(myImage, image, mySize);
+  memcpy(myImage, img_ptr, mySize);
   createCodeAccessBase(mySize);
-
-  // This cart contains 256 bytes extended RAM @ 0x1000
-  registerRamArea(0x1000, 256, 0x100, 0x00);
 
   // Remember startup bank
   myStartBank = 0;
-}
- 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartridgeFA2::~CartridgeFA2()
-{
-  delete[] myImage;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CartridgeFA2::reset()
 {
-  // Initialize RAM
-  if(mySettings.getBool("ramrandom"))
-    for(uInt32 i = 0; i < 256; ++i)
-      myRAM[i] = mySystem->randGenerator().next();
-  else
-    memset(myRAM, 0, 256);
+  initializeRAM(myRAM, 256);
 
   // Upon reset we switch to the startup bank
   bank(myStartBank);
@@ -77,31 +57,26 @@ void CartridgeFA2::reset()
 void CartridgeFA2::install(System& system)
 {
   mySystem = &system;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
 
-  // Make sure the system we're being installed in has a page size that'll work
-  assert(((0x1100 & mask) == 0) && ((0x1200 & mask) == 0));
-
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
+  System::PageAccess access(this, System::PA_READ);
 
   // Set the page accessing method for the RAM writing pages
   access.type = System::PA_WRITE;
-  for(uInt32 j = 0x1000; j < 0x1100; j += (1 << shift))
+  for(uInt32 j = 0x1000; j < 0x1100; j += (1 << System::PAGE_SHIFT))
   {
     access.directPokeBase = &myRAM[j & 0x00FF];
     access.codeAccessBase = &myCodeAccessBase[j & 0x00FF];
-    mySystem->setPageAccess(j >> shift, access);
+    mySystem->setPageAccess(j >> System::PAGE_SHIFT, access);
   }
- 
+
   // Set the page accessing method for the RAM reading pages
   access.directPokeBase = 0;
   access.type = System::PA_READ;
-  for(uInt32 k = 0x1100; k < 0x1200; k += (1 << shift))
+  for(uInt32 k = 0x1100; k < 0x1200; k += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myRAM[k & 0x00FF];
     access.codeAccessBase = &myCodeAccessBase[0x100 + (k & 0x00FF)];
-    mySystem->setPageAccess(k >> shift, access);
+    mySystem->setPageAccess(k >> System::PAGE_SHIFT, access);
   }
 
   // Install pages for the startup bank
@@ -137,7 +112,7 @@ uInt8 CartridgeFA2::peek(uInt16 address)
       // Set the current bank to the third 4k bank
       bank(2);
       break;
-  
+
     case 0x0FF8:
       // Set the current bank to the fourth 4k bank
       bank(3);
@@ -175,7 +150,7 @@ uInt8 CartridgeFA2::peek(uInt16 address)
       triggerReadFromWritePort(peekAddress);
       return myRAM[address] = value;
     }
-  }  
+  }
   else
     return myImage[(myCurrentBank << 12) + address];
 }
@@ -208,7 +183,7 @@ bool CartridgeFA2::poke(uInt16 address, uInt8)
       // Set the current bank to the third 4k bank
       bank(2);
       break;
-  
+
     case 0x0FF8:
       // Set the current bank to the fourth 4k bank
       bank(3);
@@ -248,31 +223,30 @@ bool CartridgeFA2::bank(uInt16 bank)
   // Remember what bank we're in
   myCurrentBank = bank;
   uInt16 offset = myCurrentBank << 12;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
 
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
+  System::PageAccess access(this, System::PA_READ);
 
   // Set the page accessing methods for the hot spots
-  for(uInt32 i = (0x1FF4 & ~mask); i < 0x2000; i += (1 << shift))
+  for(uInt32 i = (0x1FF4 & ~System::PAGE_MASK); i < 0x2000;
+      i += (1 << System::PAGE_SHIFT))
   {
     access.codeAccessBase = &myCodeAccessBase[offset + (i & 0x0FFF)];
-    mySystem->setPageAccess(i >> shift, access);
+    mySystem->setPageAccess(i >> System::PAGE_SHIFT, access);
   }
 
   // Setup the page access methods for the current bank
-  for(uInt32 address = 0x1200; address < (0x1FF4U & ~mask);
-      address += (1 << shift))
+  for(uInt32 address = 0x1200; address < (0x1FF4U & ~System::PAGE_MASK);
+      address += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myImage[offset + (address & 0x0FFF)];
     access.codeAccessBase = &myCodeAccessBase[offset + (address & 0x0FFF)];
-    mySystem->setPageAccess(address >> shift, access);
+    mySystem->setPageAccess(address >> System::PAGE_SHIFT, access);
   }
   return myBankChanged = true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 CartridgeFA2::bank() const
+uInt16 CartridgeFA2::getBank() const
 {
   return myCurrentBank;
 }
@@ -299,7 +273,7 @@ bool CartridgeFA2::patch(uInt16 address, uInt8 value)
     myImage[(myCurrentBank << 12) + address] = value;
 
   return myBankChanged = true;
-} 
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const uInt8* CartridgeFA2::getImage(int& size) const
@@ -385,7 +359,7 @@ uInt8 CartridgeFA2::ramReadWrite()
     // We go ahead and do the access now, and only return when a sufficient
     // amount of time has passed
     Serializer serializer(myFlashFile);
-    if(serializer.isValid())
+    if(serializer)
     {
       if(myRAM[255] == 1)       // read
       {
@@ -437,7 +411,7 @@ uInt8 CartridgeFA2::ramReadWrite()
 void CartridgeFA2::flash(uInt8 operation)
 {
   Serializer serializer(myFlashFile);
-  if(serializer.isValid())
+  if(serializer)
   {
     if(operation == 0)       // erase
     {

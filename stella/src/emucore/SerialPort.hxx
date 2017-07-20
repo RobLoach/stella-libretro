@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: SerialPort.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef SERIALPORT_HXX
@@ -28,13 +26,12 @@
   and as such it always uses 19200, 8n1, no flow control.
 
   @author  Stephen Anthony
-  @version $Id: SerialPort.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class SerialPort
 {
   public:
-    SerialPort() { }
-    virtual ~SerialPort() { }
+    SerialPort() = default;
+    virtual ~SerialPort() = default;
 
     /**
       Open the given serial port with the specified attributes.
@@ -43,11 +40,6 @@ class SerialPort
       @return  False on any errors, else true
     */
     virtual bool openPort(const string& device) { return false; }
-
-    /**
-      Close a previously opened serial port.
-    */
-    virtual void closePort() { }
 
     /**
       Read a byte from the serial port.
@@ -64,6 +56,19 @@ class SerialPort
       @return  True if a byte was written, else false
     */
     virtual bool writeByte(const uInt8* data) { return false; }
+
+  private:
+    /**
+      Close a previously opened serial port.
+    */
+    virtual void closePort() { }
+
+  private:
+    // Following constructors and assignment operators not supported
+    SerialPort(const SerialPort&) = delete;
+    SerialPort(SerialPort&&) = delete;
+    SerialPort& operator=(const SerialPort&) = delete;
+    SerialPort& operator=(SerialPort&&) = delete;
 };
 
 #endif

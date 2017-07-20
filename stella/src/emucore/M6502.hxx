@@ -8,45 +8,43 @@
 // MM     MM 66  66 55  55 00  00 22
 // MM     MM  6666   5555   0000  222222
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: M6502.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef M6502_HXX
 #define M6502_HXX
 
-class M6502;
-class Debugger;
-class CpuDebug;
-class Expression;
-class PackedBitArray;
+#ifdef DEBUGGER_SUPPORT
+  class Debugger;
+  class CpuDebug;
+
+  #include "Expression.hxx"
+  #include "PackedBitArray.hxx"
+#endif
+
 class Settings;
+
+#include <functional>
 
 #include "bspf.hxx"
 #include "System.hxx"
-#include "Array.hxx"
-#include "StringList.hxx"
 #include "Serializable.hxx"
-
-typedef Common::Array<Expression*> ExpressionList;
 
 /**
   The 6502 is an 8-bit microprocessor that has a 64K addressing space.
   This class provides a high compatibility 6502 microprocessor emulator.
 
   The memory accesses and cycle counts it generates are valid at the
-  sub-instruction level and "false" reads are generated (such as the ones 
+  sub-instruction level and "false" reads are generated (such as the ones
   produced by the Indirect,X addressing when it crosses a page boundary).
   This provides provides better compatibility for hardware that has side
   effects and for games which are very time sensitive.
 
   @author  Bradford W. Mott
-  @version $Id: M6502.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class M6502 : public Serializable
 {
@@ -55,19 +53,15 @@ class M6502 : public Serializable
   friend class CpuDebug;
 
   public:
-    /**
-      Create a new 6502 microprocessor with the specified cycle 
-      multiplier.  The cycle multiplier is the number of system cycles 
-      per processor cycle.
 
-      @param systemCyclesPerProcessorCycle The cycle multiplier
-    */
-    M6502(uInt32 systemCyclesPerProcessorCycle, const Settings& settings);
+    using onHaltCallback = std::function<void()>;
 
+  public:
     /**
-      Destructor
+      Create a new 6502 microprocessor.
     */
-    virtual ~M6502();
+    M6502(const Settings& settings);
+    virtual ~M6502() = default;
 
   public:
     /**
@@ -79,7 +73,7 @@ class M6502 : public Serializable
     void install(System& system);
 
     /**
-      Reset the processor to its power-on state.  This method should not 
+      Reset the processor to its power-on state.  This method should not
       be invoked until the entire 6502 system is constructed and installed
       since it involves reading the reset vector from memory.
     */
@@ -96,6 +90,21 @@ class M6502 : public Serializable
     void nmi() { myExecutionStatus |= NonmaskableInterruptBit; }
 
     /**
+      Set the callback for handling a halt condition
+    */
+    void setOnHaltCallback(onHaltCallback callback) { myOnHaltCallback = callback; }
+
+    /**
+      RDY pulled low --- halt on next read.
+    */
+    void requestHalt();
+
+    /**
+      Pull RDY high again before the callback was triggered.
+    */
+    void clearHaltRequest() { myHaltRequested = false; };
+
+    /**
       Execute instructions until the specified number of instructions
       is executed, someone stops execution, or an error occurs.  Answers
       true iff execution stops normally.
@@ -106,8 +115,8 @@ class M6502 : public Serializable
     bool execute(uInt32 number);
 
     /**
-      Tell the processor to stop executing instructions.  Invoking this 
-      method while the processor is executing instructions will stop 
+      Tell the processor to stop executing instructions.  Invoking this
+      method while the processor is executing instructions will stop
       execution as soon as possible.
     */
     void stop() { myExecutionStatus |= StopExecutionBit; }
@@ -119,7 +128,7 @@ class M6502 : public Serializable
       @return true iff a fatal error has occured
     */
     bool fatalError() const { return myExecutionStatus & FatalErrorBit; }
-  
+
     /**
       Get the 16-bit value of the Program Counter register.
 
@@ -131,10 +140,10 @@ class M6502 : public Serializable
       Answer true iff the last memory access was a read.
 
       @return true iff last access was a read
-    */ 
+    */
     bool lastAccessWasRead() const { return myLastAccessWasRead; }
 
-    /**                                                                    
+    /**
       Return the last address that was part of a read/peek.  Note that
       reads which are part of a write are not considered here, unless
       they're not the same as the last write address.  This eliminates
@@ -148,7 +157,7 @@ class M6502 : public Serializable
         myLastPeekAddress;
     }
 
-    /**                                                                    
+    /**
       Return the source of the address that was used for a write/poke.
       Note that this isn't the same as the address that is poked, but
       is instead the address of the *data* that is poked (if any).
@@ -157,7 +166,7 @@ class M6502 : public Serializable
     */
     uInt16 lastDataAddressForPoke() const { return myDataAddressForPoke; }
 
-    /**                                                                    
+    /**
       Return the last data address used as part of a peek operation for
       the S/A/X/Y registers.  Note that if an address wasn't used (as in
       immediate mode), then the address is -1.
@@ -168,13 +177,6 @@ class M6502 : public Serializable
     Int32 lastSrcAddressA() const { return myLastSrcAddressA; }
     Int32 lastSrcAddressX() const { return myLastSrcAddressX; }
     Int32 lastSrcAddressY() const { return myLastSrcAddressY; }
-
-    /**
-      Get the total number of instructions executed so far.
-
-      @return The number of executed instructions
-    */
-    int totalInstructionCount() const { return myTotalInstructionCount; }
 
     /**
       Get the number of memory accesses to distinct memory locations
@@ -189,7 +191,7 @@ class M6502 : public Serializable
       @param out The serializer device to save to.
       @return The result of the save.  True on success, false on failure.
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Loads the current state of this device from the given Serializer.
@@ -197,33 +199,29 @@ class M6502 : public Serializable
       @param in The Serializer device to load from.
       @return The result of the load.  True on success, false on failure.
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
 
     /**
       Get a null terminated string which is the processor's name (i.e. "M6532")
 
       @return The name of the device
     */
-    string name() const { return "M6502"; }
+    string name() const override { return "M6502"; }
 
 #ifdef DEBUGGER_SUPPORT
   public:
-    /**
-      Attach the specified debugger.
-
-      @param debugger The debugger to attach to the microprocessor.
-    */
+    // Attach the specified debugger.
     void attach(Debugger& debugger);
 
-    void setBreakPoints(PackedBitArray* bp);
-    void setTraps(PackedBitArray* read, PackedBitArray* write);
+    PackedBitArray& breakPoints() { return myBreakPoints; }
+    PackedBitArray& readTraps()   { return myReadTraps;   }
+    PackedBitArray& writeTraps()  { return myWriteTraps;  }
 
     uInt32 addCondBreak(Expression* e, const string& name);
     void delCondBreak(uInt32 brk);
     void clearCondBreaks();
     const StringList& getCondBreakNames() const;
-    Int32 evalCondBreaks();
-#endif
+#endif  // DEBUGGER_SUPPORT
 
   private:
     /**
@@ -288,7 +286,32 @@ class M6502 : public Serializable
     */
     void interruptHandler();
 
+    /**
+      Check whether halt was requested (RDY low) and notify
+    */
+    void handleHalt();
+
   private:
+    /**
+      Bit fields used to indicate that certain conditions need to be
+      handled such as stopping execution, fatal errors, maskable interrupts
+      and non-maskable interrupts (in myExecutionStatus)
+    */
+    enum
+    {
+      StopExecutionBit = 0x01,
+      FatalErrorBit = 0x02,
+      MaskableInterruptBit = 0x04,
+      NonmaskableInterruptBit = 0x08
+    };
+    uInt8 myExecutionStatus;
+
+    /// Pointer to the system the processor is installed in or the null pointer
+    System* mySystem;
+
+    /// Reference to the settings
+    const Settings& mySettings;
+
     uInt8 A;    // Accumulator
     uInt8 X;    // X index register
     uInt8 Y;    // Y index register
@@ -304,37 +327,8 @@ class M6502 : public Serializable
     bool notZ;  // Z flag complement for processor status register
     bool C;     // C flag for processor status register
 
-    /** 
-      Bit fields used to indicate that certain conditions need to be 
-      handled such as stopping execution, fatal errors, maskable interrupts 
-      and non-maskable interrupts (in myExecutionStatus)
-    */
-    enum 
-    {
-      StopExecutionBit = 0x01,
-      FatalErrorBit = 0x02,
-      MaskableInterruptBit = 0x04,
-      NonmaskableInterruptBit = 0x08
-    };
-    uInt8 myExecutionStatus;
-  
-    /// Pointer to the system the processor is installed in or the null pointer
-    System* mySystem;
-
-    /// Reference to the settings
-    const Settings& mySettings;
-
-    /// Indicates the number of system cycles per processor cycle 
-    const uInt32 mySystemCyclesPerProcessorCycle;
-
-    /// Table of system cycles for each instruction
-    uInt32 myInstructionSystemCycleTable[256]; 
-
     /// Indicates if the last memory access was a read or not
     bool myLastAccessWasRead;
-
-    /// The total number of instructions executed so far
-    int myTotalInstructionCount;
 
     /// Indicates the numer of distinct memory accesses
     uInt32 myNumberOfDistinctAccesses;
@@ -357,13 +351,29 @@ class M6502 : public Serializable
     /// is set to zero
     uInt16 myDataAddressForPoke;
 
+    /// Indicates the number of system cycles per processor cycle
+    static constexpr uInt32 SYSTEM_CYCLES_PER_CPU = 1;
+
+    /// Called when the processor enters halt state
+    onHaltCallback myOnHaltCallback;
+
+    /// Indicates whether RDY was pulled low
+    bool myHaltRequested;
+
 #ifdef DEBUGGER_SUPPORT
+    Int32 evalCondBreaks() {
+      for(uInt32 i = 0; i < myBreakConds.size(); i++)
+        if(myBreakConds[i]->evaluate())
+          return i;
+
+      return -1; // no break hit
+    }
+
     /// Pointer to the debugger for this processor or the null pointer
     Debugger* myDebugger;
 
-    PackedBitArray* myBreakPoints;
-    PackedBitArray* myReadTraps;
-    PackedBitArray* myWriteTraps;
+    // Addresses for which the specified action should occur
+    PackedBitArray myBreakPoints, myReadTraps, myWriteTraps;
 
     // Did we just now hit a trap?
     bool myJustHitTrapFlag;
@@ -373,16 +383,17 @@ class M6502 : public Serializable
     };
     HitTrapInfo myHitTrapInfo;
 
+    vector<unique_ptr<Expression>> myBreakConds;
     StringList myBreakCondNames;
-    ExpressionList myBreakConds;
-#endif
+#endif  // DEBUGGER_SUPPORT
 
   private:
-    /**
-      Table of instruction processor cycle times.  In some cases additional 
-      cycles will be added during the execution of an instruction.
-    */
-    static uInt32 ourInstructionCycleTable[256];
+    // Following constructors and assignment operators not supported
+    M6502() = delete;
+    M6502(const M6502&) = delete;
+    M6502(M6502&&) = delete;
+    M6502& operator=(const M6502&) = delete;
+    M6502& operator=(M6502&&) = delete;
 };
 
 #endif

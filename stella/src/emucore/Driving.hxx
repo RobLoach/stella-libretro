@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Driving.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef DRIVING_HXX
@@ -28,13 +26,12 @@
   The standard Atari 2600 Indy 500 driving controller.
 
   @author  Bradford W. Mott
-  @version $Id: Driving.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Driving : public Controller
 {
   public:
     /**
-      Create a new Indy 500 driving controller plugged into 
+      Create a new Indy 500 driving controller plugged into
       the specified jack
 
       @param jack   The jack the controller is plugged into
@@ -42,18 +39,14 @@ class Driving : public Controller
       @param system The system using this controller
     */
     Driving(Jack jack, const Event& event, const System& system);
-
-    /**
-      Destructor
-    */
-    virtual ~Driving();
+    virtual ~Driving() = default;
 
   public:
     /**
       Update the entire digital and analog pin state according to the
       events currently set.
     */
-    void update();
+    void update() override;
 
     /**
       Determines how this controller will treat values received from the
@@ -72,7 +65,7 @@ class Driving : public Controller
       @return  Whether the controller supports using the mouse
     */
     bool setMouseControl(
-      Controller::Type xtype, int xid, Controller::Type ytype, int yid);
+      Controller::Type xtype, int xid, Controller::Type ytype, int yid) override;
 
   private:
     // Counter to iterate through the gray codes
@@ -95,6 +88,14 @@ class Driving : public Controller
 
     // Controllers to emulate in 'specific' mouse axis mode
     int myControlIDX, myControlIDY;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Driving() = delete;
+    Driving(const Driving&) = delete;
+    Driving(Driving&&) = delete;
+    Driving& operator=(const Driving&) = delete;
+    Driving& operator=(Driving&&) = delete;
 };
 
 #endif

@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Base.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef BASE_HXX
@@ -44,6 +42,8 @@ class Base
       F_16,      // base 16: 2, 4, 8 bytes (depending on value)
       F_16_1,    // base 16: 1 byte wide
       F_16_2,    // base 16: 2 bytes wide
+      F_16_2_2,  // base 16: fractional value shown as xx.xx
+      F_16_3_2,  // base 16: fractional value shown as xxx.xx
       F_16_4,    // base 16: 4 bytes wide
       F_16_8,    // base 16: 8 bytes wide
       F_10,      // base 10: 3 or 5 bytes (depending on value)
@@ -62,7 +62,11 @@ class Base
     static void setHexUppercase(bool enable);
     static bool hexUppercase() { return myHexflags & std::ios_base::uppercase; }
 
-    /** Output HEX digits in 1/2/4 byte format */
+    /** Output HEX digits in 0.5/1/2/4 byte format */
+    static inline std::ostream& HEX1(std::ostream& os) {
+      os.flags(myHexflags);
+      return os << std::setw(1);
+    }
     static inline std::ostream& HEX2(std::ostream& os) {
       os.flags(myHexflags);
       return os << std::setw(2) << std::setfill('0');
@@ -80,9 +84,6 @@ class Base
     static string toString(int value,
       Common::Base::Format outputBase = Common::Base::F_DEFAULT);
 
-  private:      // Make sure this class is never instantiated
-    Base() { }
-
   private:
     // Default format to use when none is specified
     static Format myDefaultBase;
@@ -92,9 +93,17 @@ class Base
 
     // Format specifiers to use for sprintf (eventually we may convert
     // to C++ streams
-    static const char* myLowerFmt[4];
-    static const char* myUpperFmt[4];
-    static const char** myFmt;
+    static const char* const myLowerFmt[4];
+    static const char* const myUpperFmt[4];
+    static const char* const* myFmt;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Base() = delete;
+    Base(const Base&) = delete;
+    Base(Base&&) = delete;
+    Base& operator=(const Base&) = delete;
+    Base& operator=(Base&&) = delete;
 };
 
 } // Namespace Common

@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Serializable.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef SERIALIZABLE_HXX
@@ -28,13 +26,17 @@
   method signatures as defined below.
 
   @author  Stephen Anthony
-  @version $Id: Serializable.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Serializable
 {
   public:
-    Serializable() { }
-    virtual ~Serializable() { }
+    Serializable() = default;
+    virtual ~Serializable() = default;
+
+    Serializable(const Serializable&) = default;
+    Serializable(Serializable&&) = default;
+    Serializable& operator=(const Serializable&) = default;
+    Serializable& operator=(Serializable&&) = default;
 
     /**
       Save the current state of the object to the given Serializer.

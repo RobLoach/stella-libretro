@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Joystick.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef JOYSTICK_HXX
@@ -28,7 +26,6 @@
   The standard Atari 2600 joystick controller.
 
   @author  Bradford W. Mott
-  @version $Id: Joystick.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Joystick : public Controller
 {
@@ -41,18 +38,14 @@ class Joystick : public Controller
       @param system The system using this controller
     */
     Joystick(Jack jack, const Event& event, const System& system);
-
-    /**
-      Destructor
-    */
-    virtual ~Joystick();
+    virtual ~Joystick() = default;
 
   public:
     /**
       Update the entire digital and analog pin state according to the
       events currently set.
     */
-    void update();
+    void update() override;
 
     /**
       Determines how this controller will treat values received from the
@@ -71,7 +64,7 @@ class Joystick : public Controller
       @return  Whether the controller supports using the mouse
     */
     bool setMouseControl(
-      Controller::Type xtype, int xid, Controller::Type ytype, int yid);
+      Controller::Type xtype, int xid, Controller::Type ytype, int yid) override;
 
     /**
       Sets the deadzone amount for real analog joysticks.
@@ -88,9 +81,17 @@ class Joystick : public Controller
                 myXAxisValue, myYAxisValue, myFireEvent;
 
     // Controller to emulate in normal mouse axis mode
-    int myControlID;  
+    int myControlID;
 
     static int _DEAD_ZONE;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Joystick() = delete;
+    Joystick(const Joystick&) = delete;
+    Joystick(Joystick&&) = delete;
+    Joystick& operator=(const Joystick&) = delete;
+    Joystick& operator=(Joystick&&) = delete;
 };
 
 #endif

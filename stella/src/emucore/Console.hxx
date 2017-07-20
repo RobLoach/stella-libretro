@@ -1,40 +1,40 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Console.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CONSOLE_HXX
 #define CONSOLE_HXX
 
-class Controller;
 class Event;
 class Switches;
 class System;
 class TIA;
+class M6502;
 class M6532;
 class Cartridge;
 class CompuMate;
+class Debugger;
 
 #include "bspf.hxx"
 #include "Control.hxx"
 #include "Props.hxx"
-#include "TIATables.hxx"
+#include "TIATypes.hxx"
 #include "FrameBuffer.hxx"
 #include "Serializable.hxx"
+#include "NTSCFilter.hxx"
 
 /**
   Contains detailed info about a console.
@@ -51,10 +51,19 @@ struct ConsoleInfo
 };
 
 /**
+  Contains timing information about the specified console.
+*/
+enum class ConsoleTiming
+{
+  ntsc,  // console with CPU running at 1.193182 MHz, NTSC colours
+  pal,   // console with CPU running at 1.182298 MHz, PAL colours
+  secam  // console with CPU running at 1.187500 MHz, SECAM colours
+};
+
+/**
   This class represents the entire game console.
 
   @author  Bradford W. Mott
-  @version $Id: Console.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Console : public Serializable
 {
@@ -65,17 +74,11 @@ class Console : public Serializable
 
       @param osystem  The OSystem object to use
       @param cart     The cartridge to use with this console
-      @param props    The properties for the cartridge  
+      @param props    The properties for the cartridge
     */
-    Console(OSystem* osystem, Cartridge* cart, const Properties& props);
+    Console(OSystem& osystem, unique_ptr<Cartridge>& cart,
+            const Properties& props);
 
-    /**
-      Create a new console object by copying another one
-
-      @param console The object to copy
-    */
-    Console(const Console& console);
- 
     /**
       Destructor
     */
@@ -87,10 +90,8 @@ class Console : public Serializable
 
       @return The specified controller
     */
-    Controller& controller(Controller::Jack jack) const
-    {
-      return *myControllers[jack];
-    }
+    Controller& leftController() const  { return *myLeftControl;  }
+    Controller& rightController() const { return *myRightControl; }
 
     /**
       Get the TIA for this console
@@ -135,20 +136,12 @@ class Console : public Serializable
     M6532& riot() const { return *myRiot; }
 
     /**
-      Get the CompuMate handler used by the console
-      (only valid for CompuMate ROMs)
-
-      @return The CompuMate handler for this console (if it exists), otherwise 0
-    */
-    CompuMate* compumate() const { return myCMHandler; }
-
-    /**
       Saves the current state of this console class to the given Serializer.
 
       @param out The serializer device to save to.
       @return The result of the save.  True on success, false on failure.
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Loads the current state of this console class from the given Serializer.
@@ -156,19 +149,19 @@ class Console : public Serializable
       @param in The Serializer device to load from.
       @return The result of the load.  True on success, false on failure.
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
 
     /**
       Get a descriptor for this console class (used in error checking).
 
       @return The name of the object
     */
-    string name() const { return "Console"; }
+    string name() const override { return "Console"; }
 
     /**
       Set the properties to those given
 
-      @param The properties to use for the current game
+      @param props The properties to use for the current game
     */
     void setProperties(const Properties& props);
 
@@ -178,23 +171,19 @@ class Console : public Serializable
     const ConsoleInfo& about() const { return myConsoleInfo; }
 
     /**
+      Timing information for this console.
+    */
+    ConsoleTiming timing() const { return myConsoleTiming; }
+
+    /**
       Set up the console to use the debugger.
     */
-    void addDebugger();
+    void attachDebugger(Debugger& dbg);
 
     /**
       Informs the Console of a change in EventHandler state.
     */
     void stateChanged(EventHandler::State state);
-
-  public:
-    /**
-      Overloaded assignment operator
-
-      @param console The console object to set myself equal to
-      @return Myself after assignment has taken place
-    */
-    Console& operator = (const Console& console);
 
   public:
     /**
@@ -220,6 +209,13 @@ class Console : public Serializable
       Toggles phosphor effect.
     */
     void togglePhosphor();
+
+    /**
+      Change the "Display.PPBlend" variable.
+
+      @param direction +1 indicates increase, -1 indicates decrease.
+    */
+    void changePhosphor(int direction);
 
     /**
       Toggles the PAL color-loss effect.
@@ -284,7 +280,6 @@ class Console : public Serializable
     void toggleM1Bit() const { toggleTIABit(M1Bit, "M1"); }
     void toggleBLBit() const { toggleTIABit(BLBit, "BL"); }
     void togglePFBit() const { toggleTIABit(PFBit, "PF"); }
-    void toggleHMOVE() const;
     void toggleBits() const;
 
     /**
@@ -304,10 +299,9 @@ class Console : public Serializable
     void toggleFixedColors() const;
 
     /**
-      Returns a pointer to the palette data for the palette currently defined
-      by the ROM properties.
+      Toggles the TIA 'scanline jitter' mode.
     */
-    const uInt32* getPalette(int direction) const;
+    void toggleJitter() const;
 
   private:
     /**
@@ -332,42 +326,51 @@ class Console : public Serializable
       normally can't have it enabled (NTSC), since it's also used for
       'greying out' the frame in the debugger.
     */
-    void setColorLossPalette();
+    void generateColorLossPalette();
+
+    /**
+      Returns a pointer to the palette data for the palette currently defined
+      by the ROM properties.
+    */
+    const uInt32* getPalette(int direction) const;
 
     void toggleTIABit(TIABit bit, const string& bitname, bool show = true) const;
     void toggleTIACollision(TIABit bit, const string& bitname, bool show = true) const;
 
   private:
-    // Pointer to the osystem object
-    OSystem* myOSystem;
+    // Reference to the osystem object
+    OSystem& myOSystem;
 
     // Reference to the event object to use
-    Event& myEvent;
+    const Event& myEvent;
 
     // Properties for the game
     Properties myProperties;
 
-    // Pointers to the left and right controllers
-    Controller* myControllers[2];
+    // Pointer to the 6502 based system being emulated
+    unique_ptr<System> mySystem;
 
-    // Pointer to the TIA object 
-    TIA* myTIA;
-
-    // Pointer to the switches on the front of the console
-    Switches* mySwitches;
- 
-    // Pointer to the 6502 based system being emulated 
-    System* mySystem;
-
-    // Pointer to the Cartridge (the debugger needs it)
-    Cartridge* myCart;
+    // Pointer to the M6502 CPU
+    unique_ptr<M6502> my6502;
 
     // Pointer to the 6532 (aka RIOT) (the debugger needs it)
     // A RIOT of my own! (...with apologies to The Clash...)
-    M6532* myRiot;
+    unique_ptr<M6532> myRiot;
+
+    // Pointer to the TIA object
+    unique_ptr<TIA> myTIA;
+
+    // Pointer to the Cartridge (the debugger needs it)
+    unique_ptr<Cartridge> myCart;
+
+    // Pointer to the switches on the front of the console
+    unique_ptr<Switches> mySwitches;
+
+    // Pointers to the left and right controllers
+    unique_ptr<Controller> myLeftControl, myRightControl;
 
     // Pointer to CompuMate handler (only used in CompuMate ROMs)
-    CompuMate* myCMHandler;
+    shared_ptr<CompuMate> myCMHandler;
 
     // The currently defined display format (NTSC/PAL/SECAM)
     string myDisplayFormat;
@@ -385,7 +388,8 @@ class Console : public Serializable
     // Contains detailed info about this console
     ConsoleInfo myConsoleInfo;
 
-	const uInt32 *currentPalette;
+    // Contains timing information for this console
+    ConsoleTiming myConsoleTiming;
 
     // Table of RGB values for NTSC, PAL and SECAM
     static uInt32 ourNTSCPalette[256];
@@ -401,6 +405,14 @@ class Console : public Serializable
     static uInt32 ourUserNTSCPalette[256];
     static uInt32 ourUserPALPalette[256];
     static uInt32 ourUserSECAMPalette[256];
+
+  private:
+    // Following constructors and assignment operators not supported
+    Console() = delete;
+    Console(const Console&) = delete;
+    Console(Console&&) = delete;
+    Console& operator=(const Console&) = delete;
+    Console& operator=(Console&&) = delete;
 };
 
 #endif

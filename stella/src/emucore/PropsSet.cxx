@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: PropsSet.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include <fstream>
@@ -24,61 +22,36 @@
 #include "bspf.hxx"
 
 #include "DefProps.hxx"
-#include "OSystem.hxx"
 #include "Props.hxx"
-#include "Settings.hxx"
 
 #include "PropsSet.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-PropertiesSet::PropertiesSet(OSystem* osystem)
-  : myOSystem(osystem)
+PropertiesSet::PropertiesSet(const string& propsfile)
 {
-  //load(myOSystem->propertiesFile());
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-PropertiesSet::~PropertiesSet()
-{
-  myExternalProps.clear();
-  myTempProps.clear();
+  load(propsfile);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void PropertiesSet::load(const string& filename)
 {
-  ifstream in(filename.c_str(), ios::in);
+  ifstream in(filename);
 
-  // Loop reading properties
-  for(;;)
-  {
-    // Make sure the stream is still good or we're done 
-    if(!in)
-      break;
-
-    // Get the property list associated with this profile
-    Properties prop;
-    prop.load(in);
-
-    // If the stream is still good then insert the properties
-    if(in)
-      insert(prop);
-  }
-  if(in)
-    in.close();
+  Properties prop;
+  while(in >> prop)
+    insert(prop);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool PropertiesSet::save(const string& filename) const
 {
-  ofstream out(filename.c_str(), ios::out);
+  ofstream out(filename);
   if(!out)
     return false;
 
   // Only save those entries in the external list
-  for(PropsList::const_iterator i = myExternalProps.begin();
-      i != myExternalProps.end(); ++i)
-    i->second.save(out);
+  for(const auto& i: myExternalProps)
+    out << i.second;
 
   return true;
 }
@@ -102,18 +75,18 @@ bool PropertiesSet::getMD5(const string& md5, Properties& properties,
   if(!useDefaults)
   {
     // Check external list
-    PropsList::const_iterator iter = myExternalProps.find(md5);
-    if(iter != myExternalProps.end())
+    auto ext = myExternalProps.find(md5);
+    if(ext != myExternalProps.end())
     {
-      properties = iter->second;
+      properties = ext->second;
       found = true;
     }
     else  // Search temp list
     {
-      iter = myTempProps.find(md5);
-      if(iter != myTempProps.end())
+      auto tmp = myTempProps.find(md5);
+      if(tmp != myTempProps.end())
       {
-        properties = iter->second;
+        properties = tmp->second;
         found = true;
       }
     }
@@ -126,13 +99,13 @@ bool PropertiesSet::getMD5(const string& md5, Properties& properties,
     while(low <= high)
     {
       int i = (low + high) / 2;
-      int cmp = BSPF_compareIgnoreCase(md5, DefProps[i][Cartridge_MD5]);
+      int cmp = BSPF::compareIgnoreCase(md5, DefProps[i][Cartridge_MD5]);
 
       if(cmp == 0)  // found it
       {
         for(int p = 0; p < LastPropType; ++p)
           if(DefProps[i][p][0] != 0)
-            properties.set((PropertyType)p, DefProps[i][p]);
+            properties.set(PropertyType(p), DefProps[i][p]);
 
         found = true;
         break;
@@ -148,18 +121,18 @@ bool PropertiesSet::getMD5(const string& md5, Properties& properties,
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-//void PropertiesSet::getMD5WithInsert(const FilesystemNode& rom,
-//                                     const string& md5, Properties& properties)
-//{
-//  if(!getMD5(md5, properties))
-//  {
-//    properties.set(Cartridge_MD5, md5);
-//    // Create a name suitable for using in properties
-//    properties.set(Cartridge_Name, rom.getNameWithExt(""));
-//
-//    insert(properties, false);
-//  }
-//}
+void PropertiesSet::getMD5WithInsert(const FilesystemNode& rom,
+                                     const string& md5, Properties& properties)
+{
+  if(!getMD5(md5, properties))
+  {
+    properties.set(Cartridge_MD5, md5);
+    // Create a name suitable for using in properties
+    properties.set(Cartridge_Name, rom.getNameWithExt(""));
+
+    insert(properties, false);
+  }
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void PropertiesSet::insert(const Properties& properties, bool save)
@@ -178,16 +151,25 @@ void PropertiesSet::insert(const Properties& properties, bool save)
   if(md5 == "")
     return;
 
+  // Make sure the exact entry isn't already in any list
+  Properties defaultProps;
+  if(getMD5(md5, defaultProps, false) && defaultProps == properties)
+    return;
+  else if(getMD5(md5, defaultProps, true) && defaultProps == properties)
+  {
+    myExternalProps.erase(md5);
+    return;
+  }
+
   // The status of 'save' determines which list to save to
   PropsList& list = save ? myExternalProps : myTempProps;
 
-  pair<PropsList::iterator,bool> ret;
-  ret = list.insert(make_pair(md5, properties));
+  auto ret = list.emplace(md5, properties);
   if(ret.second == false)
   {
     // Remove old item and insert again
     list.erase(ret.first);
-    list.insert(make_pair(md5, properties));
+    list.emplace(md5, properties);
   }
 }
 
@@ -208,10 +190,8 @@ void PropertiesSet::print() const
   // The easiest way to merge the lists is to create another temporary one
   // This isn't fast, but I suspect this method isn't used too often (or at all)
 
-  PropsList list;
-
   // First insert all external props
-  list = myExternalProps;
+  PropsList list = myExternalProps;
 
   // Now insert all the built-in ones
   // Note that if we try to insert a duplicate, the insertion will fail
@@ -223,13 +203,13 @@ void PropertiesSet::print() const
     properties.setDefaults();
     for(int p = 0; p < LastPropType; ++p)
       if(DefProps[i][p][0] != 0)
-        properties.set((PropertyType)p, DefProps[i][p]);
+        properties.set(PropertyType(p), DefProps[i][p]);
 
-    list.insert(make_pair(DefProps[i][Cartridge_MD5], properties));
+    list.emplace(DefProps[i][Cartridge_MD5], properties);
   }
 
   // Now, print the resulting list
   Properties::printHeader();
-  for(PropsList::const_iterator i = list.begin(); i != list.end(); ++i)
-    i->second.print();
+  for(const auto& i: list)
+    i.second.print();
 }

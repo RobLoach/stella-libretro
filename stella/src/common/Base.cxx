@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Base.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include "Base.hxx"
@@ -44,6 +42,7 @@ string Base::toString(int value, Common::Base::Format outputBase)
   if(outputBase == Base::F_DEFAULT)
     outputBase = myDefaultBase;
 
+  // Note: generates warnings about 'nonliteral' format
   switch(outputBase)
   {
     case Base::F_2:     // base 2:  8 or 16 bits (depending on value)
@@ -64,32 +63,38 @@ string Base::toString(int value, Common::Base::Format outputBase)
 
     case Base::F_10:    // base 10: 3 or 5 bytes (depending on value)
       if(value < 0x100)
-        BSPF_snprintf(vToS_buf, 4, "%3d", value);
+        std::snprintf(vToS_buf, 4, "%3d", value);
       else
-        BSPF_snprintf(vToS_buf, 6, "%5d", value);
+        std::snprintf(vToS_buf, 6, "%5d", value);
       break;
 
     case Base::F_16_1:  // base 16: 1 byte wide
-      BSPF_snprintf(vToS_buf, 2, myFmt[0], value);
+      std::snprintf(vToS_buf, 2, myFmt[0], value);
       break;
     case Base::F_16_2:  // base 16: 2 bytes wide
-      BSPF_snprintf(vToS_buf, 3, myFmt[1], value);
+      std::snprintf(vToS_buf, 3, myFmt[1], value);
+      break;
+    case Base::F_16_2_2:
+      std::snprintf(vToS_buf, 6, "%02X.%02X", value >> 8, value & 0xff );
+      break;
+    case Base::F_16_3_2:
+      std::snprintf(vToS_buf, 7, "%03X.%02X", value >> 8, value & 0xff );
       break;
     case Base::F_16_4:  // base 16: 4 bytes wide
-      BSPF_snprintf(vToS_buf, 5, myFmt[2], value);
+      std::snprintf(vToS_buf, 5, myFmt[2], value);
       break;
     case Base::F_16_8:  // base 16: 8 bytes wide
-      BSPF_snprintf(vToS_buf, 9, myFmt[3], value);
+      std::snprintf(vToS_buf, 9, myFmt[3], value);
       break;
 
     case Base::F_16:    // base 16: 2, 4, 8 bytes (depending on value)
     default:
       if(value < 0x100)
-        BSPF_snprintf(vToS_buf, 3, myFmt[1], value);
+        std::snprintf(vToS_buf, 3, myFmt[1], value);
       else if(value < 0x10000)
-        BSPF_snprintf(vToS_buf, 5, myFmt[2], value);
+        std::snprintf(vToS_buf, 5, myFmt[2], value);
       else
-        BSPF_snprintf(vToS_buf, 9, myFmt[3], value);
+        std::snprintf(vToS_buf, 9, myFmt[3], value);
       break;
   }
 
@@ -103,12 +108,12 @@ Base::Format Base::myDefaultBase = Base::F_16;
 std::ios_base::fmtflags Base::myHexflags = std::ios_base::hex;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const char* Base::myLowerFmt[4] = {
+const char* const Base::myLowerFmt[4] = {
   "%1x", "%02x", "%04x", "%08x"
 };
-const char* Base::myUpperFmt[4] = {
+const char* const Base::myUpperFmt[4] = {
   "%1X", "%02X", "%04X", "%08X"
 };
-const char** Base::myFmt = Base::myLowerFmt;
+const char* const* Base::myFmt = Base::myLowerFmt;
 
 } // Namespace Common

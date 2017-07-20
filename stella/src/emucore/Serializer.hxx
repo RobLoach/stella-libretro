@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Serializer.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef SERIALIZER_HXX
@@ -37,7 +35,6 @@
   method return.
 
   @author  Stephen Anthony
-  @version $Id: Serializer.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Serializer
 {
@@ -50,35 +47,30 @@ class Serializer
 
       If a file is opened readonly, we can never write to it.
 
-      The isValid() method must immediately be called to verify the stream
+      The valid() method must immediately be called to verify the stream
       was correctly initialized.
     */
     Serializer(const string& filename, bool readonly = false);
-    Serializer(void);
-
-    /**
-      Destructor
-    */
-    virtual ~Serializer(void);
+    Serializer();
 
   public:
     /**
       Answers whether the serializer is currently initialized for reading
       and writing.
     */
-    bool isValid(void);
+    explicit operator bool() const { return myStream != nullptr; }
 
     /**
       Resets the read/write location to the beginning of the stream.
     */
-    void reset(void);
+    void reset();
 
     /**
       Reads a byte value (unsigned 8-bit) from the current input stream.
 
       @result The byte value which has been read from the stream.
     */
-    uInt8 getByte(void);
+    uInt8 getByte() const;
 
     /**
       Reads a byte array (unsigned 8-bit) from the current input stream.
@@ -86,15 +78,14 @@ class Serializer
       @param array  The location to store the bytes read
       @param size   The size of the array (number of bytes to read)
     */
-    void getByteArray(uInt8* array, uInt32 size);
-
+    void getByteArray(uInt8* array, uInt32 size) const;
 
     /**
       Reads a short value (unsigned 16-bit) from the current input stream.
 
       @result The short value which has been read from the stream.
     */
-    uInt16 getShort(void);
+    uInt16 getShort() const;
 
     /**
       Reads a short array (unsigned 16-bit) from the current input stream.
@@ -102,14 +93,14 @@ class Serializer
       @param array  The location to store the shorts read
       @param size   The size of the array (number of shorts to read)
     */
-    void getShortArray(uInt16* array, uInt32 size);
+    void getShortArray(uInt16* array, uInt32 size) const;
 
     /**
       Reads an int value (unsigned 32-bit) from the current input stream.
 
       @result The int value which has been read from the stream.
     */
-    uInt32 getInt(void);
+    uInt32 getInt() const;
 
     /**
       Reads an integer array (unsigned 32-bit) from the current input stream.
@@ -117,21 +108,28 @@ class Serializer
       @param array  The location to store the integers read
       @param size   The size of the array (number of integers to read)
     */
-    void getIntArray(uInt32* array, uInt32 size);
+    void getIntArray(uInt32* array, uInt32 size) const;
+
+    /**
+      Reads a double value (signed 64-bit) from the current input stream.
+
+      @result The double value which has been read from the stream.
+    */
+    double getDouble() const;
 
     /**
       Reads a string from the current input stream.
 
       @result The string which has been read from the stream.
     */
-    string getString(void);
+    string getString() const;
 
     /**
       Reads a boolean value from the current input stream.
 
       @result The boolean value which has been read from the stream.
     */
-    bool getBool(void);
+    bool getBool() const;
 
     /**
       Writes an byte value (unsigned 8-bit) to the current output stream.
@@ -179,6 +177,13 @@ class Serializer
     void putIntArray(const uInt32* array, uInt32 size);
 
     /**
+      Writes a double value (signed 64-bit) to the current output stream.
+
+      @param value The double value to write to the output stream.
+    */
+    void putDouble(double value);
+
+    /**
       Writes a string to the current output stream.
 
       @param str The string to write to the output stream.
@@ -192,27 +197,21 @@ class Serializer
     */
     void putBool(bool b);
 
-    std::string get()
-    {
-        stringstream *s = (stringstream*)myStream;
-        return s->str();
-    }
-
-    void set(const std::string &data)
-    {
-        stringstream *s = (stringstream*)myStream;
-        s->str(data);
-    }
-
   private:
     // The stream to send the serialized data to.
-    iostream* myStream;
-    bool myUseFilestream;
+    unique_ptr<iostream> myStream;
 
     enum {
       TruePattern  = 0xfe,
       FalsePattern = 0x01
     };
+
+  private:
+    // Following constructors and assignment operators not supported
+    Serializer(const Serializer&) = delete;
+    Serializer(Serializer&&) = delete;
+    Serializer& operator=(const Serializer&) = delete;
+    Serializer& operator=(Serializer&&) = delete;
 };
 
 #endif

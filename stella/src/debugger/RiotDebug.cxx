@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: RiotDebug.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include <sstream>
@@ -153,13 +151,12 @@ uInt8 RiotDebug::inpt(int x)
 bool RiotDebug::vblank(int bit)
 {
   if(bit == 6)       // latches
-    return mySystem.tia().myVBLANK & 0x40;
+    return myConsole.tia().myInput0.vblankLatched();
   else if(bit == 7)  // dump to ground
-    return mySystem.tia().myDumpEnabled;
+    return myConsole.tia().myPaddleReaders[0].vblankDumped();
   else
     return true;
 }
-
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 uInt8 RiotDebug::tim1T(int newVal)
@@ -200,7 +197,8 @@ uInt8 RiotDebug::tim1024T(int newVal)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Controller& RiotDebug::controller(Controller::Jack jack) const
 {
-  return myConsole.controller(jack);
+  return jack == Controller::Left ? myConsole.leftController() :
+                                    myConsole.rightController();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -309,8 +307,8 @@ string RiotDebug::switchesString()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 string RiotDebug::toString()
 {
-  const RiotState& state    = (RiotState&) getState();
-  const RiotState& oldstate = (RiotState&) getOldState();
+  const RiotState& state    = static_cast<const RiotState&>(getState());
+  const RiotState& oldstate = static_cast<const RiotState&>(getOldState());
 
   ostringstream buf;
   buf << "280/SWCHA(R)=" << myDebugger.invIfChanged(state.SWCHA_R, oldstate.SWCHA_R)

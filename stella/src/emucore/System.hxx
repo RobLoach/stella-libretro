@@ -8,13 +8,11 @@
 // MM     MM 66  66 55  55 00  00 22
 // MM     MM  6666   5555   0000  222222
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: System.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef SYSTEM_HXX
@@ -39,30 +37,40 @@ class NullDevice;
   into 2^m byte pages (1 <= m <= n), where a page is the smallest unit
   a device can use when installing itself in the system.
 
-  In general the addressing space will be 8192 (2^13) bytes for a 
+  In general the addressing space will be 8192 (2^13) bytes for a
   6507 based system and 65536 (2^16) bytes for a 6502 based system.
 
   @author  Bradford W. Mott
-  @version $Id: System.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class System : public Serializable
 {
   public:
     /**
-      Create a new system with an addressing space of 2^n bytes and
-      pages of 2^m bytes.
-
-      @param n Log base 2 of the addressing space size
-      @param m Log base 2 of the page size
+      Create a new system with an addressing space of 2^13 bytes and
+      pages of 2^6 bytes.
     */
-    System(uInt16 n, uInt16 m);
+    System(const OSystem& osystem, M6502& m6502, M6532& m6532,
+           TIA& mTIA, Cartridge& mCart);
+    virtual ~System() = default;
 
-    /**
-      Destructor
-    */
-    virtual ~System();
+    // Mask to apply to an address before accessing memory
+    static constexpr uInt16 ADDRESS_MASK = (1 << 13) - 1;
+
+    // Amount to shift an address by to determine what page it's on
+    static constexpr uInt16 PAGE_SHIFT = 6;
+
+    // Mask to apply to an address to obtain its page offset
+    static constexpr uInt16 PAGE_MASK = (1 << PAGE_SHIFT) - 1;
+
+    // Number of pages in the system
+    static constexpr uInt16 NUM_PAGES = 1 << (13 - PAGE_SHIFT);
 
   public:
+    /**
+      Initialize system and all attached devices to known state.
+    */
+    void initialize();
+
     /**
       Reset the system cycle counter, the attached devices, and the
       attached processor of the system.
@@ -76,38 +84,6 @@ class System : public Serializable
     */
     void reset(bool autodetect = false);
 
-    /**
-      Attach the specified device and claim ownership of it.  The device 
-      will be asked to install itself.
-
-      @param device The device to attach to the system
-    */
-    void attach(Device* device);
-
-    /**
-      Attach the specified processor and claim ownership of it.  The
-      processor will be asked to install itself.
-
-      @param m6502 The 6502 microprocessor to attach to the system
-    */
-    void attach(M6502* m6502);
-
-    /**
-      Attach the specified processor and claim ownership of it.  The
-      processor will be asked to install itself.
-
-      @param m6532 The 6532 microprocessor to attach to the system
-    */
-    void attach(M6532* m6532);
-
-    /**
-      Attach the specified TIA device and claim ownership of it.  The device 
-      will be asked to install itself.
-
-      @param tia The TIA device to attach to the system
-    */
-    void attach(TIA* tia);
-
   public:
     /**
       Answer the 6502 microprocessor attached to the system.  If a
@@ -115,7 +91,7 @@ class System : public Serializable
 
       @return The attached 6502 microprocessor
     */
-    M6502& m6502() { return *myM6502; }
+    M6502& m6502() const { return myM6502; }
 
     /**
       Answer the 6532 processor attached to the system.  If a
@@ -123,52 +99,31 @@ class System : public Serializable
 
       @return The attached 6532 microprocessor
     */
-    M6532& m6532() { return *myM6532; }
+    M6532& m6532() const { return myM6532; }
 
     /**
       Answer the TIA device attached to the system.
 
       @return The attached TIA device
     */
-    TIA& tia() { return *myTIA; }
+    TIA& tia() const { return myTIA; }
 
     /**
       Answer the random generator attached to the system.
 
       @return The random generator
     */
-    Random& randGenerator() { return *myRandom; }
+    Random& randGenerator() const { return myOSystem.random(); }
 
     /**
-      Get the null device associated with the system.  Every system 
-      has a null device associated with it that's used by pages which 
+      Get the null device associated with the system.  Every system
+      has a null device associated with it that's used by pages which
       aren't mapped to "real" devices.
 
       @return The null device associated with the system
     */
-    NullDevice& nullDevice() { return myNullDevice; }
+    const NullDevice& nullDevice() const { return myNullDevice; }
 
-    /**
-      Get the total number of pages available in the system.
-
-      @return The total number of pages available
-    */
-    uInt16 numberOfPages() const { return myNumberOfPages; }
-
-    /**
-      Get the amount to right shift an address by to obtain its page.
-
-      @return The amount to right shift an address by to get its page
-    */
-    uInt16 pageShift() const { return myPageShift; }
-
-    /**
-      Get the mask to apply to an address to obtain its page offset.
-
-      @return The mask to apply to an address to obtain its page offset
-    */
-    uInt16 pageMask() const { return myPageMask; }
- 
   public:
     /**
       Get the number of system cycles which have passed since the last
@@ -187,11 +142,16 @@ class System : public Serializable
 
     /**
       Reset the system cycle count to zero.  The first thing that
-      happens is that all devices are notified of the reset by invoking 
-      their systemCyclesReset method then the system cycle count is 
+      happens is that all devices are notified of the reset by invoking
+      their systemCyclesReset method then the system cycle count is
       reset to zero.
     */
     void resetCycles();
+
+    /**
+      Informs all attached devices that the console type has changed.
+    */
+    void consoleChanged(ConsoleTiming timing);
 
     /**
       Answers whether the system is currently in device autodetect mode.
@@ -204,7 +164,7 @@ class System : public Serializable
       state is the last data that was accessed by the system.
 
       @return  The data bus state
-    */  
+    */
     uInt8 getDataBusState() const { return myDataBusState; }
 
     /**
@@ -221,12 +181,12 @@ class System : public Serializable
       @param zmask  The bits which are in Z-state
       @param hmask  The bits which should always be driven high
       @return  The data bus state
-    */  
+    */
     uInt8 getDataBusState(uInt8 zmask, uInt8 hmask = 0x00)
     {
       // For the pins that are floating, randomly decide which are high or low
       // Otherwise, they're specifically driven high
-      return (myDataBusState | (myRandom->next() | hmask)) & zmask;
+      return (myDataBusState | (randGenerator().next() | hmask)) & zmask;
     }
 
     /**
@@ -266,15 +226,15 @@ class System : public Serializable
       use System.peek() to examine memory/registers without changing
       the state of the system.
     */
-    void lockDataBus();
-    void unlockDataBus();
+    void lockDataBus()   { myDataBusLocked = true;  }
+    void unlockDataBus() { myDataBusLocked = false; }
 
     /**
       Access and modify the disassembly type flags for the given
       address.  Note that while any flag can be used, the disassembly
       only really acts on CODE/GFX/PGFX/DATA/ROW.
     */
-    uInt8 getAccessFlags(uInt16 address);
+    uInt8 getAccessFlags(uInt16 address) const;
     void setAccessFlags(uInt16 address, uInt8 flags);
 
   public:
@@ -295,7 +255,7 @@ class System : public Serializable
       /**
         Pointer to a block of memory or the null pointer.  The null pointer
         indicates that the device's peek method should be invoked for reads
-        to this page, while other values are the base address of an array 
+        to this page, while other values are the base address of an array
         to directly access for reads to this page.
       */
       uInt8* directPeekBase;
@@ -303,7 +263,7 @@ class System : public Serializable
       /**
         Pointer to a block of memory or the null pointer.  The null pointer
         indicates that the device's poke method should be invoked for writes
-        to this page, while other values are the base address of an array 
+        to this page, while other values are the base address of an array
         to directly access for pokes to this page.
       */
       uInt8* directPokeBase;
@@ -318,7 +278,7 @@ class System : public Serializable
       uInt8* codeAccessBase;
 
       /**
-        Pointer to the device associated with this page or to the system's 
+        Pointer to the device associated with this page or to the system's
         null device if the page hasn't been mapped to a device.
       */
       Device* device;
@@ -331,17 +291,16 @@ class System : public Serializable
 
       // Constructors
       PageAccess()
-        : directPeekBase(0),
-          directPokeBase(0),
-          codeAccessBase(0),
-          device(0),
+        : directPeekBase(nullptr),
+          directPokeBase(nullptr),
+          codeAccessBase(nullptr),
+          device(nullptr),
           type(System::PA_READ) { }
 
-      PageAccess(uInt8* peek, uInt8* poke, uInt8* code, Device* dev,
-                 PageAccessType access)
-        : directPeekBase(peek),
-          directPokeBase(poke),
-          codeAccessBase(code),
+      PageAccess(Device* dev, PageAccessType access)
+        : directPeekBase(nullptr),
+          directPokeBase(nullptr),
+          codeAccessBase(nullptr),
           device(dev),
           type(access) { }
     };
@@ -352,7 +311,9 @@ class System : public Serializable
       @param page The page accessing methods should be set for
       @param access The accessing methods to be used by the page
     */
-    void setPageAccess(uInt16 page, const PageAccess& access);
+    void setPageAccess(uInt16 page, const PageAccess& access) {
+      myPageAccessTable[page] = access;
+    }
 
     /**
       Get the page accessing method for the specified page.
@@ -360,22 +321,28 @@ class System : public Serializable
       @param page The page to get accessing methods for
       @return The accessing methods used by the page
     */
-    const PageAccess& getPageAccess(uInt16 page) const;
- 
+    const PageAccess& getPageAccess(uInt16 page) const {
+      return myPageAccessTable[page];
+    }
+
     /**
       Get the page type for the given address.
 
       @param addr  The address contained in the page in questions
       @return  The type of page that contains the given address
     */
-    System::PageAccessType getPageAccessType(uInt16 addr) const;
+    System::PageAccessType getPageAccessType(uInt16 addr) const {
+      return myPageAccessTable[(addr & ADDRESS_MASK) >> PAGE_SHIFT].type;
+    }
 
     /**
       Mark the page containing this address as being dirty.
 
       @param addr  Determines the page that is dirty
     */
-    void setDirtyPage(uInt16 addr);
+    void setDirtyPage(uInt16 addr) {
+      myPageIsDirtyTable[(addr & ADDRESS_MASK) >> PAGE_SHIFT] = true;
+    }
 
     /**
       Answer whether any pages in given range of addresses have been
@@ -397,7 +364,7 @@ class System : public Serializable
       @param out  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Load the current state of this system from the given Serializer.
@@ -405,58 +372,41 @@ class System : public Serializable
       @param in  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
 
     /**
       Get a descriptor for the device name (used in error checking).
 
       @return The name of the object
     */
-    string name() const { return "System"; }
+    string name() const override { return "System"; }
 
   private:
-    // Mask to apply to an address before accessing memory
-    const uInt16 myAddressMask;
+    const OSystem& myOSystem;
 
-    // Amount to shift an address by to determine what page it's on
-    const uInt16 myPageShift;
+    // 6502 processor attached to the system
+    M6502& myM6502;
 
-    // Mask to apply to an address to obtain its page offset
-    const uInt16 myPageMask;
- 
-    // Number of pages in the system
-    const uInt16 myNumberOfPages;
+    // 6532 processor attached to the system
+    M6532& myM6532;
 
-    // Pointer to a dynamically allocated array of PageAccess structures
-    PageAccess* myPageAccessTable;
+    // TIA device attached to the system
+    TIA& myTIA;
 
-    // Pointer to a dynamically allocated array for dirty pages
-    bool* myPageIsDirtyTable;
-
-    // Array of all the devices attached to the system
-    Device* myDevices[100];
-
-    // Number of devices attached to the system
-    uInt32 myNumberOfDevices;
-
-    // 6502 processor attached to the system or the null pointer
-    M6502* myM6502;
-
-    // 6532 processor attached to the system or the null pointer
-    M6532* myM6532;
-
-    // TIA device attached to the system or the null pointer
-    TIA* myTIA;
-
-    // Many devices need a source of random numbers, usually for emulating
-    // unknown/undefined behaviour
-    Random* myRandom;
+    // Cartridge device attached to the system
+    Cartridge& myCart;
 
     // Number of system cycles executed since the last reset
     uInt32 myCycles;
 
     // Null device to use for page which are not installed
-    NullDevice myNullDevice; 
+    NullDevice myNullDevice;
+
+    // The list of PageAccess structures
+    PageAccess myPageAccessTable[NUM_PAGES];
+
+    // The list of dirty pages
+    bool myPageIsDirtyTable[NUM_PAGES];
 
     // The current state of the Data Bus
     uInt8 myDataBusState;
@@ -472,11 +422,12 @@ class System : public Serializable
     bool mySystemInAutodetect;
 
   private:
-    // Copy constructor isn't supported by this class so make it private
-    System(const System&);
-
-    // Assignment operator isn't supported by this class so make it private
-    System& operator = (const System&);
+    // Following constructors and assignment operators not supported
+    System() = delete;
+    System(const System&) = delete;
+    System(System&&) = delete;
+    System& operator=(const System&) = delete;
+    System& operator=(System&&) = delete;
 };
 
 #endif

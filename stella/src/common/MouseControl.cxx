@@ -8,17 +8,16 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: MouseControl.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include "Console.hxx"
 #include "Control.hxx"
+#include "Paddles.hxx"
 #include "Props.hxx"
 
 #include "MouseControl.hxx"
@@ -26,21 +25,25 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 MouseControl::MouseControl(Console& console, const string& mode)
   : myProps(console.properties()),
-    myLeftController(console.controller(Controller::Left)),
-    myRightController(console.controller(Controller::Right)),
+    myLeftController(console.leftController()),
+    myRightController(console.rightController()),
     myCurrentModeNum(0)
 {
-  if(BSPF_equalsIgnoreCase(mode, "none"))
+  istringstream m_axis(mode);
+  string m_mode;
+  m_axis >> m_mode;
+
+  if(BSPF::equalsIgnoreCase(m_mode, "none"))
   {
     myModeList.push_back(MouseMode("Mouse input is disabled"));
     return;
   }
-  else if(!BSPF_equalsIgnoreCase(mode, "auto") && mode.length() == 2 &&
-          mode[0] >= '0' && mode[0] <= '8' &&
-          mode[1] >= '0' && mode[1] <= '8')
+  else if(!BSPF::equalsIgnoreCase(m_mode, "auto") && m_mode.length() == 2 &&
+          m_mode[0] >= '0' && m_mode[0] <= '8' &&
+          m_mode[1] >= '0' && m_mode[1] <= '8')
   {
-    Axis xaxis = (Axis) ((int)mode[0] - '0');
-    Axis yaxis = (Axis) ((int)mode[1] - '0');
+    Axis xaxis = Axis(int(m_mode[0]) - '0');
+    Axis yaxis = Axis(int(m_mode[1]) - '0');
     ostringstream msg;
     msg << "Mouse X-axis is ";
     Controller::Type xtype = Controller::Joystick, ytype = Controller::Joystick;
@@ -90,7 +93,6 @@ MouseControl::MouseControl(Console& console, const string& mode)
         xid = 1;
         msg << "MindLink 1";
         break;
-      default:  break;
     }
     msg << ", Y-axis is ";
     switch(yaxis)
@@ -138,14 +140,13 @@ MouseControl::MouseControl(Console& console, const string& mode)
         yid = 1;
         msg << "MindLink 1";
         break;
-      default:  break;
     }
     myModeList.push_back(MouseMode(xtype, xid, ytype, yid, msg.str()));
   }
 
   // Now consider the possible modes for the mouse based on the left
   // and right controllers
-  bool noswap = BSPF_equalsIgnoreCase(myProps.get(Console_SwapPorts), "NO");
+  bool noswap = BSPF::equalsIgnoreCase(myProps.get(Console_SwapPorts), "NO");
   if(noswap)
   {
     addLeftControllerModes(noswap);
@@ -157,19 +158,21 @@ MouseControl::MouseControl(Console& console, const string& mode)
     addLeftControllerModes(noswap);
   }
 
+  // Set range information (currently only for paddles, but may be used
+  // for other controllers in the future)
+  int m_range = 100;
+  if(!(m_axis >> m_range))
+    m_range = 100;
+  Paddles::setPaddleRange(m_range);
+
   // If the mouse isn't used at all, we still need one item in the list
   if(myModeList.size() == 0)
     myModeList.push_back(MouseMode("Mouse not used for current controllers"));
 
 #if 0
-  for(unsigned int i = 0; i < myModeList.size(); ++i)
-    cerr << myModeList[i] << endl;
+  for(const auto& m: myModeList)
+    cerr << m << endl;
 #endif
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-MouseControl::~MouseControl()
-{
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -238,7 +241,7 @@ void MouseControl::addPaddleModes(int lport, int rport, int lname, int rname)
   msg << "Mouse is Paddle " << rname << " controller";
   MouseMode mode1(type, rport, type, rport, msg.str());
 
-  if(BSPF_equalsIgnoreCase(myProps.get(Controller_SwapPaddles), "NO"))
+  if(BSPF::equalsIgnoreCase(myProps.get(Controller_SwapPaddles), "NO"))
   {
     myModeList.push_back(mode0);
     myModeList.push_back(mode1);

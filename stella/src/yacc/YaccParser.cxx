@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: YaccParser.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 //#include "YaccParser.hxx"
@@ -36,11 +34,11 @@ namespace YaccParser {
 #include <ctype.h>
 
 #include "y.tab.h"
-yystype result;
+YYSTYPE result;
 string errMsg;
 #include "y.tab.c"
 
-const string& errorMessage() 
+const string& errorMessage()
 {
   return errMsg;
 }
@@ -86,7 +84,7 @@ inline bool is_base_prefix(char x)
 
 inline bool is_identifier(char x)
 {
-  return ( (x>='0' && x<='9') || 
+  return ( (x>='0' && x<='9') ||
            (x>='a' && x<='z') ||
            (x>='A' && x<='Z') ||
             x=='.' || x=='_'  );
@@ -106,24 +104,24 @@ inline bool is_operator(char x)
 // current base, or (if there's a base override) the selected base.
 // Returns -1 on error, since negative numbers are the parser's
 // responsibility, not the lexer's
-int const_to_int(char *c) {
+int const_to_int(char* ch) {
   // what base is the input in?
   Common::Base::Format format = Common::Base::format();
 
-  switch(*c) {
+  switch(*ch) {
     case '\\':
       format = Common::Base::F_2;
-      c++;
+      ch++;
       break;
 
     case '#':
       format = Common::Base::F_10;
-      c++;
+      ch++;
       break;
 
     case '$':
       format = Common::Base::F_16;
-      c++;
+      ch++;
       break;
 
     default: // not a base_prefix, use default base
@@ -133,34 +131,34 @@ int const_to_int(char *c) {
   int ret = 0;
   switch(format) {
     case Common::Base::F_2:
-      while(*c) {
-        if(*c != '0' && *c != '1')
+      while(*ch) {
+        if(*ch != '0' && *ch != '1')
           return -1;
         ret *= 2;
-        ret += (*c - '0');
-        c++;
+        ret += (*ch - '0');
+        ch++;
       }
       return ret;
 
     case Common::Base::F_10:
-      while(*c) {
-        if(!isdigit(*c))
+      while(*ch) {
+        if(!isdigit(*ch))
           return -1;
         ret *= 10;
-        ret += (*c - '0');
-        c++;
+        ret += (*ch - '0');
+        ch++;
       }
       return ret;
 
     case Common::Base::F_16:
-      while(*c) { // FIXME: error check!
-        if(!isxdigit(*c))
+      while(*ch) { // FIXME: error check!
+        if(!isxdigit(*ch))
           return -1;
-        int dig = (*c - '0');
-        if(dig > 9) dig = tolower(*c) - 'a' + 10;
+        int dig = (*ch - '0');
+        if(dig > 9) dig = tolower(*ch) - 'a' + 10;
         ret *= 16;
         ret += dig;
-        c++;
+        ch++;
       }
       return ret;
 
@@ -171,59 +169,59 @@ int const_to_int(char *c) {
 }
 
 // special methods that get e.g. CPU registers
-CPUDEBUG_INT_METHOD getCpuSpecial(char *c)
+CpuMethod getCpuSpecial(char* ch)
 {
-  if(BSPF_equalsIgnoreCase(c, "a"))
+  if(BSPF::equalsIgnoreCase(ch, "a"))
     return &CpuDebug::a;
-  else if(BSPF_equalsIgnoreCase(c, "x"))
+  else if(BSPF::equalsIgnoreCase(ch, "x"))
     return &CpuDebug::x;
-  else if(BSPF_equalsIgnoreCase(c, "y"))
+  else if(BSPF::equalsIgnoreCase(ch, "y"))
     return &CpuDebug::y;
-  else if(BSPF_equalsIgnoreCase(c, "pc"))
+  else if(BSPF::equalsIgnoreCase(ch, "pc"))
     return &CpuDebug::pc;
-  else if(BSPF_equalsIgnoreCase(c, "sp"))
+  else if(BSPF::equalsIgnoreCase(ch, "sp"))
     return &CpuDebug::sp;
-  else if(BSPF_equalsIgnoreCase(c, "c"))
+  else if(BSPF::equalsIgnoreCase(ch, "c"))
     return &CpuDebug::c;
-  else if(BSPF_equalsIgnoreCase(c, "z"))
+  else if(BSPF::equalsIgnoreCase(ch, "z"))
     return &CpuDebug::z;
-  else if(BSPF_equalsIgnoreCase(c, "n"))
+  else if(BSPF::equalsIgnoreCase(ch, "n"))
     return &CpuDebug::n;
-  else if(BSPF_equalsIgnoreCase(c, "v"))
+  else if(BSPF::equalsIgnoreCase(ch, "v"))
     return &CpuDebug::v;
-  else if(BSPF_equalsIgnoreCase(c, "d"))
+  else if(BSPF::equalsIgnoreCase(ch, "d"))
     return &CpuDebug::d;
-  else if(BSPF_equalsIgnoreCase(c, "i"))
+  else if(BSPF::equalsIgnoreCase(ch, "i"))
     return &CpuDebug::i;
-  else if(BSPF_equalsIgnoreCase(c, "b"))
+  else if(BSPF::equalsIgnoreCase(ch, "b"))
     return &CpuDebug::b;
   else
     return 0;
 }
 
 // special methods that get Cart RAM/ROM internal state
-CARTDEBUG_INT_METHOD getCartSpecial(char *c)
+CartMethod getCartSpecial(char* ch)
 {
-  if(BSPF_equalsIgnoreCase(c, "_bank"))
+  if(BSPF::equalsIgnoreCase(ch, "_bank"))
     return &CartDebug::getBank;
-  else if(BSPF_equalsIgnoreCase(c, "_rwport"))
+  else if(BSPF::equalsIgnoreCase(ch, "_rwport"))
     return &CartDebug::readFromWritePort;
   else
     return 0;
 }
 
 // special methods that get TIA internal state
-TIADEBUG_INT_METHOD getTiaSpecial(char *c)
+TiaMethod getTiaSpecial(char* ch)
 {
-  if(BSPF_equalsIgnoreCase(c, "_scan"))
+  if(BSPF::equalsIgnoreCase(ch, "_scan"))
     return &TIADebug::scanlines;
-  else if(BSPF_equalsIgnoreCase(c, "_fcount"))
+  else if(BSPF::equalsIgnoreCase(ch, "_fcount"))
     return &TIADebug::frameCount;
-  else if(BSPF_equalsIgnoreCase(c, "_cclocks"))
+  else if(BSPF::equalsIgnoreCase(ch, "_cclocks"))
     return &TIADebug::clocksThisLine;
-  else if(BSPF_equalsIgnoreCase(c, "_vsync"))
+  else if(BSPF::equalsIgnoreCase(ch, "_vsync"))
     return &TIADebug::vsyncAsInt;
-  else if(BSPF_equalsIgnoreCase(c, "_vblank"))
+  else if(BSPF::equalsIgnoreCase(ch, "_vblank"))
     return &TIADebug::vblankAsInt;
   else
     return 0;
@@ -252,9 +250,9 @@ int yylex() {
 
       case ST_IDENTIFIER:
         {
-          CARTDEBUG_INT_METHOD cartMeth;
-          CPUDEBUG_INT_METHOD  cpuMeth;
-          TIADEBUG_INT_METHOD  tiaMeth;
+          CartMethod cartMeth;
+          CpuMethod  cpuMeth;
+          TiaMethod  tiaMeth;
 
           char *bufp = idbuf;
           *bufp++ = *c++; // might be a base prefix
@@ -275,7 +273,7 @@ int yylex() {
           // the specials. Who would do that, though?
 
           if(Debugger::debugger().cartDebug().getAddress(idbuf) > -1) {
-            yylval.equate = idbuf;
+            yylval.Equate = idbuf;
             return EQUATE;
           } else if( (cpuMeth = getCpuSpecial(idbuf)) ) {
             yylval.cpuMethod = cpuMeth;
@@ -286,8 +284,8 @@ int yylex() {
           } else if( (tiaMeth = getTiaSpecial(idbuf)) ) {
             yylval.tiaMethod = tiaMeth;
             return TIA_METHOD;
-          } else if( Debugger::debugger().getFunction(idbuf) != 0) {
-            yylval.function = idbuf;
+          } else if( Debugger::debugger().getFunctionDef(idbuf) != EmptyString ) {
+            yylval.DefinedFunction = idbuf;
             return FUNCTION;
           } else {
             yylval.val = const_to_int(idbuf);
@@ -332,8 +330,7 @@ int yylex() {
             return o;
           }
         }
-
-        break;
+        // break;  Never executed
 
       case ST_DEFAULT:
       default:

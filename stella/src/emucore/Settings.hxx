@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Settings.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef SETTINGS_HXX
@@ -22,7 +20,6 @@
 
 class OSystem;
 
-#include "Array.hxx"
 #include "Variant.hxx"
 #include "bspf.hxx"
 
@@ -30,7 +27,6 @@ class OSystem;
   This class provides an interface for accessing frontend specific settings.
 
   @author  Stephen Anthony
-  @version $Id: Settings.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Settings
 {
@@ -40,12 +36,8 @@ class Settings
     /**
       Create a new settings abstract class
     */
-    Settings(OSystem* osystem);
-
-    /**
-      Destructor
-    */
-    virtual ~Settings();
+    Settings(OSystem& osystem);
+    virtual ~Settings() = default;
 
   public:
     /**
@@ -64,7 +56,7 @@ class Settings
     /**
       This method should be called to display usage information.
     */
-    void usage();
+    void usage() const;
 
     /**
       Get the value assigned to the specified key.
@@ -94,12 +86,16 @@ class Settings
     const string& getString(const string& key) const { return value(key).toString(); }
     const GUI::Size getSize(const string& key) const { return value(key).toSize();   }
 
-  private:
-    // Copy constructor isn't supported by this class so make it private
-    Settings(const Settings&);
+  protected:
+    /**
+      This method will be called to load the current settings from an rc file.
+    */
+    virtual void loadConfig();
 
-    // Assignment operator isn't supported by this class so make it private
-    Settings& operator = (const Settings&);
+    /**
+      This method will be called to save the current settings to an rc file.
+    */
+    virtual void saveConfig();
 
     // Trim leading and following whitespace from a string
     static string trim(string& str)
@@ -111,7 +107,7 @@ class Settings
 
   protected:
     // The parent OSystem object
-    OSystem* myOSystem;
+    OSystem& myOSystem;
 
     // Structure used for storing settings
     struct Setting
@@ -120,7 +116,7 @@ class Settings
       Variant value;
       Variant initialValue;
     };
-    typedef Common::Array<Setting> SettingsArray;
+    using SettingsArray = vector<Setting>;
 
     const SettingsArray& getInternalSettings() const
       { return myInternalSettings; }
@@ -145,6 +141,14 @@ class Settings
     // Holds auxiliary key,value pairs that shouldn't be saved on
     // program exit.
     SettingsArray myExternalSettings;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Settings() = delete;
+    Settings(const Settings&) = delete;
+    Settings(Settings&&) = delete;
+    Settings& operator=(const Settings&) = delete;
+    Settings& operator=(Settings&&) = delete;
 };
 
 #endif

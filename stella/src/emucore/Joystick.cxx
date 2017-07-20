@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Joystick.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include "Event.hxx"
@@ -48,11 +46,6 @@ Joystick::Joystick(Jack jack, const Event& event, const System& system)
 
   // Analog pins are never used by the joystick
   myAnalogPinValue[Five] = myAnalogPinValue[Nine] = maximumResistance;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Joystick::~Joystick()
-{
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -141,8 +134,7 @@ bool Joystick::setMouseControl(
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Joystick::setDeadZone(int deadzone)
 {
-  if(deadzone < 0)  deadzone = 0;
-  if(deadzone > 29) deadzone = 29;
+  deadzone = BSPF::clamp(deadzone, 0, 29);
 
   _DEAD_ZONE = 3200 + deadzone * 1000;
 }

@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Control.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CONTROLLER_HXX
@@ -28,8 +26,8 @@ class System;
 #include "bspf.hxx"
 
 /**
-  A controller is a device that plugs into either the left or right 
-  controller jack of the Video Computer System (VCS).  The pins of 
+  A controller is a device that plugs into either the left or right
+  controller jack of the Video Computer System (VCS).  The pins of
   the controller jacks are mapped as follows:
 
                            -------------
@@ -58,7 +56,6 @@ class System;
   of the controller from the perspective of the controller's jack.
 
   @author  Bradford W. Mott
-  @version $Id: Control.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Controller : public Serializable
 {
@@ -90,9 +87,9 @@ class Controller : public Serializable
     */
     enum Type
     {
-      BoosterGrip, Driving, Keyboard, Paddles, Joystick,
-      TrackBall22, TrackBall80, AmigaMouse, AtariVox, SaveKey,
-      KidVid, Genesis, MindLink, CompuMate
+      AmigaMouse, AtariMouse, AtariVox, BoosterGrip, CompuMate,
+      Driving, Genesis, Joystick, Keyboard, KidVid, MindLink,
+      Paddles, SaveKey, TrakBall
     };
 
   public:
@@ -101,16 +98,12 @@ class Controller : public Serializable
 
       @param jack   The jack the controller is plugged into
       @param event  The event object to use for events
-      @param type   The type for this controller
       @param system The system using this controller
+      @param type   The type for this controller
     */
     Controller(Jack jack, const Event& event, const System& system,
                Type type);
- 
-    /**
-      Destructor
-    */
-    virtual ~Controller();
+    virtual ~Controller() = default;
 
     /**
       Returns the jack that this controller is plugged into.
@@ -139,7 +132,7 @@ class Controller : public Serializable
     virtual bool read(DigitalPin pin);
 
     /**
-      Read the resistance at the specified analog pin for this controller.  
+      Read the resistance at the specified analog pin for this controller.
       The returned value is the resistance measured in ohms.
 
       @param pin The pin of the controller jack to read
@@ -148,14 +141,14 @@ class Controller : public Serializable
     virtual Int32 read(AnalogPin pin);
 
     /**
-      Write the given value to the specified digital pin for this 
-      controller.  Writing is only allowed to the pins associated 
+      Write the given value to the specified digital pin for this
+      controller.  Writing is only allowed to the pins associated
       with the PIA.  Therefore you cannot write to pin six.
 
       @param pin The pin of the controller jack to write to
       @param value The value to write to the pin
     */
-    virtual void write(DigitalPin pin, bool value) { };
+    virtual void write(DigitalPin pin, bool value) { }
 
     /**
       Called after *all* digital pins have been written on Port A.
@@ -163,7 +156,7 @@ class Controller : public Serializable
 
       @param value  The entire contents of the SWCHA register
     */
-    virtual void controlWrite(uInt8 value) { };
+    virtual void controlWrite(uInt8 value) { }
 
     /**
       Update the entire digital and analog pin state according to the
@@ -172,11 +165,18 @@ class Controller : public Serializable
     virtual void update() = 0;
 
     /**
+      Notification method invoked by the system indicating that the
+      console is about to be destroyed.  It may be necessary to override
+      this method for controllers that need cleanup before exiting.
+    */
+    virtual void close() { };
+
+    /**
       Notification method invoked by the system right before the
-      system resets its cycle counter to zero.  It may be necessary 
+      system resets its cycle counter to zero.  It may be necessary
       to override this method for controllers that remember cycle counts.
     */
-    virtual void systemCyclesReset() { };
+    virtual void systemCyclesReset() { }
 
     /**
       Determines how this controller will treat values received from the
@@ -199,14 +199,10 @@ class Controller : public Serializable
     { return false; }
 
     /**
-      Returns the name of this controller.
-    */
-    virtual string name() const;
-
-    /**
       Returns more detailed information about this controller.
     */
-    virtual string about() const;
+    virtual string about() const
+    { return name() + " in " + (myJack == Left ? "left port" : "right port"); }
 
     /**
       The following two functions are used by the debugger to set
@@ -226,7 +222,7 @@ class Controller : public Serializable
       @param out The serializer device to save to.
       @return The result of the save.  True on success, false on failure.
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Loads the current state of this controller from the given Serializer.
@@ -234,14 +230,19 @@ class Controller : public Serializable
       @param in The serializer device to load from.
       @return The result of the load.  True on success, false on failure.
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
+
+    /**
+      Returns the name of this controller.
+    */
+    string name() const override { return myName; }
 
   public:
     /// Constant which represents maximum resistance for analog pins
-    static const Int32 maximumResistance;
+    static constexpr Int32 maximumResistance = 0x7FFFFFFF;
 
     /// Constant which represents minimum resistance for analog pins
-    static const Int32 minimumResistance;
+    static constexpr Int32 minimumResistance = 0x00000000;
 
   protected:
     /// Specifies which jack the controller is plugged in
@@ -265,12 +266,13 @@ class Controller : public Serializable
     /// The analog value on each analog pin
     Int32 myAnalogPinValue[2];
 
-  protected:
-    // Copy constructor isn't supported by controllers so make it private
-    Controller(const Controller&);
-
-    // Assignment operator isn't supported by controllers so make it private
-    Controller& operator = (const Controller&);
+  private:
+    // Following constructors and assignment operators not supported
+    Controller() = delete;
+    Controller(const Controller&) = delete;
+    Controller(Controller&&) = delete;
+    Controller& operator=(const Controller&) = delete;
+    Controller& operator=(Controller&&) = delete;
 };
 
 #endif

@@ -1,25 +1,24 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: DebuggerParser.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef DEBUGGER_PARSER_HXX
 #define DEBUGGER_PARSER_HXX
 
+#include <functional>
 #include <sstream>
 
 class Debugger;
@@ -27,7 +26,6 @@ class FilesystemNode;
 struct Command;
 
 #include "bspf.hxx"
-#include "Array.hxx"
 #include "FrameBuffer.hxx"
 #include "Settings.hxx"
 
@@ -35,7 +33,6 @@ class DebuggerParser
 {
   public:
     DebuggerParser(Debugger& debugger, Settings& settings);
-    ~DebuggerParser();
 
     /** Run the given command, and return the result */
     string run(const string& command);
@@ -48,7 +45,7 @@ class DebuggerParser
     void getCompletions(const char* in, StringList& list) const;
 
     /** Evaluate the given expression using operators, current base, etc */
-    int decipher_arg(const string &str);
+    int decipher_arg(const string& str);
 
     /** String representation of all watches currently defined */
     string showWatches();
@@ -71,10 +68,7 @@ class DebuggerParser
     bool saveScriptFile(string file);
 
   private:
-    enum {
-      kNumCommands   = 70,
-      kMAX_ARG_TYPES = 10
-    };
+    enum { kNumCommands = 72 };
 
     // Constants for argument processing
     enum {
@@ -84,7 +78,7 @@ class DebuggerParser
       kIN_ARG
     };
 
-    typedef enum {
+    enum parameters {
       kARG_WORD,        // single 16-bit value
       kARG_MULTI_WORD,  // multiple 16-bit values (must occur last)
       kARG_BYTE,        // single 8-bit value
@@ -94,18 +88,16 @@ class DebuggerParser
       kARG_FILE,        // filename
       kARG_BASE_SPCL,   // base specifier: 2, 10, or 16 (or "bin" "dec" "hex")
       kARG_END_ARGS     // sentinel, occurs at end of list
-    } parameters;
-
-    // Pointer to DebuggerParser instance method, no args, returns void.
-    typedef void (DebuggerParser::*METHOD)();
+    };
 
     struct Command {
       string cmdString;
       string description;
+      string extendedDesc;
       bool parmsRequired;
       bool refreshRequired;
-      parameters parms[kMAX_ARG_TYPES];
-      METHOD executor;
+      parameters parms[10];
+      std::function<void (DebuggerParser*)> executor;
     };
 
     // Reference to our debugger object
@@ -120,13 +112,12 @@ class DebuggerParser
     // Arguments in 'int' and 'string' format for the currently running command
     IntArray args;
     StringList argStrings;
-    int argCount;
+    uInt32 argCount;
 
     StringList watches;
 
     // List of available command methods
     void executeA();
-    void executeBank();
     void executeBase();
     void executeBreak();
     void executeBreakif();
@@ -141,6 +132,7 @@ class DebuggerParser
     void executeColortest();
     void executeD();
     void executeData();
+    void executeDebugColors();
     void executeDefine();
     void executeDelbreakif();
     void executeDelfunction();
@@ -161,6 +153,7 @@ class DebuggerParser
     void executeLoadconfig();
     void executeLoadstate();
     void executeN();
+    void executePalette();
     void executePc();
     void executePGfx();
     void executePrint();
@@ -179,6 +172,7 @@ class DebuggerParser
     void executeSavedisassembly();
     void executeSaverom();
     void executeSaveses();
+    void executeSavesnap();
     void executeSavestate();
     void executeScanline();
     void executeStep();
@@ -187,6 +181,7 @@ class DebuggerParser
     void executeTrap();
     void executeTrapread();
     void executeTrapwrite();
+    void executeTrapRW(uInt32 addr, bool read, bool write);  // not exposed by debugger
     void executeType();
     void executeUHex();
     void executeUndef();
@@ -198,6 +193,14 @@ class DebuggerParser
 
     // List of commands available
     static Command commands[kNumCommands];
+
+  private:
+    // Following constructors and assignment operators not supported
+    DebuggerParser() = delete;
+    DebuggerParser(const DebuggerParser&) = delete;
+    DebuggerParser(DebuggerParser&&) = delete;
+    DebuggerParser& operator=(const DebuggerParser&) = delete;
+    DebuggerParser& operator=(DebuggerParser&&) = delete;
 };
 
 #endif

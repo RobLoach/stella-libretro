@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Cart.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGE_HXX
@@ -26,71 +24,47 @@
 class Cartridge;
 class Properties;
 class CartDebugWidget;
+class CartRamWidget;
 class GuiObject;
 
 #include "bspf.hxx"
-#include "Array.hxx"
 #include "Device.hxx"
 #include "Settings.hxx"
-
-struct RamArea {
-  uInt16 start;  uInt16 size;  uInt16 roffset;  uInt16 woffset;
-};
-typedef Common::Array<RamArea> RamAreaList;
+#include "Font.hxx"
 
 /**
-  A cartridge is a device which contains the machine code for a 
+  A cartridge is a device which contains the machine code for a
   game and handles any bankswitching performed by the cartridge.
   A 'bank' is defined as a 4K block that is visible in the
   0x1000-0x2000 area (or its mirrors).
- 
+
   @author  Bradford W. Mott
-  @version $Id: Cart.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Cartridge : public Device
 {
   public:
-    /**
-      Create a new cartridge object allocated on the heap.  The
-      type of cartridge created depends on the properties object.
-
-      @param image    A pointer to the ROM image
-      @param size     The size of the ROM image 
-      @param md5      The md5sum for the given ROM image (can be updated)
-      @param dtype    The detected bankswitch type of the ROM image
-      @param id       Any extra info about the ROM (currently which part
-                      of a multiload game is being accessed
-      @param system   The osystem associated with the system
-      @param settings The settings associated with the system
-      @return   Pointer to the new cartridge object allocated on the heap
-    */
-    static Cartridge* create(const uInt8* image, uInt32 size, string& md5,
-                             string& dtype, string& id,
-                             const OSystem& system, Settings& settings);
-
     /**
       Create a new cartridge
 
       @param settings  A reference to the various settings (read-only)
     */
     Cartridge(const Settings& settings);
- 
-    /**
-      Destructor
-    */
-    virtual ~Cartridge();
+    virtual ~Cartridge() = default;
 
     /**
-      Query some information about this cartridge.
+      Set/query some information about this cartridge.
     */
-    static const string& about() { return myAboutString; }
+    void setAbout(const string& about, const string& type, const string& id);
+    const string& about() const { return myAbout; }
+    const string& detectedType() const { return myDetectedType; }
+    const string& multiCartID() const  { return myMultiCartID;  }
 
     /**
       Save the internal (patched) ROM image.
 
       @param out  The output file stream to save the image
     */
-    bool save(ofstream& out);
+    bool saveROM(ofstream& out) const;
 
     /**
       Lock/unlock bankswitching capability.  The debugger will lock
@@ -99,7 +73,7 @@ class Cartridge : public Device
     */
     void lockBank()   { myBankLocked = true;  }
     void unlockBank() { myBankLocked = false; }
-    bool bankLocked() { return myBankLocked;  }
+    bool bankLocked() const { return myBankLocked; }
 
     /**
       Get the default startup bank for a cart.  This is the bank where
@@ -108,7 +82,7 @@ class Cartridge : public Device
 
       @return  The startup bank
     */
-    uInt16 startBank();
+    uInt16 startBank() const { return myStartBank; }
 
     /**
       Answer whether the bank has changed since the last time this
@@ -121,22 +95,26 @@ class Cartridge : public Device
     */
     virtual bool bankChanged();
 
-    const RamAreaList& ramAreas() { return myRamAreaList; }
-
   public:
     //////////////////////////////////////////////////////////////////////
-    // The following methods are cart-specific and must be implemented
-    // in derived classes.
+    // The following methods are cart-specific and will usually be
+    // implemented in derived classes.  Carts which don't support
+    // bankswitching (for any reason) do not have to provide an
+    // implementation for bankswitch-related methods.
     //////////////////////////////////////////////////////////////////////
     /**
-      Set the specified bank.
+      Set the specified bank.  This is used only when the bankswitching
+      scheme defines banks in a standard format (ie, 0 for first bank,
+      1 for second, etc).  Carts which will handle their own bankswitching
+      completely or non-bankswitched carts can ignore this method.
     */
-    virtual bool bank(uInt16 bank) = 0;
+    virtual bool bank(uInt16) { return false; }
 
     /**
-      Get the current bank.
+      Get the current bank.  Carts which have only one bank (either real
+      or virtual) always report that bank as zero.
     */
-    virtual uInt16 bank() const = 0;
+    virtual uInt16 getBank() const { return 0; }
 
     /**
       Query the number of 'banks' supported by the cartridge.  Note that
@@ -151,7 +129,7 @@ class Cartridge : public Device
       RAM slices at multiple access points) is so complicated that the
       cart will report having only one 'virtual' bank.
     */
-    virtual uInt16 bankCount() const = 0;
+    virtual uInt16 bankCount() const { return 1; }
 
     /**
       Patch the cartridge ROM.
@@ -171,29 +149,6 @@ class Cartridge : public Device
     virtual const uInt8* getImage(int& size) const = 0;
 
     /**
-      Save the current state of this device to the given Serializer.
-
-      @param out  The Serializer object to use
-      @return  False on any errors, else true
-    */
-    virtual bool save(Serializer& out) const = 0;
-
-    /**
-      Load the current state of this device from the given Serializer.
-
-      @param in  The Serializer object to use
-      @return  False on any errors, else true
-    */
-    virtual bool load(Serializer& in) = 0;
-
-    /**
-      Get a descriptor for the device name (used in error checking).
-
-      @return The name of the object
-    */
-    virtual string name() const = 0;
-
-    /**
       Informs the cartridge about the name of the ROM file used when
       creating this cart.
 
@@ -201,17 +156,23 @@ class Cartridge : public Device
     */
     virtual void setRomName(const string& name) { }
 
-  protected:
     /**
-      Add the given area to the RamArea list for this cart.
-
-      @param start    The beginning of the RAM area (0x0000 - 0x2000)
-      @param size     Total number of bytes of area
-      @param roffset  Offset to use when reading from RAM (read port)
-      @param woffset  Offset to use when writing to RAM (write port)
+      Thumbulator only supports 16-bit ARM code.  Some Harmony/Melody drivers,
+      such as BUS and CDF, feature 32-bit ARM code subroutines.  This is used
+      to pass values back to the cartridge class to emulate those subroutines.
     */
-    void registerRamArea(uInt16 start, uInt16 size, uInt16 roffset, uInt16 woffset);
+    virtual uInt32 thumbCallback(uInt8 function, uInt32 value1, uInt32 value2) { return 0; }
 
+    /**
+      Get debugger widget responsible for accessing the inner workings
+      of the cart.  This will need to be overridden and implemented by
+      each specific cart type, since the bankswitching/inner workings
+      of each cart type can be very different from each other.
+    */
+    virtual CartDebugWidget* debugWidget(GuiObject* boss, const GUI::Font& lfont,
+        const GUI::Font& nfont, int x, int y, int w, int h) { return nullptr; }
+
+  protected:
     /**
       Indicate that an illegal read from a write port has occurred.
 
@@ -228,149 +189,14 @@ class Cartridge : public Device
     */
     void createCodeAccessBase(uInt32 size);
 
-  private:
     /**
-      Get an image pointer and size for a ROM that is part of a larger,
-      multi-ROM image.
+      Fill the given RAM array with (possibly random) data.
 
-      @param image    A pointer to the ROM image
-      @param size     The size of the ROM image 
-      @param numroms  The number of ROMs in the multicart
-      @param md5      The md5sum for the specific cart in the ROM image
-      @param id       The ID for the specific cart in the ROM image
-      @param settings The settings associated with the system
-      @return   The bankswitch type for the specific cart in the ROM image
+      @param arr  Pointer to the RAM array
+      @param size The size of the RAM array
+      @param val  If provided, the value to store in the RAM array
     */
-    static string createFromMultiCart(const uInt8*& image, uInt32& size,
-        uInt32 numroms, string& md5, string& id, Settings& settings);
-
-    /**
-      Try to auto-detect the bankswitching type of the cartridge
-
-      @param image  A pointer to the ROM image
-      @param size   The size of the ROM image 
-      @return The "best guess" for the cartridge type
-    */
-    static string autodetectType(const uInt8* image, uInt32 size);
-
-    /**
-      Search the image for the specified byte signature
-
-      @param image      A pointer to the ROM image
-      @param imagesize  The size of the ROM image 
-      @param signature  The byte sequence to search for
-      @param sigsize    The number of bytes in the signature
-      @param minhits    The minimum number of times a signature is to be found
-
-      @return  True if the signature was found at least 'minhits' time, else false
-    */
-    static bool searchForBytes(const uInt8* image, uInt32 imagesize,
-                               const uInt8* signature, uInt32 sigsize,
-                               uInt32 minhits);
-
-    /**
-      Returns true if the image is probably a SuperChip (256 bytes RAM)
-    */
-    static bool isProbablySC(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a 4K SuperChip (256 bytes RAM)
-    */
-    static bool isProbably4KSC(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image probably contains ARM code in the first 1K
-    */
-    static bool isProbablyARM(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a 0840 bankswitching cartridge
-    */
-    static bool isProbably0840(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a 3E bankswitching cartridge
-    */
-    static bool isProbably3E(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a 3F bankswitching cartridge
-    */
-    static bool isProbably3F(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a 4A50 bankswitching cartridge
-    */
-    static bool isProbably4A50(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a CTY bankswitching cartridge
-    */
-    static bool isProbablyCTY(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a CV bankswitching cartridge
-    */
-    static bool isProbablyCV(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a DPC+ bankswitching cartridge
-    */
-    static bool isProbablyDPCplus(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a E0 bankswitching cartridge
-    */
-    static bool isProbablyE0(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a E7 bankswitching cartridge
-    */
-    static bool isProbablyE7(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably an EF/EFSC bankswitching cartridge
-    */
-    static bool isProbablyEF(const uInt8* image, uInt32 size, const char*& type);
-
-    /**
-      Returns true if the image is probably a BF/BFSC bankswitching cartridge
-    */
-    static bool isProbablyBF(const uInt8* image, uInt32 size, const char*& type);
-    /**
-      Returns true if the image is probably a DF/DFSC bankswitching cartridge
-    */
-    static bool isProbablyDF(const uInt8* image, uInt32 size, const char*& type);
-
-    /**
-      Returns true if the image is probably an F6 bankswitching cartridge
-    */
-    static bool isProbablyF6(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably an FA2 bankswitching cartridge
-    */
-    static bool isProbablyFA2(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably an FE bankswitching cartridge
-    */
-    static bool isProbablyFE(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a SB bankswitching cartridge
-    */
-    static bool isProbablySB(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably a UA bankswitching cartridge
-    */
-    static bool isProbablyUA(const uInt8* image, uInt32 size);
-
-    /**
-      Returns true if the image is probably an X07 bankswitching cartridge
-    */
-    static bool isProbablyX07(const uInt8* image, uInt32 size);
+    void initializeRAM(uInt8* arr, uInt32 size, uInt8 val = 0) const;
 
   protected:
     // Settings class for the application
@@ -384,24 +210,25 @@ class Cartridge : public Device
 
     // The array containing information about every byte of ROM indicating
     // whether it is used as code.
-    uInt8* myCodeAccessBase;
+    BytePtr myCodeAccessBase;
 
   private:
-    // Contains RamArea entries for those carts with accessible RAM.
-    RamAreaList myRamAreaList;
-
     // If myBankLocked is true, ignore attempts at bankswitching. This is used
     // by the debugger, when disassembling/dumping ROM.
     bool myBankLocked;
 
-    // Contains info about this cartridge in string format
-    static string myAboutString;
+    // Contains various info about this cartridge
+    // This needs to be stored separately from child classes, since
+    // sometimes the information in both do not match
+    // (ie, detected type could be '2in1' while name of cart is '4K')
+    string myAbout, myDetectedType, myMultiCartID;
 
-    // Copy constructor isn't supported by cartridges so make it private
-    Cartridge(const Cartridge&);
-
-    // Assignment operator isn't supported by cartridges so make it private
-    Cartridge& operator = (const Cartridge&);
+    // Following constructors and assignment operators not supported
+    Cartridge() = delete;
+    Cartridge(const Cartridge&) = delete;
+    Cartridge(Cartridge&&) = delete;
+    Cartridge& operator=(const Cartridge&) = delete;
+    Cartridge& operator=(Cartridge&&) = delete;
 };
 
 #endif

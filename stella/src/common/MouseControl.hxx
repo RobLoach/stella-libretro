@@ -8,13 +8,11 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: MouseControl.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef MOUSE_CONTROL_HXX
@@ -24,7 +22,6 @@ class Console;
 class Properties;
 
 #include "bspf.hxx"
-#include "Array.hxx"
 #include "Control.hxx"
 
 /**
@@ -61,12 +58,6 @@ class MouseControl
     MouseControl(Console& console, const string& mode);
 
     /**
-      Destructor
-    */
-    virtual ~MouseControl();
-
-  public:
-    /**
       Cycle through each available mouse control mode
 
       @return  A message explaining the current mouse mode
@@ -95,13 +86,13 @@ class MouseControl
           xid(-1),
           yid(-1),
           message(msg)  { }
-      MouseMode(Controller::Type xtype, int xid,
-                Controller::Type ytype, int yid,
+      MouseMode(Controller::Type xt, int xi,
+                Controller::Type yt, int yi,
                 const string& msg)
-        : xtype(xtype),
-          ytype(ytype),
-          xid(xid),
-          yid(yid),
+        : xtype(xt),
+          ytype(yt),
+          xid(xi),
+          yid(yi),
           message(msg)  { }
 
       friend ostream& operator<<(ostream& os, const MouseMode& mm)
@@ -114,7 +105,15 @@ class MouseControl
     };
 
     int myCurrentModeNum;
-    Common::Array<MouseMode> myModeList;
+    vector<MouseMode> myModeList;
+
+  private:
+    // Following constructors and assignment operators not supported
+    MouseControl() = delete;
+    MouseControl(const MouseControl&) = delete;
+    MouseControl(MouseControl&&) = delete;
+    MouseControl& operator=(const MouseControl&) = delete;
+    MouseControl& operator=(MouseControl&&) = delete;
 };
 
 #endif

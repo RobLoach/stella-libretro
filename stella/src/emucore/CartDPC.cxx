@@ -1,38 +1,34 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartDPC.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
-
-#include <cassert>
-#include <cstring>
 
 #include "System.hxx"
 #include "CartDPC.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartridgeDPC::CartridgeDPC(const uInt8* image, uInt32 size,
+CartridgeDPC::CartridgeDPC(const BytePtr& image, uInt32 size,
                            const Settings& settings)
   : Cartridge(settings),
     mySize(size),
     mySystemCycles(0),
-    myFractionalClocks(0.0)
+    myFractionalClocks(0.0),
+    myCurrentBank(0)
 {
   // Make a copy of the entire image
-  memcpy(myImage, image, MIN(size, 8192u + 2048u + 256u));
+  memcpy(myImage, image.get(), std::min(size, 8192u + 2048u + 256u));
   createCodeAccessBase(8192);
 
   // Pointer to the program ROM (8K @ 0 byte offset)
@@ -56,11 +52,6 @@ CartridgeDPC::CartridgeDPC(const uInt8* image, uInt32 size,
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartridgeDPC::~CartridgeDPC()
-{
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CartridgeDPC::reset()
 {
   // Update cycles to the current system cycles
@@ -74,28 +65,19 @@ void CartridgeDPC::reset()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CartridgeDPC::systemCyclesReset()
 {
-  // Get the current system cycle
-  uInt32 cycles = mySystem->cycles();
-
   // Adjust the cycle counter so that it reflects the new value
-  mySystemCycles -= cycles;
+  mySystemCycles -= mySystem->cycles();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CartridgeDPC::install(System& system)
 {
   mySystem = &system;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
-
-  // Make sure the system we're being installed in has a page size that'll work
-  assert(((0x1080 & mask) == 0) && ((0x1100 & mask) == 0));
-
-  System::PageAccess access(0, 0, 0, this, System::PA_READWRITE);
 
   // Set the page accessing method for the DPC reading & writing pages
-  for(uInt32 j = 0x1000; j < 0x1080; j += (1 << shift))
-    mySystem->setPageAccess(j >> shift, access);
+  System::PageAccess access(this, System::PA_READWRITE);
+  for(uInt32 j = 0x1000; j < 0x1080; j += (1 << System::PAGE_SHIFT))
+    mySystem->setPageAccess(j >> System::PAGE_SHIFT, access);
 
   // Install pages for the startup bank
   bank(myStartBank);
@@ -106,16 +88,16 @@ inline void CartridgeDPC::clockRandomNumberGenerator()
 {
   // Table for computing the input bit of the random number generator's
   // shift register (it's the NOT of the EOR of four bits)
-  static const uInt8 f[16] = {
+  static constexpr uInt8 f[16] = {
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1
   };
 
   // Using bits 7, 5, 4, & 3 of the shift register compute the input
   // bit for the shift register
-  uInt8 bit = f[((myRandomNumber >> 3) & 0x07) | 
+  uInt8 bit = f[((myRandomNumber >> 3) & 0x07) |
       ((myRandomNumber & 0x80) ? 0x08 : 0x00)];
 
-  // Update the shift register 
+  // Update the shift register
   myRandomNumber = (myRandomNumber << 1) | bit;
 }
 
@@ -128,8 +110,8 @@ inline void CartridgeDPC::updateMusicModeDataFetchers()
 
   // Calculate the number of DPC OSC clocks since the last update
   double clocks = ((20000.0 * cycles) / 1193191.66666667) + myFractionalClocks;
-  Int32 wholeClocks = (Int32)clocks;
-  myFractionalClocks = clocks - (double)wholeClocks;
+  Int32 wholeClocks = Int32(clocks);
+  myFractionalClocks = clocks - double(wholeClocks);
 
   if(wholeClocks <= 0)
   {
@@ -143,7 +125,7 @@ inline void CartridgeDPC::updateMusicModeDataFetchers()
     if(myMusicMode[x - 5])
     {
       Int32 top = myTops[x] + 1;
-      Int32 newLow = (Int32)(myCounters[x] & 0x00ff);
+      Int32 newLow = Int32(myCounters[x] & 0x00ff);
 
       if(myTops[x] != 0)
       {
@@ -168,7 +150,7 @@ inline void CartridgeDPC::updateMusicModeDataFetchers()
         myFlags[x] = 0xff;
       }
 
-      myCounters[x] = (myCounters[x] & 0x0700) | (uInt16)newLow;
+      myCounters[x] = (myCounters[x] & 0x0700) | uInt16(newLow);
     }
   }
 }
@@ -184,7 +166,7 @@ uInt8 CartridgeDPC::peek(uInt16 address)
     return myProgramImage[(myCurrentBank << 12) + address];
 
   // Clock the random number generator.  This should be done for every
-  // cartridge access, however, we're only doing it for the DPC and 
+  // cartridge access, however, we're only doing it for the DPC and
   // hot-spot accesses to save time.
   clockRandomNumberGenerator();
 
@@ -218,7 +200,7 @@ uInt8 CartridgeDPC::peek(uInt16 address)
         // No, it's a music read
         else
         {
-          static const uInt8 musicAmplitudes[8] = {
+          static constexpr uInt8 musicAmplitudes[8] = {
               0x00, 0x04, 0x05, 0x09, 0x06, 0x0a, 0x0b, 0x0f
           };
 
@@ -256,7 +238,7 @@ uInt8 CartridgeDPC::peek(uInt16 address)
       {
         result = myDisplayImage[2047 - myCounters[index]] & myFlags[index];
         break;
-      } 
+      }
 
       // DFx flag
       case 0x07:
@@ -307,14 +289,14 @@ bool CartridgeDPC::poke(uInt16 address, uInt8 value)
   address &= 0x0FFF;
 
   // Clock the random number generator.  This should be done for every
-  // cartridge access, however, we're only doing it for the DPC and 
+  // cartridge access, however, we're only doing it for the DPC and
   // hot-spot accesses to save time.
   clockRandomNumberGenerator();
 
   if((address >= 0x0040) && (address < 0x0080))
   {
     // Get the index of the data fetcher that's being accessed
-    uInt32 index = address & 0x07;    
+    uInt32 index = address & 0x07;
     uInt32 function = (address >> 3) & 0x07;
 
     switch(function)
@@ -342,14 +324,14 @@ bool CartridgeDPC::poke(uInt16 address, uInt8 value)
           // Data fetcher is in music mode so its low counter value
           // should be loaded from the top register not the poked value
           myCounters[index] = (myCounters[index] & 0x0700) |
-              (uInt16)myTops[index];
+              uInt16(myTops[index]);
         }
         else
         {
           // Data fetcher is either not a music mode data fetcher or it
           // isn't in music mode so it's low counter value should be loaded
           // with the poked value
-          myCounters[index] = (myCounters[index] & 0x0700) | (uInt16)value;
+          myCounters[index] = (myCounters[index] & 0x0700) | uInt16(value);
         }
         break;
       }
@@ -357,7 +339,7 @@ bool CartridgeDPC::poke(uInt16 address, uInt8 value)
       // DFx counter high
       case 0x03:
       {
-        myCounters[index] = (((uInt16)value & 0x07) << 8) |
+        myCounters[index] = ((uInt16(value) & 0x07) << 8) |
             (myCounters[index] & 0x00ff);
 
         // Execute special code for music mode data fetchers
@@ -383,7 +365,7 @@ bool CartridgeDPC::poke(uInt16 address, uInt8 value)
       {
         break;
       }
-    } 
+    }
   }
   else
   {
@@ -409,37 +391,36 @@ bool CartridgeDPC::poke(uInt16 address, uInt8 value)
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartridgeDPC::bank(uInt16 bank)
-{ 
+{
   if(bankLocked()) return false;
 
   // Remember what bank we're in
   myCurrentBank = bank;
   uInt16 offset = myCurrentBank << 12;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
 
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
+  System::PageAccess access(this, System::PA_READ);
 
   // Set the page accessing methods for the hot spots
-  for(uInt32 i = (0x1FF8 & ~mask); i < 0x2000; i += (1 << shift))
+  for(uInt32 i = (0x1FF8 & ~System::PAGE_MASK); i < 0x2000;
+      i += (1 << System::PAGE_SHIFT))
   {
     access.codeAccessBase = &myCodeAccessBase[offset + (i & 0x0FFF)];
-    mySystem->setPageAccess(i >> shift, access);
+    mySystem->setPageAccess(i >> System::PAGE_SHIFT, access);
   }
 
   // Setup the page access methods for the current bank
-  for(uInt32 address = 0x1080; address < (0x1FF8U & ~mask);
-      address += (1 << shift))
+  for(uInt32 address = 0x1080; address < (0x1FF8U & ~System::PAGE_MASK);
+      address += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myProgramImage[offset + (address & 0x0FFF)];
     access.codeAccessBase = &myCodeAccessBase[offset + (address & 0x0FFF)];
-    mySystem->setPageAccess(address >> shift, access);
+    mySystem->setPageAccess(address >> System::PAGE_SHIFT, access);
   }
   return myBankChanged = true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 CartridgeDPC::bank() const
+uInt16 CartridgeDPC::getBank() const
 {
   return myCurrentBank;
 }
@@ -463,7 +444,7 @@ bool CartridgeDPC::patch(uInt16 address, uInt8 value)
   }
   else
     return false;
-} 
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const uInt8* CartridgeDPC::getImage(int& size) const
@@ -475,70 +456,86 @@ const uInt8* CartridgeDPC::getImage(int& size) const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartridgeDPC::save(Serializer& out) const
 {
-   out.putString(name());
+  try
+  {
+    out.putString(name());
 
-   // Indicates which bank is currently active
-   out.putShort(myCurrentBank);
+    // Indicates which bank is currently active
+    out.putShort(myCurrentBank);
 
-   // The top registers for the data fetchers
-   out.putByteArray(myTops, 8);
+    // The top registers for the data fetchers
+    out.putByteArray(myTops, 8);
 
-   // The bottom registers for the data fetchers
-   out.putByteArray(myBottoms, 8);
+    // The bottom registers for the data fetchers
+    out.putByteArray(myBottoms, 8);
 
-   // The counter registers for the data fetchers
-   out.putShortArray(myCounters, 8);
+    // The counter registers for the data fetchers
+    out.putShortArray(myCounters, 8);
 
-   // The flag registers for the data fetchers
-   out.putByteArray(myFlags, 8);
+    // The flag registers for the data fetchers
+    out.putByteArray(myFlags, 8);
 
-   // The music mode flags for the data fetchers
-   for(int i = 0; i < 3; ++i)
+    // The music mode flags for the data fetchers
+    for(int i = 0; i < 3; ++i)
       out.putBool(myMusicMode[i]);
 
-   // The random number generator register
-   out.putByte(myRandomNumber);
+    // The random number generator register
+    out.putByte(myRandomNumber);
 
-   out.putInt(mySystemCycles);
-   out.putInt((uInt32)(myFractionalClocks * 100000000.0));
+    out.putInt(mySystemCycles);
+    out.putInt(uInt32(myFractionalClocks * 100000000.0));
+  }
+  catch(...)
+  {
+    cerr << "ERROR: CartridgeDPC::save" << endl;
+    return false;
+  }
 
-   return true;
+  return true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartridgeDPC::load(Serializer& in)
 {
-   if(in.getString() != name())
+  try
+  {
+    if(in.getString() != name())
       return false;
 
-   // Indicates which bank is currently active
-   myCurrentBank = in.getShort();
+    // Indicates which bank is currently active
+    myCurrentBank = in.getShort();
 
-   // The top registers for the data fetchers
-   in.getByteArray(myTops, 8);
+    // The top registers for the data fetchers
+    in.getByteArray(myTops, 8);
 
-   // The bottom registers for the data fetchers
-   in.getByteArray(myBottoms, 8);
+    // The bottom registers for the data fetchers
+    in.getByteArray(myBottoms, 8);
 
-   // The counter registers for the data fetchers
-   in.getShortArray(myCounters, 8);
+    // The counter registers for the data fetchers
+    in.getShortArray(myCounters, 8);
 
-   // The flag registers for the data fetchers
-   in.getByteArray(myFlags, 8);
+    // The flag registers for the data fetchers
+    in.getByteArray(myFlags, 8);
 
-   // The music mode flags for the data fetchers
-   for(int i = 0; i < 3; ++i)
+    // The music mode flags for the data fetchers
+    for(int i = 0; i < 3; ++i)
       myMusicMode[i] = in.getBool();
 
-   // The random number generator register
-   myRandomNumber = in.getByte();
+    // The random number generator register
+    myRandomNumber = in.getByte();
 
-   // Get system cycles and fractional clocks
-   mySystemCycles = (Int32)in.getInt();
-   myFractionalClocks = (double)in.getInt() / 100000000.0;
+    // Get system cycles and fractional clocks
+    mySystemCycles = Int32(in.getInt());
+    myFractionalClocks = double(in.getInt()) / 100000000.0;
+  }
+  catch(...)
+  {
+    cerr << "ERROR: CartridgeDPC::load" << endl;
+    return false;
+  }
 
-   // Now, go to the current bank
-   bank(myCurrentBank);
+  // Now, go to the current bank
+  bank(myCurrentBank);
 
-   return true;
+  return true;
 }

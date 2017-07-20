@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: RiotDebug.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef RIOT_DEBUG_HXX
@@ -23,7 +21,6 @@
 class Debugger;
 class RiotDebug;
 
-#include "Array.hxx"
 #include "M6532.hxx"
 #include "DebuggerSystem.hxx"
 
@@ -50,11 +47,11 @@ class RiotDebug : public DebuggerSystem
   public:
     RiotDebug(Debugger& dbg, Console& console);
 
-    const DebuggerState& getState();
-    const DebuggerState& getOldState() { return myOldState; }
+    const DebuggerState& getState() override;
+    const DebuggerState& getOldState() override { return myOldState; }
 
-    void saveOldState();
-    string toString();
+    void saveOldState() override;
+    string toString() override;
 
     /* Port A and B registers */
     uInt8 swcha(int newVal = -1);
@@ -96,10 +93,18 @@ class RiotDebug : public DebuggerSystem
     string diffP1String();
     string tvTypeString();
     string switchesString();
-    
+
   private:
     RiotState myState;
     RiotState myOldState;
+
+  private:
+    // Following constructors and assignment operators not supported
+    RiotDebug() = delete;
+    RiotDebug(const RiotDebug&) = delete;
+    RiotDebug(RiotDebug&&) = delete;
+    RiotDebug& operator=(const RiotDebug&) = delete;
+    RiotDebug& operator=(RiotDebug&&) = delete;
 };
 
 #endif

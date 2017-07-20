@@ -1,50 +1,40 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Cart3F.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
-
-#include <cassert>
-#include <cstring>
 
 #include "System.hxx"
 #include "TIA.hxx"
 #include "Cart3F.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Cartridge3F::Cartridge3F(const uInt8* image, uInt32 size,
+Cartridge3F::Cartridge3F(const BytePtr& image, uInt32 size,
                          const Settings& settings)
   : Cartridge(settings),
-    mySize(size)
+    mySize(size),
+    myCurrentBank(0)
 {
   // Allocate array for the ROM image
-  myImage = new uInt8[mySize];
+  myImage = make_ptr<uInt8[]>(mySize);
 
   // Copy the ROM image into my buffer
-  memcpy(myImage, image, mySize);
+  memcpy(myImage.get(), image.get(), mySize);
   createCodeAccessBase(mySize);
 
   // Remember startup bank
   myStartBank = 0;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Cartridge3F::~Cartridge3F()
-{
-  delete[] myImage;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -58,28 +48,23 @@ void Cartridge3F::reset()
 void Cartridge3F::install(System& system)
 {
   mySystem = &system;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
 
-  // Make sure the system we're being installed in has a page size that'll work
-  assert((0x1800 & mask) == 0);
-
-  System::PageAccess access(0, 0, 0, this, System::PA_READWRITE);
+  System::PageAccess access(this, System::PA_READWRITE);
 
   // Set the page accessing methods for the hot spots (for 100% emulation
   // we need to chain any accesses below 0x40 to the TIA. Our poke() method
   // does this via mySystem->tiaPoke(...), at least until we come up with a
   // cleaner way to do it).
-  for(uInt32 i = 0x00; i < 0x40; i += (1 << shift))
-    mySystem->setPageAccess(i >> shift, access);
+  for(uInt32 i = 0x00; i < 0x40; i += (1 << System::PAGE_SHIFT))
+    mySystem->setPageAccess(i >> System::PAGE_SHIFT, access);
 
   // Setup the second segment to always point to the last ROM slice
   access.type = System::PA_READ;
-  for(uInt32 j = 0x1800; j < 0x2000; j += (1 << shift))
+  for(uInt32 j = 0x1800; j < 0x2000; j += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myImage[(mySize - 2048) + (j & 0x07FF)];
     access.codeAccessBase = &myCodeAccessBase[(mySize - 2048) + (j & 0x07FF)];
-    mySystem->setPageAccess(j >> shift, access);
+    mySystem->setPageAccess(j >> System::PAGE_SHIFT, access);
   }
 
   // Install pages for startup bank into the first segment
@@ -108,9 +93,7 @@ bool Cartridge3F::poke(uInt16 address, uInt8 value)
 
   // Switch banks if necessary
   if(address <= 0x003F)
-  {
     bank(value);
-  }
 
   // Pass the poke through to the TIA. In a real Atari, both the cart and the
   // TIA see the address lines, and both react accordingly. In Stella, each
@@ -123,11 +106,12 @@ bool Cartridge3F::poke(uInt16 address, uInt8 value)
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge3F::bank(uInt16 bank)
-{ 
-  if(bankLocked()) return false;
+{
+  if(bankLocked())
+    return false;
 
   // Make sure the bank they're asking for is reasonable
-  if(((uInt32)bank << 11) < mySize)
+  if((uInt32(bank) << 11) < mySize)
   {
     myCurrentBank = bank;
   }
@@ -139,23 +123,23 @@ bool Cartridge3F::bank(uInt16 bank)
   }
 
   uInt32 offset = myCurrentBank << 11;
-  uInt16 shift = mySystem->pageShift();
 
   // Setup the page access methods for the current bank
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
+  System::PageAccess access(this, System::PA_READ);
 
   // Map ROM image into the system
-  for(uInt32 address = 0x1000; address < 0x1800; address += (1 << shift))
+  for(uInt32 address = 0x1000; address < 0x1800;
+      address += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myImage[offset + (address & 0x07FF)];
     access.codeAccessBase = &myCodeAccessBase[offset + (address & 0x07FF)];
-    mySystem->setPageAccess(address >> shift, access);
+    mySystem->setPageAccess(address >> System::PAGE_SHIFT, access);
   }
   return myBankChanged = true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 Cartridge3F::bank() const
+uInt16 Cartridge3F::getBank() const
 {
   return myCurrentBank;
 }
@@ -177,34 +161,50 @@ bool Cartridge3F::patch(uInt16 address, uInt8 value)
     myImage[(address & 0x07FF) + mySize - 2048] = value;
 
   return myBankChanged = true;
-} 
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const uInt8* Cartridge3F::getImage(int& size) const
 {
   size = mySize;
-  return myImage;
+  return myImage.get();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge3F::save(Serializer& out) const
 {
-   out.putString(name());
-   out.putShort(myCurrentBank);
+  try
+  {
+    out.putString(name());
+    out.putShort(myCurrentBank);
+  }
+  catch(...)
+  {
+    cerr << "ERROR: Cartridge3F::save" << endl;
+    return false;
+  }
 
-   return true;
+  return true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge3F::load(Serializer& in)
 {
-   if(in.getString() != name())
+  try
+  {
+    if(in.getString() != name())
       return false;
 
-   myCurrentBank = in.getShort();
+    myCurrentBank = in.getShort();
+  }
+  catch(...)
+  {
+    cerr << "ERROR: Cartridge3F::load" << endl;
+    return false;
+  }
 
-   // Now, go to the current bank
-   bank(myCurrentBank);
+  // Now, go to the current bank
+  bank(myCurrentBank);
 
-   return true;
+  return true;
 }

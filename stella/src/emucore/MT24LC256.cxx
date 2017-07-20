@@ -1,25 +1,21 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: MT24LC256.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
-#include <cassert>
 #include <cstdio>
-#include <cstring>
 #include <fstream>
 
 #include "System.hxx"
@@ -58,22 +54,32 @@ MT24LC256::MT24LC256(const string& filename, const System& system)
     myCyclesWhenSCLSet(0),
     myDataFile(filename),
     myDataFileExists(false),
-    myDataChanged(false)
+    myDataChanged(false),
+    jpee_mdat(0),
+    jpee_sdat(0),
+    jpee_mclk(0),
+    jpee_sizemask(0),
+    jpee_pagemask(0),
+    jpee_smallmode(0),
+    jpee_logmode(0),
+    jpee_pptr(0),
+    jpee_state(0),
+    jpee_nb(0),
+    jpee_address(0),
+    jpee_ad_known(0)
 {
   // Load the data from an external file (if it exists)
-  ifstream in;
-  in.open(myDataFile.c_str(), ios_base::binary);
+  ifstream in(myDataFile, std::ios_base::binary);
   if(in.is_open())
   {
     // Get length of file; it must be 32768
-    in.seekg(0, ios::end);
-    if((int)in.tellg() == 32768)
+    in.seekg(0, std::ios::end);
+    if(uInt32(in.tellg()) == 32768u)
     {
-      in.seekg(0, ios::beg);
-      in.read((char*)myData, 32768);
+      in.seekg(0, std::ios::beg);
+      in.read(reinterpret_cast<char*>(myData), 32768);
       myDataFileExists = true;
     }
-    in.close();
   }
   else
     myDataFileExists = false;
@@ -81,27 +87,17 @@ MT24LC256::MT24LC256(const string& filename, const System& system)
   // Then initialize the I2C state
   jpee_init();
 }
- 
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 MT24LC256::~MT24LC256()
 {
   // Save EEPROM data to external file only when necessary
   if(!myDataFileExists || myDataChanged)
   {
-    ofstream out;
-    out.open(myDataFile.c_str(), ios_base::binary);
+    ofstream out(myDataFile, std::ios_base::binary);
     if(out.is_open())
-    {
-      out.write((char*)myData, 32768);
-      out.close();
-    }
+      out.write(reinterpret_cast<char*>(myData), 32768);
   }
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool MT24LC256::readSDA()
-{
-  return jpee_mdat && jpee_sdat;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -146,6 +142,13 @@ void MT24LC256::update()
     jpee_clock(mySCL);
     jpee_data(mySDA);
   }
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void MT24LC256::erase()
+{
+  memset(myData, 0xff, 32768);
+  myDataChanged = true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -204,8 +207,6 @@ void MT24LC256::jpee_data_start()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void MT24LC256::jpee_data_stop()
 {
-  int i;
-
   if (jpee_state == 1 && jpee_nb != 1)
   {
     JPEE_LOG0("I2C_WARNING ABANDON_WRITE");
@@ -226,7 +227,7 @@ void MT24LC256::jpee_data_stop()
       jpee_pptr = 4+jpee_pagemask-(jpee_address & jpee_pagemask);
       JPEE_LOG1("I2C_WARNING PAGECROSSING!(Truncate to %d bytes)",jpee_pptr-3);
     }
-    for (i=3; i<jpee_pptr; i++)
+    for (int i=3; i<jpee_pptr; i++)
     {
       myDataChanged = true;
       myData[(jpee_address++) & jpee_sizemask] = jpee_packet[i];
@@ -253,7 +254,7 @@ void MT24LC256::jpee_clock_fall()
       {
         if (!jpee_pptr)
         {
-          jpee_packet[0] = (unsigned char)jpee_nb;
+          jpee_packet[0] = uInt8(jpee_nb);
           if (jpee_smallmode && ((jpee_nb & 0xF0) == 0xA0))
           {
             jpee_packet[1] = (jpee_nb >> 1) & 7;
@@ -295,7 +296,7 @@ void MT24LC256::jpee_clock_fall()
       {
         if (!jpee_pptr)
         {
-          jpee_packet[0] = (unsigned char)jpee_nb;
+          jpee_packet[0] = uInt8(jpee_nb);
           if (jpee_smallmode)
             jpee_pptr=2;
           else
@@ -304,7 +305,7 @@ void MT24LC256::jpee_clock_fall()
         else if (jpee_pptr < 70)
         {
           JPEE_LOG1("I2C_SENT(%02X)",jpee_nb & 0xFF);
-          jpee_packet[jpee_pptr++] = (unsigned char)jpee_nb;
+          jpee_packet[jpee_pptr++] = uInt8(jpee_nb);
           jpee_address = (jpee_packet[1] << 8) | jpee_packet[2];
           if (jpee_pptr > 2)
             jpee_ad_known = 1;
@@ -327,6 +328,7 @@ void MT24LC256::jpee_clock_fall()
       jpee_state=3;
       jpee_nb = (myData[jpee_address & jpee_sizemask] << 1) | 1;  /* Fall through */
       JPEE_LOG2("I2C_READ(%04X=%02X)",jpee_address,jpee_nb/2);
+      [[fallthrough]];
 
     case 3:
       jpee_sdat = !!(jpee_nb & 256);
@@ -365,7 +367,7 @@ bool MT24LC256::jpee_timercheck(int mode)
     if(myTimerActive)
     {
       uInt32 elapsed = mySystem.cycles() - myCyclesWhenTimerSet;
-      myTimerActive = elapsed < (uInt32)(5000000.0 / 838.0);
+      myTimerActive = elapsed < uInt32(5000000.0 / 838.0);
     }
     return myTimerActive;
   }
@@ -376,19 +378,4 @@ int MT24LC256::jpee_logproc(char const *st)
 {
   cerr << "    " << st << endl;
   return 0;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-MT24LC256::MT24LC256(const MT24LC256& c)
-  : mySystem(c.mySystem),
-    myDataFile(c.myDataFile)
-{
-  assert(false);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-MT24LC256& MT24LC256::operator = (const MT24LC256&)
-{
-  assert(false);
-  return *this;
 }

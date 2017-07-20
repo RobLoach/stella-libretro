@@ -1,23 +1,19 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CheatCodeDialog.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
-
-#include <sstream>
 
 #include "bspf.hxx"
 
@@ -29,15 +25,14 @@
 #include "InputTextDialog.hxx"
 #include "OSystem.hxx"
 #include "Props.hxx"
-#include "StringList.hxx"
 #include "Widget.hxx"
 
 #include "CheatCodeDialog.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CheatCodeDialog::CheatCodeDialog(OSystem* osystem, DialogContainer* parent,
+CheatCodeDialog::CheatCodeDialog(OSystem& osystem, DialogContainer& parent,
                                  const GUI::Font& font)
-  : Dialog(osystem, parent, 0, 0, 0, 0)
+  : Dialog(osystem, parent)
 {
   const int lineHeight   = font.getLineHeight(),
             fontWidth    = font.getMaxCharWidth(),
@@ -84,10 +79,21 @@ CheatCodeDialog::CheatCodeDialog(OSystem* osystem, DialogContainer* parent,
 
   // Inputbox which will pop up when adding/editing a cheat
   StringList labels;
-  labels.push_back("Name: ");
-  labels.push_back("Code: ");
-  myCheatInput = new InputTextDialog(this, font, labels);
+  labels.push_back("Name       ");
+  labels.push_back("Code (hex) ");
+  myCheatInput = make_ptr<InputTextDialog>(this, font, labels);
   myCheatInput->setTarget(this);
+
+  // Add filtering for each textfield
+  EditableWidget::TextFilter f0 = [](char c) {
+    return isprint(c) && c != '\"' && c != ':';
+  };
+  myCheatInput->setTextFilter(f0, 0);
+
+  EditableWidget::TextFilter f1 = [](char c) {
+    return (c >= 'a' && c <= 'f') || (c >= '0' && c <= '9');
+  };
+  myCheatInput->setTextFilter(f1, 1);
 
   addToFocusList(wid);
 
@@ -95,12 +101,6 @@ CheatCodeDialog::CheatCodeDialog(OSystem* osystem, DialogContainer* parent,
   wid.clear();
   addOKCancelBGroup(wid, font);
   addBGroupToFocusList(wid);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CheatCodeDialog::~CheatCodeDialog()
-{
-  delete myCheatInput;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -113,10 +113,10 @@ void CheatCodeDialog::loadConfig()
   BoolArray b;
 
   const CheatList& list = instance().cheat().list();
-  for(unsigned int i = 0; i < list.size(); ++i)
+  for(const auto& c: list)
   {
-    l.push_back(list[i]->name());
-    b.push_back(bool(list[i]->enabled()));
+    l.push_back(c->name());
+    b.push_back(bool(c->enabled()));
   }
   myCheatList->setList(l, b);
 
@@ -133,7 +133,7 @@ void CheatCodeDialog::saveConfig()
 {
   // Inspect checkboxes for enable/disable codes
   const CheatList& list = instance().cheat().list();
-  for(unsigned int i = 0; i < myCheatList->getList().size(); ++i)
+  for(uInt32 i = 0; i < myCheatList->getList().size(); ++i)
   {
     if(myCheatList->getState(i))
       list[i]->enable();

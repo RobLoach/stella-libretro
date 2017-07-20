@@ -1,25 +1,24 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartCM.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGECM_HXX
 #define CARTRIDGECM_HXX
 
+class CompuMate;
 class System;
 
 #include "bspf.hxx"
@@ -31,7 +30,7 @@ class System;
 /**
   Cartridge class used for SpectraVideo CompuMate bankswitched games.
 
-  This is more than just a cartridge mapper - it's also a "computer" add-on.  
+  This is more than just a cartridge mapper - it's also a "computer" add-on.
   There's two 8K EPROMs soldered on top of each other.  There's two short
   wires with DB-9's on them which you plug into the two controller ports.
   A 42 or so key membrane keyboard with audio in and audio out, and 2K of RAM.
@@ -76,24 +75,24 @@ class System;
     0     1     2     3     4     5     6     7     8     9
   +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
   | 7 | | 6 | | 8 | | 2 | | 3 | | 0 | | 9 | | 5 | | 1 | | 4 |  0
-  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ 
-  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ 
+  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
+  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
   | U | | Y | | I | | W | | E | | P | | O | | T | | Q | | R |  1
   +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+     Row
   +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
   | J | | H | | K | | S | | D | |ent| | L | | G | | A | | F |  2
-  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ 
+  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
   +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
   | M | | N | | < | | X | | C | |spc| | > | | B | | Z | | V |  3
-  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ 
+  +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
 
   Function and Shift are separate keys that are read by 2 of the paddle inputs.
   These two buttons pull the specific paddle input low when pressed.
 
-  Because the inputs are inverted, a low indicates a pressed button, and a high 
+  Because the inputs are inverted, a low indicates a pressed button, and a high
   is an unpressed one.
 
-  The audio input/output are designed to drive a tape player.  The audio output is 
+  The audio input/output are designed to drive a tape player.  The audio output is
   buffered through an inverter and 2 resistors and a capacitor to reduce the level
   to feed it into the tape player.
 
@@ -104,7 +103,6 @@ class System;
   This code was heavily borrowed from z26.
 
   @author  Stephen Anthony & z26 team
-  @version $Id: CartCM.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class CartridgeCM : public Cartridge
 {
@@ -118,18 +116,14 @@ class CartridgeCM : public Cartridge
       @param size      The size of the ROM image
       @param settings  A reference to the various settings (read-only)
     */
-    CartridgeCM(const uInt8* image, uInt32 size, const Settings& settings);
- 
-    /**
-      Destructor
-    */
-    virtual ~CartridgeCM();
+    CartridgeCM(const BytePtr& image, uInt32 size, const Settings& settings);
+    virtual ~CartridgeCM() = default;
 
   public:
     /**
       Reset device to its power-on state
     */
-    void reset();
+    void reset() override;
 
     /**
       Install cartridge in the specified system.  Invoked by the system
@@ -137,24 +131,24 @@ class CartridgeCM : public Cartridge
 
       @param system The system the device should install itself in
     */
-    void install(System& system);
+    void install(System& system) override;
 
     /**
       Install pages for the specified bank in the system.
 
       @param bank The bank that should be installed in the system
     */
-    bool bank(uInt16 bank);
+    bool bank(uInt16 bank) override;
 
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const override;
 
     /**
       Query the number of banks supported by the cartridge.
     */
-    uInt16 bankCount() const;
+    uInt16 bankCount() const override;
 
     /**
       Patch the cartridge ROM.
@@ -163,7 +157,7 @@ class CartridgeCM : public Cartridge
       @param value    The value to place into the address
       @return    Success or failure of the patch operation
     */
-    bool patch(uInt16 address, uInt8 value);
+    bool patch(uInt16 address, uInt8 value) override;
 
     /**
       Access the internal ROM image for this cartridge.
@@ -171,7 +165,7 @@ class CartridgeCM : public Cartridge
       @param size  Set to the size of the internal ROM image data
       @return  A pointer to the internal ROM image data
     */
-    const uInt8* getImage(int& size) const;
+    const uInt8* getImage(int& size) const override;
 
     /**
       Save the current state of this cart to the given Serializer.
@@ -179,7 +173,7 @@ class CartridgeCM : public Cartridge
       @param out  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Load the current state of this cart from the given Serializer.
@@ -187,14 +181,14 @@ class CartridgeCM : public Cartridge
       @param in  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
 
     /**
       Get a descriptor for the device name (used in error checking).
 
       @return The name of the object
     */
-    string name() const { return "CartridgeCM"; }
+    string name() const override { return "CartridgeCM"; }
 
   #ifdef DEBUGGER_SUPPORT
     /**
@@ -202,7 +196,7 @@ class CartridgeCM : public Cartridge
       of the cart.
     */
     CartDebugWidget* debugWidget(GuiObject* boss, const GUI::Font& lfont,
-        const GUI::Font& nfont, int x, int y, int w, int h)
+        const GUI::Font& nfont, int x, int y, int w, int h) override
     {
       return new CartridgeCMWidget(boss, lfont, nfont, x, y, w, h, *this);
     }
@@ -214,7 +208,7 @@ class CartridgeCM : public Cartridge
 
       @return The byte at the specified address
     */
-    uInt8 peek(uInt16 address);
+    uInt8 peek(uInt16 address) override;
 
     /**
       Change the byte at the specified address to the given value
@@ -223,18 +217,23 @@ class CartridgeCM : public Cartridge
       @param value The value to be stored at the address
       @return  True if the poke changed the device address space, else false
     */
-    bool poke(uInt16 address, uInt8 value);
+    bool poke(uInt16 address, uInt8 value) override;
 
     /**
-      Get the current keybord column
+      Inform the cartridge about the parent CompuMate controller
+    */
+    void setCompuMate(shared_ptr<CompuMate>& cmate) { myCompuMate = cmate; }
+
+    /**
+      Get the current keyboard column
 
       @return The column referenced by SWCHA D6 and D5
     */
-    uInt8 column() const { return myColumn; }
+    uInt8 column() const;
 
   private:
-    // Indicates which bank is currently active
-    uInt16 myCurrentBank;
+    // The CompuMate device which interacts with this cartridge
+    shared_ptr<CompuMate> myCompuMate;
 
     // The 16K ROM image of the cartridge
     uInt8 myImage[16384];
@@ -245,8 +244,16 @@ class CartridgeCM : public Cartridge
     // Current copy of SWCHA (controls ROM/RAM accesses)
     uInt8 mySWCHA;
 
-    // Column currently active
-    uInt8 myColumn;
+    // Indicates which bank is currently active
+    uInt16 myCurrentBank;
+
+private:
+    // Following constructors and assignment operators not supported
+    CartridgeCM() = delete;
+    CartridgeCM(const CartridgeCM&) = delete;
+    CartridgeCM(CartridgeCM&&) = delete;
+    CartridgeCM& operator=(const CartridgeCM&) = delete;
+    CartridgeCM& operator=(CartridgeCM&&) = delete;
 };
 
 #endif

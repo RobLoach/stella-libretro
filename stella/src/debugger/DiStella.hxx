@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: DiStella.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef DISTELLA_HXX
@@ -23,7 +21,6 @@
 #include <queue>
 #include <sstream>
 
-#include "Array.hxx"
 #include "Base.hxx"
 #include "CartDebug.hxx"
 #include "bspf.hxx"
@@ -33,7 +30,7 @@
   exactly the same, except that generated data is now redirected to a
   DisassemblyList structure rather than being printed.
 
-  All 7800-related stuff has been removed, as well as all commandline options.
+  All 7800-related stuff has been removed, as well as some commandline options.
   Over time, some of the configurability of Distella may be added again.
 
   @author  Stephen Anthony
@@ -44,7 +41,7 @@ class DiStella
     // A list of options that can be applied to the disassembly
     // This will eventually grow to include all options supported by
     // standalone Distella
-    typedef struct {
+    struct Settings{
       Common::Base::Format gfx_format;
       bool resolve_code;    // Attempt to detect code vs. data sections
       bool show_addresses;  // Show PC addresses (always off for external output)
@@ -52,7 +49,7 @@ class DiStella
       bool fflag;  // Forces correct address length (-f in Distella)
       bool rflag;  // Relocate calls out of address range (-r in Distella)
       int bwidth;  // Number of bytes to use per line (with .byte xxx)
-    } Settings;
+    };
     static Settings settings;  // Default settings
 
   public:
@@ -71,8 +68,6 @@ class DiStella
              CartDebug::BankInfo& info, const DiStella::Settings& settings,
              uInt8* labels, uInt8* directives,
              CartDebug::ReservedEquates& reserved);
-
-    ~DiStella();
 
   private:
     // Indicate that a new line of disassembly has been completed
@@ -118,8 +113,8 @@ class DiStella
     const Settings& mySettings;
     CartDebug::ReservedEquates& myReserved;
     stringstream myDisasmBuf;
-    queue<uInt16> myAddressQueue;
-    uInt16 myOffset, myPC, myPCBeg, myPCEnd;
+    std::queue<uInt16> myAddressQueue;
+    uInt16 myOffset, myPC, myPCEnd;
 
     struct resource {
       uInt16 start;
@@ -179,13 +174,21 @@ class DiStella
     };
 
     struct Instruction_tag {
-      const char*    mnemonic;
+      const char* const mnemonic;
       AddressingMode addr_mode;
       AccessMode     source;
       ReadWriteMode  rw_mode;
       uInt8          cycles;
     };
     static const Instruction_tag ourLookup[256];
+
+  private:
+    // Following constructors and assignment operators not supported
+    DiStella() = delete;
+    DiStella(const DiStella&) = delete;
+    DiStella(DiStella&&) = delete;
+    DiStella& operator=(const DiStella&) = delete;
+    DiStella& operator=(DiStella&&) = delete;
 };
 
 #endif

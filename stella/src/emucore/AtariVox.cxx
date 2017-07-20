@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: AtariVox.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include "MT24LC256.hxx"
@@ -27,8 +25,7 @@ AtariVox::AtariVox(Jack jack, const Event& event, const System& system,
                    const SerialPort& port, const string& portname,
                    const string& eepromfile)
   : Controller(jack, event, system, Controller::AtariVox),
-    mySerialPort((SerialPort&)port),
-    myEEPROM(NULL),
+    mySerialPort(const_cast<SerialPort&>(port)),
     myShiftCount(0),
     myShiftRegister(0),
     myLastDataWriteCycle(0)
@@ -38,19 +35,12 @@ AtariVox::AtariVox(Jack jack, const Event& event, const System& system,
   else
     myAboutString = " (invalid serial port \'" + portname + "\')";
 
-  myEEPROM = new MT24LC256(eepromfile, system);
+  myEEPROM = make_ptr<MT24LC256>(eepromfile, system);
 
   myDigitalPinState[One] = myDigitalPinState[Two] =
   myDigitalPinState[Three] = myDigitalPinState[Four] = true;
 
   myAnalogPinValue[Five] = myAnalogPinValue[Nine] = maximumResistance;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-AtariVox::~AtariVox()
-{
-  mySerialPort.closePort();
-  delete myEEPROM;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -88,7 +78,7 @@ void AtariVox::write(DigitalPin pin, bool value)
       myDigitalPinState[One] = value;
       clockDataIn(value);
       break;
-  
+
     // Pin 3: EEPROM SDA
     //        output data to the 24LC256 EEPROM using the I2C protocol
     case Three:
@@ -105,7 +95,7 @@ void AtariVox::write(DigitalPin pin, bool value)
 
     default:
       break;
-  } 
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -118,12 +108,7 @@ void AtariVox::clockDataIn(bool value)
 
   // If this is the first write this frame, or if it's been a long time
   // since the last write, start a new data byte.
-  if(cycle < myLastDataWriteCycle)
-  {
-    myShiftRegister = 0;
-    myShiftCount = 0;
-  }
-  else if(cycle > myLastDataWriteCycle + 1000)
+  if((cycle < myLastDataWriteCycle) || (cycle > myLastDataWriteCycle + 1000))
   {
     myShiftRegister = 0;
     myShiftCount = 0;
@@ -131,7 +116,7 @@ void AtariVox::clockDataIn(bool value)
 
   // If this is the first write this frame, or if it's been 62 cycles
   // since the last write, shift this bit into the current byte.
-  if(cycle < myLastDataWriteCycle || cycle >= myLastDataWriteCycle + 62)
+  if((cycle < myLastDataWriteCycle) || (cycle >= myLastDataWriteCycle + 62))
   {
     myShiftRegister >>= 1;
     myShiftRegister |= (value << 15);
@@ -153,6 +138,13 @@ void AtariVox::clockDataIn(bool value)
   }
 
   myLastDataWriteCycle = cycle;
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void AtariVox::close()
+{
+  // Force the EEPROM object to cleanup
+  myEEPROM.reset();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

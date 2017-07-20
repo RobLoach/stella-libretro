@@ -8,36 +8,28 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartDF.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
-
-#include <cassert>
-#include <cstring>
 
 #include "System.hxx"
 #include "CartDF.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartridgeDF::CartridgeDF(const uInt8* image, uInt32 size, const Settings& settings)
-  : Cartridge(settings)
+CartridgeDF::CartridgeDF(const BytePtr& image, uInt32 size,
+                         const Settings& settings)
+  : Cartridge(settings),
+    myCurrentBank(0)
 {
   // Copy the ROM image into my buffer
-  memcpy(myImage, image, MIN(131072u, size));
+  memcpy(myImage, image.get(), std::min(131072u, size));
   createCodeAccessBase(131072);
 
   // Remember startup bank
   myStartBank = 1;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartridgeDF::~CartridgeDF()
-{
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -51,9 +43,6 @@ void CartridgeDF::reset()
 void CartridgeDF::install(System& system)
 {
   mySystem = &system;
-
-  // Make sure the system we're being installed in has a page size that'll work
-  assert((0x1000 & mySystem->pageMask()) == 0);
 
   // Install pages for the startup bank
   bank(myStartBank);
@@ -91,31 +80,30 @@ bool CartridgeDF::bank(uInt16 bank)
   // Remember what bank we're in
   myCurrentBank = bank;
   uInt32 offset = myCurrentBank << 12;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
 
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
+  System::PageAccess access(this, System::PA_READ);
 
   // Set the page accessing methods for the hot spots
-  for(uInt32 i = (0x1FC0 & ~mask); i < 0x2000; i += (1 << shift))
+  for(uInt32 i = (0x1FC0 & ~System::PAGE_MASK); i < 0x2000;
+      i += (1 << System::PAGE_SHIFT))
   {
     access.codeAccessBase = &myCodeAccessBase[offset + (i & 0x0FFF)];
-    mySystem->setPageAccess(i >> shift, access);
+    mySystem->setPageAccess(i >> System::PAGE_SHIFT, access);
   }
 
   // Setup the page access methods for the current bank
-  for(uInt32 address = 0x1000; address < (0x1FC0U & ~mask);
-      address += (1 << shift))
+  for(uInt32 address = 0x1000; address < (0x1FC0U & ~System::PAGE_MASK);
+      address += (1 << System::PAGE_SHIFT))
   {
     access.directPeekBase = &myImage[offset + (address & 0x0FFF)];
     access.codeAccessBase = &myCodeAccessBase[offset + (address & 0x0FFF)];
-    mySystem->setPageAccess(address >> shift, access);
+    mySystem->setPageAccess(address >> System::PAGE_SHIFT, access);
   }
   return myBankChanged = true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 CartridgeDF::bank() const
+uInt16 CartridgeDF::getBank() const
 {
   return myCurrentBank;
 }
@@ -131,7 +119,7 @@ bool CartridgeDF::patch(uInt16 address, uInt8 value)
 {
   myImage[(myCurrentBank << 12) + (address & 0x0FFF)] = value;
   return myBankChanged = true;
-} 
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const uInt8* CartridgeDF::getImage(int& size) const
@@ -143,22 +131,38 @@ const uInt8* CartridgeDF::getImage(int& size) const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartridgeDF::save(Serializer& out) const
 {
-   out.putString(name());
-   out.putShort(myCurrentBank);
+  try
+  {
+    out.putString(name());
+    out.putShort(myCurrentBank);
+  }
+  catch(...)
+  {
+    cerr << "ERROR: CartridgeDF::save" << endl;
+    return false;
+  }
 
-   return true;
+  return true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartridgeDF::load(Serializer& in)
 {
-   if(in.getString() != name())
+  try
+  {
+    if(in.getString() != name())
       return false;
 
-   myCurrentBank = in.getShort();
+    myCurrentBank = in.getShort();
+  }
+  catch(...)
+  {
+    cerr << "ERROR: CartridgeDF::load" << endl;
+    return false;
+  }
 
-   // Remember what bank we were in
-   bank(myCurrentBank);
+  // Remember what bank we were in
+  bank(myCurrentBank);
 
-   return true;
+  return true;
 }

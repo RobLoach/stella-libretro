@@ -18,7 +18,7 @@ foreach $infile (@files)
   # Update date
   foreach $line (<IN>)
   {
-    $line =~ s/1995-2014/1995-2013/;
+    $line =~ s/1995-2016/1995-2017/;
     print OUT $line;
   }
 

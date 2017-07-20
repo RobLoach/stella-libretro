@@ -1,24 +1,19 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Cart4A50.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
-
-#include <cassert>
-#include <cstring>
 
 #include "System.hxx"
 #include "M6532.hxx"
@@ -26,10 +21,18 @@
 #include "Cart4A50.hxx"
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Cartridge4A50::Cartridge4A50(const uInt8* image, uInt32 size,
+Cartridge4A50::Cartridge4A50(const BytePtr& image, uInt32 size,
                              const Settings& settings)
   : Cartridge(settings),
-    mySize(size)
+    mySize(size),
+    mySliceLow(0),
+    mySliceMiddle(0),
+    mySliceHigh(0),
+    myIsRomLow(true),
+    myIsRomMiddle(true),
+    myIsRomHigh(true),
+    myLastAddress(0),
+    myLastData(0)
 {
   // Copy the ROM image into my buffer
   // Supported file sizes are 32/64/128K, which are duplicated if necessary
@@ -37,7 +40,7 @@ Cartridge4A50::Cartridge4A50(const uInt8* image, uInt32 size,
   else if(size < 131072)  size = 65536;
   else                    size = 131072;
   for(uInt32 slice = 0; slice < 131072 / size; ++slice)
-    memcpy(myImage + (slice*size), image, size);
+    memcpy(myImage + (slice*size), image.get(), size);
 
   // We use System::PageAccess.codeAccessBase, but don't allow its use
   // through a pointer, since the address space of 4A50 carts can change
@@ -50,19 +53,9 @@ Cartridge4A50::Cartridge4A50(const uInt8* image, uInt32 size,
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Cartridge4A50::~Cartridge4A50()
-{
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Cartridge4A50::reset()
 {
-  // Initialize RAM
-  if(mySettings.getBool("ramrandom"))
-    for(uInt32 i = 0; i < 32768; ++i)
-      myRAM[i] = mySystem->randGenerator().next();
-  else
-    memset(myRAM, 0, 32768);
+  initializeRAM(myRAM, 32768);
 
   mySliceLow = mySliceMiddle = mySliceHigh = 0;
   myIsRomLow = myIsRomMiddle = myIsRomHigh = true;
@@ -77,22 +70,16 @@ void Cartridge4A50::reset()
 void Cartridge4A50::install(System& system)
 {
   mySystem = &system;
-  uInt16 shift = mySystem->pageShift();
-  uInt16 mask = mySystem->pageMask();
-
-  // Make sure the system we're being installed in has a page size that'll work
-  assert((0x1000 & mask) == 0);
 
   // Map all of the accesses to call peek and poke (We don't yet indicate RAM areas)
-  System::PageAccess access(0, 0, 0, this, System::PA_READ);
-
-  for(uInt32 i = 0x1000; i < 0x2000; i += (1 << shift))
-    mySystem->setPageAccess(i >> shift, access);
+  System::PageAccess access(this, System::PA_READ);
+  for(uInt32 i = 0x1000; i < 0x2000; i += (1 << System::PAGE_SHIFT))
+    mySystem->setPageAccess(i >> System::PAGE_SHIFT, access);
 
   // Mirror all access in TIA and RIOT; by doing so we're taking responsibility
   // for that address space in peek and poke below.
-  mySystem->tia().install(system, *this);
-  mySystem->m6532().install(system, *this);
+  mySystem->tia().installDelegate(system, *this);
+  mySystem->m6532().installDelegate(system, *this);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -200,10 +187,10 @@ bool Cartridge4A50::poke(uInt16 address, uInt8 value)
   myLastAddress = address & 0x1fff;
 
   return myBankChanged;
-} 
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt8 Cartridge4A50::getAccessFlags(uInt16 address)
+uInt8 Cartridge4A50::getAccessFlags(uInt16 address) const
 {
   if((address & 0x1800) == 0x1000)           // 2K region from 0x1000 - 0x17ff
   {
@@ -337,28 +324,6 @@ void Cartridge4A50::checkBankSwitch(uInt16 address, uInt8 value)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Cartridge4A50::bank(uInt16)
-{
-  // Doesn't support bankswitching in the normal sense
-  return false;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 Cartridge4A50::bank() const
-{
-  // Doesn't support bankswitching in the normal sense
-  return 0;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-uInt16 Cartridge4A50::bankCount() const
-{
-  // Doesn't support bankswitching in the normal sense
-  // There is one 'virtual' bank that can change in many different ways
-  return 1;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge4A50::patch(uInt16 address, uInt8 value)
 {
   if((address & 0x1800) == 0x1000)           // 2K region from 0x1000 - 0x17ff
@@ -388,7 +353,7 @@ bool Cartridge4A50::patch(uInt16 address, uInt8 value)
     myImage[(address & 0xff) + 0x1ff00] = value;
   }
   return myBankChanged = true;
-} 
+}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const uInt8* Cartridge4A50::getImage(int& size) const
@@ -400,49 +365,65 @@ const uInt8* Cartridge4A50::getImage(int& size) const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge4A50::save(Serializer& out) const
 {
-   out.putString(name());
+  try
+  {
+    out.putString(name());
 
-   // The 32K bytes of RAM
-   out.putByteArray(myRAM, 32768);
+    // The 32K bytes of RAM
+    out.putByteArray(myRAM, 32768);
 
-   // Index pointers
-   out.putShort(mySliceLow);
-   out.putShort(mySliceMiddle);
-   out.putShort(mySliceHigh);
+    // Index pointers
+    out.putShort(mySliceLow);
+    out.putShort(mySliceMiddle);
+    out.putShort(mySliceHigh);
 
-   // Whether index pointers are for ROM or RAM
-   out.putBool(myIsRomLow);
-   out.putBool(myIsRomMiddle);
-   out.putBool(myIsRomHigh);
+    // Whether index pointers are for ROM or RAM
+    out.putBool(myIsRomLow);
+    out.putBool(myIsRomMiddle);
+    out.putBool(myIsRomHigh);
 
-   // Last address and data values
-   out.putByte(myLastData);
-   out.putShort(myLastAddress);
+    // Last address and data values
+    out.putByte(myLastData);
+    out.putShort(myLastAddress);
+  }
+  catch(...)
+  {
+    cerr << "ERROR: Cartridge4A40::save" << endl;
+    return false;
+  }
 
-   return true;
+  return true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Cartridge4A50::load(Serializer& in)
 {
-   if(in.getString() != name())
+  try
+  {
+    if(in.getString() != name())
       return false;
 
-   in.getByteArray(myRAM, 32768);
+    in.getByteArray(myRAM, 32768);
 
-   // Index pointers
-   mySliceLow = in.getShort();
-   mySliceMiddle = in.getShort();
-   mySliceHigh = in.getShort();
+    // Index pointers
+    mySliceLow = in.getShort();
+    mySliceMiddle = in.getShort();
+    mySliceHigh = in.getShort();
 
-   // Whether index pointers are for ROM or RAM
-   myIsRomLow = in.getBool();
-   myIsRomMiddle = in.getBool();
-   myIsRomHigh = in.getBool();
+    // Whether index pointers are for ROM or RAM
+    myIsRomLow = in.getBool();
+    myIsRomMiddle = in.getBool();
+    myIsRomHigh = in.getBool();
 
-   // Last address and data values
-   myLastData = in.getByte();
-   myLastAddress = in.getShort();
+    // Last address and data values
+    myLastData = in.getByte();
+    myLastAddress = in.getShort();
+  }
+  catch(...)
+  {
+    cerr << "ERROR: Cartridge4A50::load" << endl;
+    return false;
+  }
 
-   return true;
+  return true;
 }

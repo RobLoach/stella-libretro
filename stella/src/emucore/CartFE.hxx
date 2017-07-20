@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartFE.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEFE_HXX
@@ -33,14 +31,14 @@ class System;
 
   Kevin Horton describes FE as follows:
 
-    Used only on two carts (Robot Tank and Decathlon).  These 
-    carts are very weird.  It does not use accesses to the stack 
-    like was previously thought.  Instead, if you watch the called 
-    addresses very carefully, you can see that they are either Dxxx 
-    or Fxxx.  This determines the bank to use.  Just monitor A13 of 
-    the processor and use it to determine your bank! :-)  Of course 
-    the 6507 in the 2600 does not have an A13, so the cart must have 
-    an extra bit in the ROM matrix to tell when to switch banks.  
+    Used only on two carts (Robot Tank and Decathlon).  These
+    carts are very weird.  It does not use accesses to the stack
+    like was previously thought.  Instead, if you watch the called
+    addresses very carefully, you can see that they are either Dxxx
+    or Fxxx.  This determines the bank to use.  Just monitor A13 of
+    the processor and use it to determine your bank! :-)  Of course
+    the 6507 in the 2600 does not have an A13, so the cart must have
+    an extra bit in the ROM matrix to tell when to switch banks.
     There is *no* way to determine which bank you want to be in from
     monitoring the bus.
 
@@ -48,7 +46,6 @@ class System;
   determined on a real system.
 
   @author  Bradford W. Mott
-  @version $Id: CartFE.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class CartridgeFE : public Cartridge
 {
@@ -62,18 +59,14 @@ class CartridgeFE : public Cartridge
       @param size      The size of the ROM image
       @param settings  A reference to the various settings (read-only)
     */
-    CartridgeFE(const uInt8* image, uInt32 size, const Settings& settings);
- 
-    /**
-      Destructor
-    */
-    virtual ~CartridgeFE();
+    CartridgeFE(const BytePtr& image, uInt32 size, const Settings& settings);
+    virtual ~CartridgeFE() = default;
 
   public:
     /**
       Reset device to its power-on state
     */
-    void reset();
+    void reset() override;
 
     /**
       Install cartridge in the specified system.  Invoked by the system
@@ -81,24 +74,17 @@ class CartridgeFE : public Cartridge
 
       @param system The system the device should install itself in
     */
-    void install(System& system);
-
-    /**
-      Install pages for the specified bank in the system.
-
-      @param bank The bank that should be installed in the system
-    */
-    bool bank(uInt16 bank);
+    void install(System& system) override;
 
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const override;
 
     /**
       Query the number of banks supported by the cartridge.
     */
-    uInt16 bankCount() const;
+    uInt16 bankCount() const override;
 
     /**
       Answer whether the bank has changed since the last time this
@@ -106,7 +92,7 @@ class CartridgeFE : public Cartridge
 
       @return  Whether the bank was changed
     */
-    bool bankChanged();
+    bool bankChanged() override;
 
     /**
       Patch the cartridge ROM.
@@ -115,7 +101,7 @@ class CartridgeFE : public Cartridge
       @param value    The value to place into the address
       @return    Success or failure of the patch operation
     */
-    bool patch(uInt16 address, uInt8 value);
+    bool patch(uInt16 address, uInt8 value) override;
 
     /**
       Access the internal ROM image for this cartridge.
@@ -123,7 +109,7 @@ class CartridgeFE : public Cartridge
       @param size  Set to the size of the internal ROM image data
       @return  A pointer to the internal ROM image data
     */
-    const uInt8* getImage(int& size) const;
+    const uInt8* getImage(int& size) const override;
 
     /**
       Save the current state of this cart to the given Serializer.
@@ -131,7 +117,7 @@ class CartridgeFE : public Cartridge
       @param out  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Load the current state of this cart from the given Serializer.
@@ -139,14 +125,14 @@ class CartridgeFE : public Cartridge
       @param in  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
 
     /**
       Get a descriptor for the device name (used in error checking).
 
       @return The name of the object
     */
-    string name() const { return "CartridgeFE"; }
+    string name() const override { return "CartridgeFE"; }
 
   #ifdef DEBUGGER_SUPPORT
     /**
@@ -154,7 +140,7 @@ class CartridgeFE : public Cartridge
       of the cart.
     */
     CartDebugWidget* debugWidget(GuiObject* boss, const GUI::Font& lfont,
-        const GUI::Font& nfont, int x, int y, int w, int h)
+        const GUI::Font& nfont, int x, int y, int w, int h) override
     {
       return new CartridgeFEWidget(boss, lfont, nfont, x, y, w, h, *this);
     }
@@ -166,7 +152,7 @@ class CartridgeFE : public Cartridge
 
       @return The byte at the specified address
     */
-    uInt8 peek(uInt16 address);
+    uInt8 peek(uInt16 address) override;
 
     /**
       Change the byte at the specified address to the given value
@@ -175,7 +161,7 @@ class CartridgeFE : public Cartridge
       @param value The value to be stored at the address
       @return  True if the poke changed the device address space, else false
     */
-    bool poke(uInt16 address, uInt8 value);
+    bool poke(uInt16 address, uInt8 value) override;
 
   private:
     /**
@@ -184,8 +170,8 @@ class CartridgeFE : public Cartridge
       @param address The address to modify
       @param flags A bitfield of DisasmType directives for the given address
     */
-    uInt8 getAccessFlags(uInt16 address);
-    void setAccessFlags(uInt16 address, uInt8 flags);
+    uInt8 getAccessFlags(uInt16 address) const override;
+    void setAccessFlags(uInt16 address, uInt8 flags) override;
 
   private:
     // The 8K ROM image of the cartridge
@@ -196,6 +182,14 @@ class CartridgeFE : public Cartridge
 
     // Last two addresses have been modified by peek()
     bool myLastAddressChanged;
+
+  private:
+    // Following constructors and assignment operators not supported
+    CartridgeFE() = delete;
+    CartridgeFE(const CartridgeFE&) = delete;
+    CartridgeFE(CartridgeFE&&) = delete;
+    CartridgeFE& operator=(const CartridgeFE&) = delete;
+    CartridgeFE& operator=(CartridgeFE&&) = delete;
 };
 
 #endif

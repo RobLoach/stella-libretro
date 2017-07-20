@@ -8,13 +8,11 @@
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CheatManager.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CHEAT_MANAGER_HXX
@@ -26,10 +24,8 @@ class Cheat;
 class OSystem;
 
 #include "bspf.hxx"
-#include "Array.hxx"
 
-typedef Common::Array<Cheat*> CheatList;
-typedef map<string,string> CheatCodeMap;
+using CheatList = vector<shared_ptr<Cheat>>;
 
 /**
   This class provides an interface for performing all cheat operations
@@ -37,13 +33,11 @@ typedef map<string,string> CheatCodeMap;
   the list of all cheats currently in use.
 
   @author  Stephen Anthony
-  @version $Id: CheatManager.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class CheatManager
 {
   public:
-    CheatManager(OSystem* osystem);
-    virtual ~CheatManager();
+    CheatManager(OSystem& osystem);
 
     /**
       Adds the specified cheat to an internal list.
@@ -53,15 +47,15 @@ class CheatManager
       @param enable  Whether to enable this cheat right away
       @param idx     Index at which to insert the cheat
 
-      @return  The cheat (if was created), else NULL.
+      @return  Whether the cheat was created and enabled.
     */
-    const Cheat* add(const string& name, const string& code,
-                     bool enable = true, int idx = -1);
+    bool add(const string& name, const string& code,
+             bool enable = true, int idx = -1);
 
     /**
       Remove the cheat at 'idx' from the cheat list(s).
 
-      @param index  Location in myCheatList of the cheat to remove
+      @param idx  Location in myCheatList of the cheat to remove
     */
     void remove(int idx);
 
@@ -70,10 +64,11 @@ class CheatManager
       This method doesn't create a new cheat; it just adds/removes
       an already created cheat to the per-frame list.
 
-      @param cheat   The actual cheat object
+      @param name    Name of the cheat
+      @param code    The actual cheatcode
       @param enable  Add or remove the cheat to the per-frame list
     */
-    void addPerFrame(Cheat* cheat, bool enable);
+    void addPerFrame(const string& name, const string& code, bool enable);
 
     /**
       Creates and enables a one-shot cheat.  One-shot cheats are the
@@ -126,7 +121,7 @@ class CheatManager
     /**
       Checks if a code is valid.
     */
-    bool isValidCode(const string& code);
+    bool isValidCode(const string& code) const;
 
   private:
     /**
@@ -135,9 +130,9 @@ class CheatManager
       @param name  Name of the cheat (not absolutely required)
       @param code  The actual cheatcode (in hex)
 
-      @return  The cheat (if was created), else NULL.
+      @return  The cheat (if was created), else nullptr.
     */
-    const Cheat* createCheat(const string& name, const string& code);
+    shared_ptr<Cheat> createCheat(const string& name, const string& code) const;
 
     /**
       Parses a list of cheats and adds/enables each one.
@@ -146,18 +141,13 @@ class CheatManager
     */
     void parse(const string& cheats);
 
-    /**
-      Clear all per-ROM cheats lists.
-    */
-    void clear();
-
   private:
-    OSystem* myOSystem;
+    OSystem& myOSystem;
 
     CheatList myCheatList;
     CheatList myPerFrameList;
 
-    CheatCodeMap myCheatMap;
+    std::map<string,string> myCheatMap;
     string myCheatFile;
 
     // This is set each time a new cheat/ROM is loaded, for later
@@ -166,6 +156,14 @@ class CheatManager
 
     // Indicates that the list has been modified, and should be saved to disk
     bool myListIsDirty;
+
+  private:
+    // Following constructors and assignment operators not supported
+    CheatManager() = delete;
+    CheatManager(const CheatManager&) = delete;
+    CheatManager(CheatManager&&) = delete;
+    CheatManager& operator=(const CheatManager&) = delete;
+    CheatManager& operator=(CheatManager&&) = delete;
 };
 
 #endif

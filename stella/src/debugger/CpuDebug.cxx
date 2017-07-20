@@ -1,25 +1,22 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CpuDebug.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include <sstream>
 
-#include "Array.hxx"
 #include "M6502.hxx"
 #include "Debugger.hxx"
 #include "CartDebug.hxx"
@@ -75,13 +72,13 @@ void CpuDebug::saveOldState()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CpuDebug::setPC(int pc)
 {
-  my6502.PC = pc;
+  my6502.PC = uInt16(pc);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CpuDebug::setSP(int sp)
 {
-  my6502.SP = sp;
+  my6502.SP = uInt8(sp);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -93,19 +90,19 @@ void CpuDebug::setPS(int ps)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CpuDebug::setA(int a)
 {
-  my6502.A = a;
+  my6502.A = uInt8(a);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CpuDebug::setX(int x)
 {
-  my6502.X = x;
+  my6502.X = uInt8(x);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void CpuDebug::setY(int y)
 {
-  my6502.Y = y;
+  my6502.Y = uInt8(y);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -121,7 +118,7 @@ void CpuDebug::setV(bool on)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void CpuDebug::setB(bool on)
+void CpuDebug::setB(bool)
 {
   // nop - B is always true
 }

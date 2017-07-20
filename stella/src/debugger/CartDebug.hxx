@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartDebug.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CART_DEBUG_HXX
@@ -28,23 +26,19 @@ class CartDebugWidget;
 #include <list>
 
 #include "bspf.hxx"
-#include "Array.hxx"
 #include "Base.hxx"
 #include "Cart.hxx"
 #include "DebuggerSystem.hxx"
 #include "System.hxx"
 
-// pointer types for CartDebug instance methods
+// Function type for CartDebug instance methods
 class CartDebug;
-typedef int (CartDebug::*CARTDEBUG_INT_METHOD)();
-
-// call the pointed-to method on the (global) CPU debugger object.
-#define CALL_CARTDEBUG_METHOD(method) ( ( Debugger::debugger().cartDebug().*method)() )
+using CartMethod = int (CartDebug::*)();
 
 class CartState : public DebuggerState
 {
   public:
-    IntArray ram;    // The actual data values
+    ByteArray ram;   // The actual data values
     IntArray rport;  // Address for reading from RAM
     IntArray wport;  // Address for writing to RAM
     string bank;     // Current banking layout
@@ -85,21 +79,30 @@ class CartDebug : public DebuggerSystem
       string bytes;
       bool hllabel;
     };
-    typedef Common::Array<DisassemblyTag> DisassemblyList;
+    using DisassemblyList = vector<DisassemblyTag>;
     struct Disassembly {
       DisassemblyList list;
       int fieldwidth;
     };
 
+    // Determine 'type' of address (ie, what part of the system accessed)
+    enum AddrType {
+      ADDR_TIA,
+      ADDR_IO,
+      ADDR_ZPRAM,
+      ADDR_ROM
+    };
+    AddrType addressType(uInt16 addr) const;
+
   public:
     CartDebug(Debugger& dbg, Console& console, const OSystem& osystem);
-    virtual ~CartDebug();
+    virtual ~CartDebug() = default;
 
-    const DebuggerState& getState();
-    const DebuggerState& getOldState() { return myOldState; }
+    const DebuggerState& getState() override;
+    const DebuggerState& getOldState() override { return myOldState; }
 
-    void saveOldState();
-    string toString();
+    void saveOldState() override;
+    string toString() override;
 
     // Used to get/set the debug widget, which contains cart-specific
     // functionality
@@ -120,16 +123,6 @@ class CartDebug : public DebuggerSystem
     // Return the address at which an invalid read was performed in a
     // write port area.
     int readFromWritePort();
-
-    /**
-      Let the Cart debugger subsystem treat this area as addressable memory.
-
-      @param start    The beginning of the RAM area (0x0000 - 0x2000)
-      @param size     Total number of bytes of area
-      @param roffset  Offset to use when reading from RAM (read port)
-      @param woffset  Offset to use when writing to RAM (write port)
-    */
-    void addRamArea(uInt16 start, uInt16 size, uInt16 roffset, uInt16 woffset);
 
     // The following two methods are meant to be used together
     // First, a call is made to disassemble(), which updates the disassembly
@@ -192,19 +185,20 @@ class CartDebug : public DebuggerSystem
     // The following are convenience methods that query the cartridge object
     // for the desired information.
     /**
-      Get the current bank in use by the cartridge.
+      Get the current bank in use by the cartridge
+      (non-const because of use in YaccParser)
     */
-    int getBank();  // non-const because of use in YaccParser
+    int getBank() { return myConsole.cartridge().getBank(); }
 
     /**
       Get the total number of banks supported by the cartridge.
     */
-    int bankCount() const;
+    int bankCount() const { return myConsole.cartridge().bankCount(); }
 
     /**
-      Get the name/type of the cartridge.
+      Get the name/type of the cartridge.   // FIXME - dead code
     */
-    string getCartType() const;
+    string getCartType() const { return myConsole.cartridge().name(); }
 
     /**
       Add a label and associated address.
@@ -276,25 +270,17 @@ class CartDebug : public DebuggerSystem
     void addressTypeAsString(ostream& buf, uInt16 addr) const;
 
   private:
-    typedef map<uInt16, string> AddrToLabel;
-    typedef map<string, uInt16> LabelToAddr;
-
-    // Determine 'type' of address (ie, what part of the system accessed)
-    enum AddrType {
-      ADDR_TIA,
-      ADDR_IO,
-      ADDR_ZPRAM,
-      ADDR_ROM
-    };
-    AddrType addressType(uInt16 addr) const;
+    using AddrToLabel = std::map<uInt16, string>;
+    using LabelToAddr = std::map<string, uInt16,
+        std::function<bool(const string&, const string&)>>;
 
     struct DirectiveTag {
       DisasmType type;
       uInt16 start;
       uInt16 end;
     };
-    typedef list<uInt16> AddressList;
-    typedef list<DirectiveTag> DirectiveList;
+    using AddressList = std::list<uInt16>;
+    using DirectiveList = std::list<DirectiveTag>;
 
     struct BankInfo {
       uInt16 start;                // start of address space
@@ -308,13 +294,13 @@ class CartDebug : public DebuggerSystem
 #if 0
       friend ostream& operator<<(ostream& os, const BankInfo& b)
       {
-        os << "start=$" << HEX4 << b.start << ", end=$" << HEX4 << b.end
-           << ", offset=$" << HEX4 << b.offset << ", size=" << dec << b.size
-           << endl
+        os << "start=$" << Common::Base::HEX4 << b.start
+           << ", end=$" << Common::Base::HEX4 << b.end
+           << ", offset=$" << Common::Base::HEX4 << b.offset
+           << ", size=" << dec << b.size << endl
            << "addrlist: ";
-        AddressList::const_iterator i;
-        for(i = b.addressList.begin(); i != b.addressList.end(); ++i)
-          os << HEX4 << *i << " ";
+        for(const auto& i: b.addressList)
+          os << Common::Base::HEX4 << i << " ";
         return os;
       }
 #endif
@@ -360,12 +346,12 @@ class CartDebug : public DebuggerSystem
     CartDebugWidget* myDebugWidget;
 
     // A complete record of relevant diassembly information for each bank
-    Common::Array<BankInfo> myBankInfo;
+    vector<BankInfo> myBankInfo;
 
     // Used for the disassembly display, and mapping from addresses
     // to corresponding lines of text in that display
     Disassembly myDisassembly;
-    map<uInt16, int> myAddrToLineList;
+    std::map<uInt16, int> myAddrToLineList;
     bool myAddrToLineIsROM;
 
     // Mappings from label to address (and vice versa) for items
@@ -397,10 +383,18 @@ class CartDebug : public DebuggerSystem
     string myListFile, mySymbolFile, myCfgFile, myDisasmFile, myRomFile;
 
     /// Table of instruction mnemonics
-    static const char* ourTIAMnemonicR[16]; // read mode
-    static const char* ourTIAMnemonicW[64]; // write mode
-    static const char* ourIOMnemonic[24];
-    static const char* ourZPMnemonic[128];
+    static const char* const ourTIAMnemonicR[16]; // read mode
+    static const char* const ourTIAMnemonicW[64]; // write mode
+    static const char* const ourIOMnemonic[24];
+    static const char* const ourZPMnemonic[128];
+
+  private:
+    // Following constructors and assignment operators not supported
+    CartDebug() = delete;
+    CartDebug(const CartDebug&) = delete;
+    CartDebug(CartDebug&&) = delete;
+    CartDebug& operator=(const CartDebug&) = delete;
+    CartDebug& operator=(CartDebug&&) = delete;
 };
 
 #endif

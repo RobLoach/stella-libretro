@@ -1,26 +1,23 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartDebug.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include <time.h>
 
 #include "bspf.hxx"
-#include "Array.hxx"
 #include "System.hxx"
 #include "FSNode.hxx"
 #include "DiStella.hxx"
@@ -31,23 +28,43 @@
 #include "Version.hxx"
 #include "CartDebug.hxx"
 #include "CartDebugWidget.hxx"
-using namespace Common;
+#include "CartRamWidget.hxx"
+using Common::Base;
+using std::hex;
+using std::dec;
+using std::setfill;
+using std::setw;
+using std::left;
+using std::right;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 CartDebug::CartDebug(Debugger& dbg, Console& console, const OSystem& osystem)
   : DebuggerSystem(dbg, console),
     myOSystem(osystem),
-    myDebugWidget(0),
+    myDebugWidget(nullptr),
+    myAddrToLineIsROM(true),
     myRWPortAddress(0),
     myLabelLength(8)   // longest pre-defined label
 {
-  // Zero-page RAM is always present
-  addRamArea(0x80, 128, 0, 0);
+  // Add case sensitive compare for user labels
+  // TODO - should user labels be case insensitive too?
+  auto usrCmp = [](const string& a, const string& b) { return a < b; };
+  myUserAddresses = LabelToAddr(usrCmp);
 
-  // Add extended RAM
-  const RamAreaList& areas = console.cartridge().ramAreas();
-  for(RamAreaList::const_iterator i = areas.begin(); i != areas.end(); ++i)
-    addRamArea(i->start, i->size, i->roffset, i->woffset);
+  // Add case insensitive compare for system labels
+  auto sysCmp = [](const string& a, const string& b) {
+      return BSPF::compareIgnoreCase(a, b) < 0;
+  };
+  mySystemAddresses = LabelToAddr(sysCmp);
+
+  // Add Zero-page RAM addresses
+  for(uInt32 i = 0x80; i <= 0xFF; ++i)
+  {
+    myState.rport.push_back(i);
+    myState.wport.push_back(i);
+    myOldState.rport.push_back(i);
+    myOldState.wport.push_back(i);
+  }
 
   // Create bank information for each potential bank, and an extra one for ZP RAM
   // Banksizes greater than 4096 indicate multi-bank ROMs, but we handle only
@@ -57,7 +74,7 @@ CartDebug::CartDebug(Debugger& dbg, Console& console, const OSystem& osystem)
   myConsole.cartridge().getImage(banksize);
 
   BankInfo info;
-  info.size = BSPF_min(banksize, 4096);
+  info.size = std::min(banksize, 4096);
   for(int i = 0; i < myConsole.cartridge().bankCount(); ++i)
     myBankInfo.push_back(info);
 
@@ -72,24 +89,24 @@ CartDebug::CartDebug(Debugger& dbg, Console& console, const OSystem& osystem)
   for(uInt16 addr = 0x00; addr <= 0x0F; ++addr)
   {
     if(ourTIAMnemonicR[addr])
-      mySystemAddresses.insert(make_pair(ourTIAMnemonicR[addr], addr));
+      mySystemAddresses.emplace(ourTIAMnemonicR[addr], addr);
     myReserved.TIARead[addr] = false;
   }
   for(uInt16 addr = 0x00; addr <= 0x3F; ++addr)
   {
     if(ourTIAMnemonicW[addr])
-      mySystemAddresses.insert(make_pair(ourTIAMnemonicW[addr], addr));
+      mySystemAddresses.emplace(ourTIAMnemonicW[addr], addr);
     myReserved.TIAWrite[addr] = false;
   }
   for(uInt16 addr = 0x280; addr <= 0x297; ++addr)
   {
     if(ourIOMnemonic[addr-0x280])
-      mySystemAddresses.insert(make_pair(ourIOMnemonic[addr-0x280], addr));
+      mySystemAddresses.emplace(ourIOMnemonic[addr-0x280], addr);
     myReserved.IOReadWrite[addr-0x280] = false;
   }
   for(uInt16 addr = 0x80; addr <= 0xFF; ++addr)
   {
-    mySystemAddresses.insert(make_pair(ourZPMnemonic[addr-0x80], addr));
+    mySystemAddresses.emplace(ourZPMnemonic[addr-0x80], addr);
     myReserved.ZPRAM[addr-0x80] = false;
   }
 
@@ -107,44 +124,6 @@ CartDebug::CartDebug(Debugger& dbg, Console& console, const OSystem& osystem)
   DiStella::settings.fflag = true;  // Not currently configurable
   DiStella::settings.rflag = myOSystem.settings().getBool("dis.relocate");
   DiStella::settings.bwidth = 9;  // TODO - configure based on window size
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-CartDebug::~CartDebug()
-{
-  myUserLabels.clear();
-  myUserAddresses.clear();
-  myUserCLabels.clear();
-  // myUserCAddresses.clear();
-  mySystemAddresses.clear();
-
-  for(uInt32 i = 0; i < myBankInfo.size(); ++i)
-  {
-    myBankInfo[i].addressList.clear();
-    myBankInfo[i].directiveList.clear();
-  }
-  myBankInfo.clear();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void CartDebug::addRamArea(uInt16 start, uInt16 size,
-                           uInt16 roffset, uInt16 woffset)
-{
-  // First make sure this area isn't already present
-  for(uInt32 i = 0; i < myState.rport.size(); ++i)
-    if(myState.rport[i] == start + roffset ||
-       myState.wport[i] == start + woffset)
-      return;
-
-  // Otherwise, add a new area
-  for(uInt32 i = 0; i < size; ++i)
-  {
-    myState.rport.push_back(i + start + roffset);
-    myState.wport.push_back(i + start + woffset);
-
-    myOldState.rport.push_back(i + start + roffset);
-    myOldState.wport.push_back(i + start + woffset);
-  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -220,8 +199,8 @@ string CartDebug::toString()
       return DebuggerParser::red("invalid base, this is a BUG");
   }
 
-  const CartState& state    = (CartState&) getState();
-  const CartState& oldstate = (CartState&) getOldState();
+  const CartState& state    = static_cast<const CartState&>(getState());
+  const CartState& oldstate = static_cast<const CartState&>(getOldState());
 
   uInt32 curraddr = 0, bytesSoFar = 0;
   for(uInt32 i = 0; i < state.ram.size(); i += bytesPerLine, bytesSoFar += bytesPerLine)
@@ -232,7 +211,7 @@ string CartDebug::toString()
     if(state.rport[i] - curraddr > bytesPerLine || bytesSoFar >= 256)
     {
       char port[37];
-      BSPF_snprintf(port, 36, "%04x: (rport = %04x, wport = %04x)\n",
+      std::snprintf(port, 36, "%04x: (rport = %04x, wport = %04x)\n",
               state.rport[i], state.rport[i], state.wport[i]);
       port[2] = port[3] = 'x';
       buf << DebuggerParser::red(port);
@@ -261,12 +240,13 @@ bool CartDebug::disassemble(bool force)
   bool bankChanged = myConsole.cartridge().bankChanged();
   uInt16 PC = myDebugger.cpuDebug().pc();
   int pcline = addressToLine(PC);
-  bool pcfound = (pcline != -1) && ((uInt32)pcline < myDisassembly.list.size()) &&
+  bool pcfound = (pcline != -1) && (uInt32(pcline) < myDisassembly.list.size()) &&
                   (myDisassembly.list[pcline].disasm[0] != '.');
   bool pagedirty = (PC & 0x1000) ? mySystem.isPageDirty(0x1000, 0x1FFF) :
                                    mySystem.isPageDirty(0x80, 0xFF);
 
-  bool changed = (force || bankChanged || !pcfound || pagedirty);
+  bool changed = !mySystem.autodetectMode() &&
+                 (force || bankChanged || !pcfound || pagedirty);
   if(changed)
   {
     // Are we disassembling from ROM or ZP RAM?
@@ -278,15 +258,15 @@ bool CartDebug::disassemble(bool force)
     // $bxxx, it must be changed
     uInt16 offset = (PC - (PC % 0x1000));
     AddressList& addresses = info.addressList;
-    for(list<uInt16>::iterator i = addresses.begin(); i != addresses.end(); ++i)
-      *i = (*i & 0xFFF) + offset;
+    for(auto& i: addresses)
+      i = (i & 0xFFF) + offset;
 
     // Only add addresses when absolutely necessary, to cut down on the
     // work that Distella has to do
     // Distella expects the addresses to be unique and in sorted order
     if(bankChanged || !pcfound)
     {
-      AddressList::iterator i;
+      AddressList::iterator i;  // TODO - change to C++11 const when available
       for(i = addresses.begin(); i != addresses.end(); ++i)
       {
         if(PC < *i)
@@ -320,7 +300,11 @@ bool CartDebug::disassemble(bool force)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartDebug::fillDisassemblyList(BankInfo& info, uInt16 search)
 {
-  myDisassembly.list.clear(false);
+  // An empty address list means that DiStella can't do a disassembly
+  if(info.addressList.size() == 0)
+    return false;
+
+  myDisassembly.list.clear();
   myDisassembly.fieldwidth = 14 + myLabelLength;
   DiStella distella(*this, myDisassembly.list, info, DiStella::settings,
                     myDisLabels, myDisDirectives, myReserved);
@@ -335,11 +319,11 @@ bool CartDebug::fillDisassemblyList(BankInfo& info, uInt16 search)
     const DisassemblyTag& tag = myDisassembly.list[i];
     const uInt16 address = tag.address & 0xFFF;
 
-    // Addresses marked as 'ROW' normally won't have an address
-    if(address)
+    // Exclude 'ROW'; they don't have a valid address
+    if(tag.type != CartDebug::ROW)
     {
       // Create a mapping from addresses to line numbers
-      myAddrToLineList.insert(make_pair(address, i));
+      myAddrToLineList.emplace(address, i);
 
       // Did we find the search value?
       if(address == (search & 0xFFF))
@@ -357,7 +341,7 @@ int CartDebug::addressToLine(uInt16 address) const
   if(!myAddrToLineIsROM != !(address & 0x1000))
     return -1;
 
-  map<uInt16, int>::const_iterator iter = myAddrToLineList.find(address & 0xFFF);
+  const auto& iter = myAddrToLineList.find(address & 0xFFF);
   return iter != myAddrToLineList.end() ? iter->second : -1;
 }
 
@@ -369,7 +353,7 @@ string CartDebug::disassemble(uInt16 start, uInt16 lines) const
   ostringstream buffer;
 
   // First find the lines in the range, and determine the longest string
-  uInt32 list_size = myDisassembly.list.size();
+  uInt32 list_size = uInt32(myDisassembly.list.size());
   uInt32 begin = list_size, end = 0, length = 0;
   for(end = 0; end < list_size && lines > 0; ++end)
   {
@@ -378,7 +362,7 @@ string CartDebug::disassemble(uInt16 start, uInt16 lines) const
     {
       if(begin == list_size) begin = end;
       if(tag.type != CartDebug::ROW)
-        length = BSPF_max(length, (uInt32)tag.disasm.length());
+        length = std::max(length, uInt32(tag.disasm.length()));
 
       --lines;
     }
@@ -391,14 +375,14 @@ string CartDebug::disassemble(uInt16 start, uInt16 lines) const
     if(tag.type == CartDebug::NONE)
       continue;
     else if(tag.address)
-      buffer << uppercase << hex << setw(4) << setfill('0') << tag.address
-           << ":  ";
+      buffer << std::uppercase << std::hex << std::setw(4)
+             << std::setfill('0') << tag.address << ":  ";
     else
       buffer << "       ";
 
-    buffer << tag.disasm << setw(length - tag.disasm.length() + 2)
-           << setfill(' ') << " "
-           << setw(4) << left << tag.ccount << "   " << tag.bytes << endl;
+    buffer << tag.disasm << std::setw(int(length - tag.disasm.length() + 2))
+           << std::setfill(' ') << " "
+           << std::setw(4) << std::left << tag.ccount << "   " << tag.bytes << endl;
   }
 
   return buffer.str();
@@ -408,23 +392,13 @@ string CartDebug::disassemble(uInt16 start, uInt16 lines) const
 bool CartDebug::addDirective(CartDebug::DisasmType type,
                              uInt16 start, uInt16 end, int bank)
 {
-#define PRINT_TAG(tag) \
-  disasmTypeAsString(cerr, tag.type); \
-  cerr << ": start = " << tag.start << ", end = " << tag.end << endl;
-
-#define PRINT_LIST(header) \
-  cerr << header << endl; \
-  for(DirectiveList::const_iterator d = list.begin(); d != list.end(); ++d) { \
-    PRINT_TAG((*d)); } \
-  cerr << endl;
-
   if(end < start || start == 0 || end == 0)
     return false;
 
   if(bank < 0)  // Do we want the current bank or ZP RAM?
-    bank = (myDebugger.cpuDebug().pc() & 0x1000) ? getBank() : myBankInfo.size()-1;
+    bank = (myDebugger.cpuDebug().pc() & 0x1000) ? getBank() : int(myBankInfo.size())-1;
 
-  bank = BSPF_min(bank, bankCount());
+  bank = std::min(bank, bankCount());
   BankInfo& info = myBankInfo[bank];
   DirectiveList& list = info.directiveList;
 
@@ -544,24 +518,6 @@ bool CartDebug::addDirective(CartDebug::DisasmType type,
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int CartDebug::getBank()
-{
-  return myConsole.cartridge().bank();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int CartDebug::bankCount() const
-{
-  return myConsole.cartridge().bankCount();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-string CartDebug::getCartType() const
-{
-  return myConsole.cartridge().name();
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool CartDebug::addLabel(const string& label, uInt16 address)
 {
   // Only user-defined labels can be added or redefined
@@ -572,9 +528,9 @@ bool CartDebug::addLabel(const string& label, uInt16 address)
       return false;
     default:
       removeLabel(label);
-      myUserAddresses.insert(make_pair(label, address));
-      myUserLabels.insert(make_pair(address, label));
-      myLabelLength = BSPF_max(myLabelLength, (uInt16)label.size());
+      myUserAddresses.emplace(label, address);
+      myUserLabels.emplace(address, label);
+      myLabelLength = std::max(myLabelLength, uInt16(label.size()));
       mySystem.setDirtyPage(address);
       return true;
   }
@@ -584,17 +540,17 @@ bool CartDebug::addLabel(const string& label, uInt16 address)
 bool CartDebug::removeLabel(const string& label)
 {
   // Only user-defined labels can be removed
-  LabelToAddr::iterator iter = myUserAddresses.find(label);
+  const auto& iter = myUserAddresses.find(label);
   if(iter != myUserAddresses.end())
   {
-    // Erase the label
-    myUserAddresses.erase(iter);
-    mySystem.setDirtyPage(iter->second);
-
-    // And also erase the address assigned to it
-    AddrToLabel::iterator iter2 = myUserLabels.find(iter->second);
+    // Erase the address assigned to the label
+    const auto& iter2 = myUserLabels.find(iter->second);
     if(iter2 != myUserLabels.end())
       myUserLabels.erase(iter2);
+
+    // Erase the label itself
+    mySystem.setDirtyPage(iter->second);
+    myUserAddresses.erase(iter);
 
     return true;
   }
@@ -659,8 +615,8 @@ bool CartDebug::getLabel(ostream& buf, uInt16 addr, bool isRead, int places) con
     {
       // RAM can use user-defined labels; otherwise we default to
       // standard mnemonics
-      AddrToLabel::const_iterator iter;
-      if((iter = myUserLabels.find(addr)) != myUserLabels.end())
+      auto iter = myUserLabels.find(addr);
+      if(iter != myUserLabels.end())
       {
         buf << iter->second;
       }
@@ -681,8 +637,8 @@ bool CartDebug::getLabel(ostream& buf, uInt16 addr, bool isRead, int places) con
     case ADDR_ROM:
     {
       // These addresses can never be in the system labels list
-      AddrToLabel::const_iterator iter;
-      if((iter = myUserLabels.find(addr)) != myUserLabels.end())
+      const auto& iter = myUserLabels.find(addr);
+      if(iter != myUserLabels.end())
       {
         buf << iter->second;
         return true;
@@ -731,23 +687,20 @@ int CartDebug::getAddress(const string& label) const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 string CartDebug::loadListFile()
 {
-  // Currently, the default naming/location for list files is:
-  // 1) ROM dir based on properties entry name
+  // The default naming/location for list files is the ROM dir based on the
+  // actual ROM filename
 
   if(myListFile == "")
   {
-    const string& propsname =
-      myConsole.properties().get(Cartridge_Name) + ".lst";
-
-    FilesystemNode case1(myOSystem.romFile().getParent().getPath() + propsname);
-    if(case1.isFile() && case1.isReadable())
-      myListFile = case1.getPath();
+    FilesystemNode lst(myOSystem.romFile().getPathWithExt("") + ".lst");
+    if(lst.isFile() && lst.isReadable())
+      myListFile = lst.getPath();
     else
-      return DebuggerParser::red("list file not found in:\n  " + case1.getShortPath());
+      return DebuggerParser::red("list file not found in:\n  " + lst.getShortPath());
   }
 
   FilesystemNode node(myListFile);
-  ifstream in(node.getPath().c_str());
+  ifstream in(node.getPath());
   if(!in.is_open())
     return DebuggerParser::red("list file '" + node.getShortPath() + "' not readable");
 
@@ -756,7 +709,6 @@ string CartDebug::loadListFile()
   while(!in.eof())
   {
     string line, addr_s;
-    int addr = -1;
 
     getline(in, line);
 
@@ -768,11 +720,12 @@ string CartDebug::loadListFile()
 
       // Swallow first value, then get actual numerical value for address
       // We need to read the address as a string, since it may contain 'U'
+      int addr = -1;
       buf >> addr >> addr_s;
       if(addr_s.length() == 0)
         continue;
       const char* p = addr_s[0] == 'U' ? addr_s.c_str() + 1 : addr_s.c_str();
-      addr = strtoul(p, NULL, 16);
+      addr = int(strtoul(p, NULL, 16));
 
       // For now, completely ignore ROM addresses
       if(!(addr & 0x1000))
@@ -783,11 +736,10 @@ string CartDebug::loadListFile()
         char eq = '\0';
         buf >> hex >> xx >> hex >> yy >> line >> eq;
         if(xx >= 0 && yy >= 0 && eq == '=')
-          myUserCLabels.insert(make_pair(xx*256+yy, line));
+          myUserCLabels.emplace(xx*256+yy, line);
       }
     }
   }
-  in.close();
   myDebugger.rom().invalidate();
 
   return "loaded " + node.getShortPath() + " OK";
@@ -796,23 +748,20 @@ string CartDebug::loadListFile()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 string CartDebug::loadSymbolFile()
 {
-  // Currently, the default naming/location for symbol files is:
-  // 1) ROM dir based on properties entry name
+  // The default naming/location for symbol files is the ROM dir based on the
+  // actual ROM filename
 
   if(mySymbolFile == "")
   {
-    const string& propsname =
-      myConsole.properties().get(Cartridge_Name) + ".sym";
-
-    FilesystemNode case1(myOSystem.romFile().getParent().getPath() + propsname);
-    if(case1.isFile() && case1.isReadable())
-      mySymbolFile = case1.getPath();
+    FilesystemNode sym(myOSystem.romFile().getPathWithExt("") + ".sym");
+    if(sym.isFile() && sym.isReadable())
+      mySymbolFile = sym.getPath();
     else
-      return DebuggerParser::red("symbol file not found in:\n  " + case1.getShortPath());
+      return DebuggerParser::red("symbol file not found in:\n  " + sym.getShortPath());
   }
 
   FilesystemNode node(mySymbolFile);
-  ifstream in(node.getPath().c_str());
+  ifstream in(node.getPath());
   if(!in.is_open())
     return DebuggerParser::red("symbol file '" + node.getShortPath() + "' not readable");
 
@@ -832,9 +781,9 @@ string CartDebug::loadSymbolFile()
     {
       // Make sure the value doesn't represent a constant
       // For now, we simply ignore constants completely
-      AddrToLabel::const_iterator iter = myUserCLabels.find(value);
-      if(iter == myUserCLabels.end() || !BSPF_equalsIgnoreCase(label, iter->second))
-      { 
+      const auto& iter = myUserCLabels.find(value);
+      if(iter == myUserCLabels.end() || !BSPF::equalsIgnoreCase(label, iter->second))
+      {
         // Check for period, and strip leading number
         if(string::size_type pos = label.find_first_of(".", 0) != string::npos)
           addLabel(label.substr(pos), value);
@@ -843,7 +792,6 @@ string CartDebug::loadSymbolFile()
       }
     }
   }
-  in.close();
   myDebugger.rom().invalidate();
 
   return "loaded " + node.getShortPath() + " OK";
@@ -878,23 +826,20 @@ string CartDebug::loadConfigFile()
   }
 
   FilesystemNode node(myCfgFile);
-  ifstream in(node.getPath().c_str());
+  ifstream in(node.getPath());
   if(!in.is_open())
     return "Unable to load directives from " + node.getPath();
 
   // Erase all previous directives
-  for(Common::Array<BankInfo>::iterator bi = myBankInfo.begin();
-      bi != myBankInfo.end(); ++bi)
-  {
-    bi->directiveList.clear();
-  }
+  for(auto& bi: myBankInfo)
+    bi.directiveList.clear();
 
   int currentbank = 0;
   while(!in.eof())
   {
     // Skip leading space
     int c = in.peek();
-    while(c == ' ' && c == '\t')
+    while(c == ' ' || c == '\t')
     {
       in.get();
       c = in.peek();
@@ -923,32 +868,32 @@ string CartDebug::loadConfigFile()
       string directive;
       uInt16 start = 0, end = 0;
       buf >> directive;
-      if(BSPF_startsWithIgnoreCase(directive, "ORG"))
+      if(BSPF::startsWithIgnoreCase(directive, "ORG"))
       {
         // TODO - figure out what to do with this
         buf >> hex >> start;
       }
-      else if(BSPF_startsWithIgnoreCase(directive, "CODE"))
+      else if(BSPF::startsWithIgnoreCase(directive, "CODE"))
       {
         buf >> hex >> start >> hex >> end;
         addDirective(CartDebug::CODE, start, end, currentbank);
       }
-      else if(BSPF_startsWithIgnoreCase(directive, "GFX"))
+      else if(BSPF::startsWithIgnoreCase(directive, "GFX"))
       {
         buf >> hex >> start >> hex >> end;
         addDirective(CartDebug::GFX, start, end, currentbank);
       }
-      else if(BSPF_startsWithIgnoreCase(directive, "PGFX"))
+      else if(BSPF::startsWithIgnoreCase(directive, "PGFX"))
       {
         buf >> hex >> start >> hex >> end;
         addDirective(CartDebug::PGFX, start, end, currentbank);
       }
-      else if(BSPF_startsWithIgnoreCase(directive, "DATA"))
+      else if(BSPF::startsWithIgnoreCase(directive, "DATA"))
       {
         buf >> hex >> start >> hex >> end;
         addDirective(CartDebug::DATA, start, end, currentbank);
       }
-      else if(BSPF_startsWithIgnoreCase(directive, "ROW"))
+      else if(BSPF::startsWithIgnoreCase(directive, "ROW"))
       {
         buf >> hex >> start;
         buf >> hex >> end;
@@ -956,7 +901,6 @@ string CartDebug::loadConfigFile()
       }
     }
   }
-  in.close();
   myDebugger.rom().invalidate();
 
   return "loaded " + node.getShortPath() + " OK";
@@ -988,7 +932,7 @@ string CartDebug::saveConfigFile()
   const string& name = myConsole.properties().get(Cartridge_Name);
   const string& md5 = myConsole.properties().get(Cartridge_MD5);
 
-  ofstream out(node.getPath().c_str());
+  ofstream out(node.getPath());
   if(!out.is_open())
     return "Unable to save directives to " + node.getShortPath();
 
@@ -1001,7 +945,6 @@ string CartDebug::saveConfigFile()
     out << "[" << b << "]" << endl;
     getBankDirectives(out, myBankInfo[b]);
   }
-  out.close();
 
   return "saved " + node.getShortPath() + " OK";
 }
@@ -1029,7 +972,7 @@ string CartDebug::saveDisassembly()
   }
 
   FilesystemNode node(myDisasmFile);
-  ofstream out(node.getPath().c_str());
+  ofstream out(node.getPath());
   if(!out.is_open())
     return "Unable to save disassembly to " + node.getShortPath();
 
@@ -1058,8 +1001,12 @@ string CartDebug::saveDisassembly()
   for(int bank = 0; bank < myConsole.cartridge().bankCount(); ++bank)
   {
     BankInfo& info = myBankInfo[bank];
+    // An empty address list means that DiStella can't do a disassembly
+    if(info.addressList.size() == 0)
+      continue;
+
     // Disassemble bank
-    disasm.list.clear(false);  // don't fully de-allocate space
+    disasm.list.clear();
     DiStella distella(*this, disasm.list, info, settings,
                       myDisLabels, myDisDirectives, myReserved);
 
@@ -1097,8 +1044,8 @@ string CartDebug::saveDisassembly()
         {
           buf << ".byte " << (settings.gfx_format == Base::F_2 ? "%" : "$")
               << tag.bytes << " ; |";
-          for(int i = 12; i < 20; ++i)
-            buf << ((tag.disasm[i] == '\x1e') ? "#" : " ");
+          for(int c = 12; c < 20; ++c)
+            buf << ((tag.disasm[c] == '\x1e') ? "#" : " ");
           buf << "| $" << Base::HEX4 << tag.address << " (G)\n";
           break;
         }
@@ -1106,8 +1053,8 @@ string CartDebug::saveDisassembly()
         {
           buf << ".byte " << (settings.gfx_format == Base::F_2 ? "%" : "$")
               << tag.bytes << " ; |";
-          for(int i = 12; i < 20; ++i)
-            buf << ((tag.disasm[i] == '\x1f') ? "*" : " ");
+          for(int c = 12; c < 20; ++c)
+            buf << ((tag.disasm[c] == '\x1f') ? "*" : " ");
           buf << "| $" << Base::HEX4 << tag.address << " (P)\n";
           break;
         }
@@ -1185,14 +1132,13 @@ string CartDebug::saveDisassembly()
     }
   }
 
-  AddrToLabel::const_iterator iter;
   if(myReserved.Label.size() > 0)
   {
     out << "\n;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n"
         << ";      NON LOCATABLE\n"
         << ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n\n";
-    for(iter = myReserved.Label.begin(); iter != myReserved.Label.end(); ++iter)
-        out << ALIGN(10) << iter->second << "  =  $" << iter->first << "\n";
+    for(const auto& iter: myReserved.Label)
+        out << ALIGN(10) << iter.second << "  =  $" << iter.first << "\n";
   }
 
   if(myUserLabels.size() > 0)
@@ -1201,16 +1147,14 @@ string CartDebug::saveDisassembly()
         << ";      USER DEFINED\n"
         << ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n\n";
     int max_len = 0;
-    for(iter = myUserLabels.begin(); iter != myUserLabels.end(); ++iter)
-      max_len = BSPF_max(max_len, (int)iter->second.size());
-    for(iter = myUserLabels.begin(); iter != myUserLabels.end(); ++iter)
-        out << ALIGN(max_len) << iter->second << "  =  $" << iter->first << "\n";
+    for(const auto& iter: myUserLabels)
+      max_len = std::max(max_len, int(iter.second.size()));
+    for(const auto& iter: myUserLabels)
+        out << ALIGN(max_len) << iter.second << "  =  $" << iter.first << "\n";
   }
 
   // And finally, output the disassembly
   out << buf.str();
-
-  out.close();
 
   return "saved " + node.getShortPath() + " OK";
 }
@@ -1218,12 +1162,12 @@ string CartDebug::saveDisassembly()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 string CartDebug::saveRom()
 {
-  const string& path = "~" BSPF_PATH_SEPARATOR + 
+  const string& path = string("~") + BSPF::PATH_SEPARATOR +
     myConsole.properties().get(Cartridge_Name) + ".a26";
 
   FilesystemNode node(path);
-  ofstream out(node.getPath().c_str(), ios::out | ios::binary);
-  if(out.is_open() && myConsole.cartridge().save(out))
+  ofstream out(node.getPath(), std::ios::binary);
+  if(out && myConsole.cartridge().saveROM(out))
     return "saved ROM as " + node.getShortPath();
   else
     return DebuggerParser::red("failed to save ROM");
@@ -1248,14 +1192,13 @@ string CartDebug::listConfig(int bank)
   {
     BankInfo& info = myBankInfo[b];
     buf << "[" << b << "]" << endl;
-    for(DirectiveList::const_iterator i = info.directiveList.begin();
-        i != info.directiveList.end(); ++i)
+    for(const auto& i: info.directiveList)
     {
-      if(i->type != CartDebug::NONE)
+      if(i.type != CartDebug::NONE)
       {
         buf << "(*) ";
-        disasmTypeAsString(buf, i->type);
-        buf << " " << Base::HEX4 << i->start << " " << Base::HEX4 << i->end << endl;
+        disasmTypeAsString(buf, i.type);
+        buf << " " << Base::HEX4 << i.start << " " << Base::HEX4 << i.end << endl;
       }
     }
     getBankDirectives(buf, info);
@@ -1295,24 +1238,23 @@ void CartDebug::getCompletions(const char* in, StringList& completions) const
 {
   // First scan system equates
   for(uInt16 addr = 0x00; addr <= 0x0F; ++addr)
-    if(ourTIAMnemonicR[addr] && BSPF_startsWithIgnoreCase(ourTIAMnemonicR[addr], in))
+    if(ourTIAMnemonicR[addr] && BSPF::startsWithIgnoreCase(ourTIAMnemonicR[addr], in))
       completions.push_back(ourTIAMnemonicR[addr]);
   for(uInt16 addr = 0x00; addr <= 0x3F; ++addr)
-    if(ourTIAMnemonicW[addr] && BSPF_startsWithIgnoreCase(ourTIAMnemonicW[addr], in))
+    if(ourTIAMnemonicW[addr] && BSPF::startsWithIgnoreCase(ourTIAMnemonicW[addr], in))
       completions.push_back(ourTIAMnemonicW[addr]);
   for(uInt16 addr = 0; addr <= 0x297-0x280; ++addr)
-    if(ourIOMnemonic[addr] && BSPF_startsWithIgnoreCase(ourIOMnemonic[addr], in))
+    if(ourIOMnemonic[addr] && BSPF::startsWithIgnoreCase(ourIOMnemonic[addr], in))
       completions.push_back(ourIOMnemonic[addr]);
   for(uInt16 addr = 0; addr <= 0x7F; ++addr)
-    if(ourZPMnemonic[addr] && BSPF_startsWithIgnoreCase(ourZPMnemonic[addr], in))
+    if(ourZPMnemonic[addr] && BSPF::startsWithIgnoreCase(ourZPMnemonic[addr], in))
       completions.push_back(ourZPMnemonic[addr]);
 
   // Now scan user-defined labels
-  LabelToAddr::const_iterator iter;
-  for(iter = myUserAddresses.begin(); iter != myUserAddresses.end(); ++iter)
+  for(const auto& iter: myUserAddresses)
   {
-    const char* l = iter->first.c_str();
-    if(BSPF_startsWithIgnoreCase(l, in))
+    const char* l = iter.first.c_str();
+    if(BSPF::startsWithIgnoreCase(l, in))
       completions.push_back(l);
   }
 }
@@ -1460,13 +1402,13 @@ void CartDebug::disasmTypeAsString(ostream& buf, uInt8 flags) const
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const char* CartDebug::ourTIAMnemonicR[16] = {
+const char* const CartDebug::ourTIAMnemonicR[16] = {
   "CXM0P", "CXM1P", "CXP0FB", "CXP1FB", "CXM0FB", "CXM1FB", "CXBLPF", "CXPPMM",
   "INPT0", "INPT1", "INPT2", "INPT3", "INPT4", "INPT5", 0, 0
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const char* CartDebug::ourTIAMnemonicW[64] = {
+const char* const CartDebug::ourTIAMnemonicW[64] = {
   "VSYNC", "VBLANK", "WSYNC", "RSYNC", "NUSIZ0", "NUSIZ1", "COLUP0", "COLUP1",
   "COLUPF", "COLUBK", "CTRLPF", "REFP0", "REFP1", "PF0", "PF1", "PF2",
   "RESP0", "RESP1", "RESM0", "RESM1", "RESBL", "AUDC0", "AUDC1", "AUDF0",
@@ -1477,27 +1419,27 @@ const char* CartDebug::ourTIAMnemonicW[64] = {
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const char* CartDebug::ourIOMnemonic[24] = {
+const char* const CartDebug::ourIOMnemonic[24] = {
   "SWCHA", "SWACNT", "SWCHB", "SWBCNT", "INTIM", "TIMINT", 0, 0,  0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, "TIM1T", "TIM8T", "TIM64T", "T1024T"
 };
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const char* CartDebug::ourZPMnemonic[128] = {
-  "ram_80", "ram_81", "ram_82", "ram_83", "ram_84", "ram_85", "ram_86", "ram_87", 
-  "ram_88", "ram_89", "ram_8A", "ram_8B", "ram_8C", "ram_8D", "ram_8E", "ram_8F", 
-  "ram_90", "ram_91", "ram_92", "ram_93", "ram_94", "ram_95", "ram_96", "ram_97", 
-  "ram_98", "ram_99", "ram_9A", "ram_9B", "ram_9C", "ram_9D", "ram_9E", "ram_9F", 
-  "ram_A0", "ram_A1", "ram_A2", "ram_A3", "ram_A4", "ram_A5", "ram_A6", "ram_A7", 
-  "ram_A8", "ram_A9", "ram_AA", "ram_AB", "ram_AC", "ram_AD", "ram_AE", "ram_AF", 
-  "ram_B0", "ram_B1", "ram_B2", "ram_B3", "ram_B4", "ram_B5", "ram_B6", "ram_B7", 
-  "ram_B8", "ram_B9", "ram_BA", "ram_BB", "ram_BC", "ram_BD", "ram_BE", "ram_BF", 
-  "ram_C0", "ram_C1", "ram_C2", "ram_C3", "ram_C4", "ram_C5", "ram_C6", "ram_C7", 
-  "ram_C8", "ram_C9", "ram_CA", "ram_CB", "ram_CC", "ram_CD", "ram_CE", "ram_CF", 
-  "ram_D0", "ram_D1", "ram_D2", "ram_D3", "ram_D4", "ram_D5", "ram_D6", "ram_D7", 
-  "ram_D8", "ram_D9", "ram_DA", "ram_DB", "ram_DC", "ram_DD", "ram_DE", "ram_DF", 
-  "ram_E0", "ram_E1", "ram_E2", "ram_E3", "ram_E4", "ram_E5", "ram_E6", "ram_E7", 
-  "ram_E8", "ram_E9", "ram_EA", "ram_EB", "ram_EC", "ram_ED", "ram_EE", "ram_EF", 
-  "ram_F0", "ram_F1", "ram_F2", "ram_F3", "ram_F4", "ram_F5", "ram_F6", "ram_F7", 
+const char* const CartDebug::ourZPMnemonic[128] = {
+  "ram_80", "ram_81", "ram_82", "ram_83", "ram_84", "ram_85", "ram_86", "ram_87",
+  "ram_88", "ram_89", "ram_8A", "ram_8B", "ram_8C", "ram_8D", "ram_8E", "ram_8F",
+  "ram_90", "ram_91", "ram_92", "ram_93", "ram_94", "ram_95", "ram_96", "ram_97",
+  "ram_98", "ram_99", "ram_9A", "ram_9B", "ram_9C", "ram_9D", "ram_9E", "ram_9F",
+  "ram_A0", "ram_A1", "ram_A2", "ram_A3", "ram_A4", "ram_A5", "ram_A6", "ram_A7",
+  "ram_A8", "ram_A9", "ram_AA", "ram_AB", "ram_AC", "ram_AD", "ram_AE", "ram_AF",
+  "ram_B0", "ram_B1", "ram_B2", "ram_B3", "ram_B4", "ram_B5", "ram_B6", "ram_B7",
+  "ram_B8", "ram_B9", "ram_BA", "ram_BB", "ram_BC", "ram_BD", "ram_BE", "ram_BF",
+  "ram_C0", "ram_C1", "ram_C2", "ram_C3", "ram_C4", "ram_C5", "ram_C6", "ram_C7",
+  "ram_C8", "ram_C9", "ram_CA", "ram_CB", "ram_CC", "ram_CD", "ram_CE", "ram_CF",
+  "ram_D0", "ram_D1", "ram_D2", "ram_D3", "ram_D4", "ram_D5", "ram_D6", "ram_D7",
+  "ram_D8", "ram_D9", "ram_DA", "ram_DB", "ram_DC", "ram_DD", "ram_DE", "ram_DF",
+  "ram_E0", "ram_E1", "ram_E2", "ram_E3", "ram_E4", "ram_E5", "ram_E6", "ram_E7",
+  "ram_E8", "ram_E9", "ram_EA", "ram_EB", "ram_EC", "ram_ED", "ram_EE", "ram_EF",
+  "ram_F0", "ram_F1", "ram_F2", "ram_F3", "ram_F4", "ram_F5", "ram_F6", "ram_F7",
   "ram_F8", "ram_F9", "ram_FA", "ram_FB", "ram_FC", "ram_FD", "ram_FE", "ram_FF"
 };

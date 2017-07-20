@@ -1,27 +1,26 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: OSystem.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef OSYSTEM_HXX
 #define OSYSTEM_HXX
 
-class Cartridge;
+#ifdef CHEATCODE_SUPPORT
 class CheatManager;
+#endif
 class CommandMenu;
 class Console;
 class Debugger;
@@ -29,26 +28,26 @@ class Launcher;
 class Menu;
 class Properties;
 class PropertiesSet;
+class Random;
 class SerialPort;
 class Settings;
 class Sound;
 class StateManager;
 class VideoDialog;
 
-namespace GUI {
-  class Font;
-}
-
-#include "Array.hxx"
+#include "Cart.hxx"
+#include "FSNode.hxx"
 #include "FrameBuffer.hxx"
+#include "PNGLibrary.hxx"
 #include "bspf.hxx"
 
-struct Resolution {
-  uInt32 width;
-  uInt32 height;
-  string name;
+struct TimingInfo {
+  uInt64 start;
+  uInt64 current;
+  uInt64 virt;
+  uInt64 totalTime;
+  uInt64 totalFrames;
 };
-typedef Common::Array<Resolution> ResolutionList;
 
 /**
   This class provides an interface for accessing operating system specific
@@ -56,7 +55,6 @@ typedef Common::Array<Resolution> ResolutionList;
   other objects belong.
 
   @author  Stephen Anthony
-  @version $Id: OSystem.hxx 2359 2012-01-17 22:20:20Z stephena $
 */
 class OSystem
 {
@@ -64,14 +62,7 @@ class OSystem
   friend class VideoDialog;
 
   public:
-    /**
-      Create a new OSystem abstract class
-    */
     OSystem();
-
-    /**
-      Destructor
-    */
     virtual ~OSystem();
 
     /**
@@ -81,53 +72,55 @@ class OSystem
 
   public:
     /**
-      Adds the specified settings object to the system.
-
-      @param settings The settings object to add 
-    */
-    void attach(Settings* settings) { mySettings = settings; }
-
-    /**
-      Get the event handler of the system
+      Get the event handler of the system.
 
       @return The event handler
     */
     EventHandler& eventHandler() const { return *myEventHandler; }
 
     /**
-      Get the frame buffer of the system
+      Get the frame buffer of the system.
 
       @return The frame buffer
     */
     FrameBuffer& frameBuffer() const { return *myFrameBuffer; }
 
     /**
-      Get the sound object of the system
+      Get the sound object of the system.
 
       @return The sound object
     */
     Sound& sound() const { return *mySound; }
 
     /**
-      Get the settings object of the system
+      Get the settings object of the system.
 
       @return The settings object
     */
     Settings& settings() const { return *mySettings; }
 
     /**
-      Get the set of game properties for the system
+      Get the random object of the system.
+
+      @return The random object
+    */
+    Random& random() const { return *myRandom; }
+
+    /**
+      Get the set of game properties for the system.
 
       @return The properties set object
     */
     PropertiesSet& propSet() const { return *myPropSet; }
 
     /**
-      Get the console of the system.
+      Get the console of the system.  The console won't always exist,
+      so we should test if it's available.
 
       @return The console object
     */
     Console& console() const { return *myConsole; }
+    bool hasConsole() const;
 
     /**
       Get the serial port of the system.
@@ -136,12 +129,56 @@ class OSystem
     */
     SerialPort& serialPort() const { return *mySerialPort; }
 
-#ifdef DEBUGGER_SUPPORT
     /**
-      Create all child objects which belong to this OSystem
-    */
-    void createDebugger(Console& console);
+      Get the settings menu of the system.
 
+      @return The settings menu object
+    */
+    Menu& menu() const { return *myMenu; }
+
+    /**
+      Get the command menu of the system.
+
+      @return The command menu object
+    */
+    CommandMenu& commandMenu() const { return *myCommandMenu; }
+
+    /**
+      Get the ROM launcher of the system.
+
+      @return The launcher object
+    */
+    Launcher& launcher() const { return *myLauncher; }
+
+    /**
+      Get the state manager of the system.
+
+      @return The statemanager object
+    */
+    StateManager& state() const { return *myStateManager; }
+
+    /**
+      Get the PNG handler of the system.
+
+      @return The PNGlib object
+    */
+    PNGLibrary& png() const { return *myPNGLib; }
+
+    /**
+      This method should be called to load the current settings from an rc file.
+      It first loads the settings from the config file, then informs subsystems
+      about the new settings.
+    */
+    void loadConfig();
+
+    /**
+      This method should be called to save the current settings to an rc file.
+      It first asks each subsystem to update its settings, then it saves all
+      settings to the config file.
+    */
+    void saveConfig();
+
+#ifdef DEBUGGER_SUPPORT
     /**
       Get the ROM debugger of the system.
 
@@ -173,22 +210,53 @@ class OSystem
     void setConfigPaths();
 
     /**
-      Set the user-interface palette which is specified in current settings.
-    */
-    void setUIPalette();
+      Get the current framerate for the video system.
 
-    uInt32 desktopHeight() const { return 512; }
+      @return  The video framerate currently in use
+    */
+    float frameRate() const { return myDisplayFrameRate; }
+
+    /**
+      Return the default full/complete directory name for storing data.
+    */
+    const string& baseDir() const { return myBaseDir; }
 
     /**
       Return the full/complete directory name for storing state files.
     */
-    const string& stateDir() const { static string dir("."); return dir; }
+    const string& stateDir() const { return myStateDir; }
 
     /**
-     Return the full/complete directory name for storing nvram
-     (flash/EEPROM) files.
-     */
+      Return the full/complete directory name for saving and loading
+      PNG snapshots.
+    */
+    const string& snapshotSaveDir() const { return mySnapshotSaveDir; }
+    const string& snapshotLoadDir() const { return mySnapshotLoadDir; }
+
+    /**
+      Return the full/complete directory name for storing nvram
+      (flash/EEPROM) files.
+    */
     const string& nvramDir() const { return myNVRamDir; }
+
+    /**
+      Return the full/complete directory name for storing Distella cfg files.
+    */
+    const string& cfgDir() const { return myCfgDir; }
+
+    /**
+      This method should be called to get the full path of the cheat file.
+
+      @return String representing the full path of the cheat filename.
+    */
+    const string& cheatFile() const { return myCheatFile; }
+
+    /**
+      This method should be called to get the full path of the config file.
+
+      @return String representing the full path of the config filename.
+    */
+    const string& configFile() const { return myConfigFile; }
 
     /**
       This method should be called to get the full path of the
@@ -199,21 +267,41 @@ class OSystem
     const string& paletteFile() const { return myPaletteFile; }
 
     /**
+      This method should be called to get the full path of the
+      properties file (stella.pro).
+
+      @return String representing the full path of the properties filename.
+    */
+    const string& propertiesFile() const { return myPropertiesFile; }
+
+    /**
+      This method should be called to get the full path of the currently
+      loaded ROM.
+
+      @return FSNode object representing the ROM file.
+    */
+    const FilesystemNode& romFile() const { return myRomFile; }
+
+    /**
       Creates a new game console from the specified romfile, and correctly
       initializes the system state to start emulation of the Console.
 
-      @param romfile  The full pathname of the ROM to use
-      @param md5      The MD5sum of the ROM
+      @param rom     The FSNode of the ROM to use (contains path, etc)
+      @param md5     The MD5sum of the ROM
+      @param newrom  Whether this is a new ROM, or a reload of current one
+
+      @return  String indicating any error message (EmptyString for no errors)
+    */
+    string createConsole(const FilesystemNode& rom, const string& md5 = "",
+                         bool newrom = true);
+
+    /**
+      Reloads the current console (essentially deletes and re-creates it).
+      This can be thought of as a real console off/on toggle.
 
       @return  True on successful creation, otherwise false
     */
-    bool createConsole(const string& romfile = "", const string& md5 = "");
-
-    /**
-      Deletes the currently defined console, if it exists.
-      Also prints some statistics (fps, total frames, etc).
-    */
-    void deleteConsole();
+    bool reloadConsole();
 
     /**
       Creates a new ROM launcher, to select a new ROM to emulate.
@@ -226,40 +314,63 @@ class OSystem
     bool createLauncher(const string& startdir = "");
 
     /**
+      Answers whether the ROM launcher was actually successfully used
+      at some point since the app started.
+
+      @return  True if launcher was ever used, otherwise false
+    */
+    bool launcherUsed() const { return myLauncherUsed; }
+
+    /**
       Gets all possible info about the ROM by creating a temporary
       Console object and querying it.
 
-      @param romfile  The full pathname of the ROM to use
+      @param romfile  The file node of the ROM to use
       @return  Some information about this ROM
     */
-    string getROMInfo(const string& romfile);
+    string getROMInfo(const FilesystemNode& romfile);
 
     /**
-      Calculate the MD5sum of the given file.
+      The features which are conditionally compiled into Stella.
 
-      @param filename  Filename of potential ROM file
+      @return  The supported features
     */
-    string MD5FromFile(const string& filename);
+    const string& features() const { return myFeatures; }
 
     /**
-      Append a message to the internal log.
+      The build information for Stella (toolkit version, architecture, etc).
+
+      @return  The build info
+    */
+    const string& buildInfo() const { return myBuildInfo; }
+
+    /**
+      Issue a quit event to the OSystem.
+    */
+    void quit() { myQuitLoop = true; }
+
+    /**
+      Append a message to the internal log
+      (a newline is automatically added).
 
       @param message  The message to be appended
       @param level    If 0, always output the message, only append when
                       level is less than or equal to that in 'loglevel'
     */
-	#ifdef NDEBUG
-    void logMessage(const string& message, uInt8 level) { }
-	#else
     void logMessage(const string& message, uInt8 level);
-	#endif
 
     /**
       Get the system messages logged up to this point.
 
       @return The list of log messages
     */
-    //const string& logMessages() const { return myLogMessages; }
+    const string& logMessages() const { return myLogMessages; }
+
+    /**
+      Return timing information (start time of console, current
+      number of frames rendered, etc.
+    */
+    const TimingInfo& timingInfo() const { return myTimingInfo; }
 
   public:
     //////////////////////////////////////////////////////////////////////
@@ -287,50 +398,21 @@ class OSystem
     virtual void mainLoop();
 
     /**
-      This method determines the default mapping of joystick actions to
-      Stella events for a specific system/platform.
-
-      @param event  The event which to (re)set (Event::NoType resets all)
-      @param mode   The mode for which the defaults are set
-    */
-    virtual void setDefaultJoymap(Event::Type event, EventMode mode);
-
-    /**
-      This method creates events from platform-specific hardware.
-    */
-    virtual void pollEvent();
-
-    /**
       Informs the OSystem of a change in EventHandler state.
     */
-    virtual void stateChanged(EventHandler::State state);
+    virtual void stateChanged(EventHandler::State state) { }
 
     /**
-      Returns the default path for the snapshot directory.
+      Returns the default save and load paths for the snapshot directory.
       Since this varies greatly among different systems and is the one
       directory that most end-users care about (vs. config file stuff
       that usually isn't user-modifiable), we create a special method
       for it.
     */
-    virtual string defaultSnapDir() { return "~"; }
-
-    /**
-      Set the position of the application window, generally using
-      platform-specific code.  Note that this method is only ever
-      called for windowed mode, so no provisions need be made
-      for fullscreen mode.
-    */
-    virtual void setAppWindowPos(int x, int y, int w, int h) { };
-
-    // Pointer to the (currently defined) Console object
-    Console* myConsole;
+    virtual string defaultSnapSaveDir() { return string("~") + BSPF::PATH_SEPARATOR; }
+    virtual string defaultSnapLoadDir() { return string("~") + BSPF::PATH_SEPARATOR; }
 
   protected:
-    /**
-      Query the OSystem video hardware for resolution information.
-    */
-    virtual bool queryVideoHardware();
-
     /**
       Set the base directory for all Stella files (these files may be
       located in other places through settings).
@@ -344,73 +426,134 @@ class OSystem
 
   protected:
     // Pointer to the EventHandler object
-    EventHandler* myEventHandler;
+    unique_ptr<EventHandler> myEventHandler;
 
     // Pointer to the FrameBuffer object
-    FrameBuffer* myFrameBuffer;
+    unique_ptr<FrameBuffer> myFrameBuffer;
 
     // Pointer to the Sound object
-    Sound* mySound;
+    unique_ptr<Sound> mySound;
 
     // Pointer to the Settings object
-    Settings* mySettings;
+    unique_ptr<Settings> mySettings;
+
+    // Pointer to the Random object
+    unique_ptr<Random> myRandom;
 
     // Pointer to the PropertiesSet object
-    PropertiesSet* myPropSet;
+    unique_ptr<PropertiesSet> myPropSet;
+
+    // Pointer to the (currently defined) Console object
+    unique_ptr<Console> myConsole;
 
     // Pointer to the serial port object
-    SerialPort* mySerialPort;
+    unique_ptr<SerialPort> mySerialPort;
+
+    // Pointer to the Menu object
+    unique_ptr<Menu> myMenu;
+
+    // Pointer to the CommandMenu object
+    unique_ptr<CommandMenu> myCommandMenu;
+
+    // Pointer to the Launcher object
+    unique_ptr<Launcher> myLauncher;
+    bool myLauncherUsed;
+
+  #ifdef DEBUGGER_SUPPORT
+    // Pointer to the Debugger object
+    unique_ptr<Debugger> myDebugger;
+  #endif
+
+  #ifdef CHEATCODE_SUPPORT
+    // Pointer to the CheatManager object
+    unique_ptr<CheatManager> myCheatManager;
+  #endif
+
+    // Pointer to the StateManager object
+    unique_ptr<StateManager> myStateManager;
+
+    // PNG object responsible for loading/saving PNG images
+    unique_ptr<PNGLibrary> myPNGLib;
+
+    // The list of log messages
+    string myLogMessages;
+
+    // Number of times per second to iterate through the main loop
+    float myDisplayFrameRate;
+
+    // Time per frame for a video update, based on the current framerate
+    uInt32 myTimePerFrame;
+
+    // The time (in milliseconds) from the UNIX epoch when the application starts
+    uInt32 myMillisAtStart;
+
+    // Indicates whether to stop the main loop
+    bool myQuitLoop;
 
   private:
+    string myBaseDir;
+    string myStateDir;
+    string mySnapshotSaveDir;
+    string mySnapshotLoadDir;
     string myNVRamDir;
+    string myCfgDir;
+
+    string myCheatFile;
+    string myConfigFile;
     string myPaletteFile;
+    string myPropertiesFile;
+
+    FilesystemNode myRomFile;
+    string myRomMD5;
+
+    string myFeatures;
+    string myBuildInfo;
+
+    // Indicates whether the main processing loop should proceed
+    TimingInfo myTimingInfo;
 
   private:
     /**
-      Creates the various framebuffers/renderers available in this system
-      (for now, that means either 'software' or 'opengl').  Note that
-      it will only create one type per run of Stella.
+      Creates the various framebuffers/renderers available in this system.
+      Note that it will only create one type per run of Stella.
 
       @return  Success or failure of the framebuffer creation
-               Note that if OpenGL mode fails because OpenGL is not
-               available, rendering will attempt to fall back to
-               software mode
     */
     FBInitStatus createFrameBuffer();
 
     /**
       Creates the various sound devices available in this system
-      (for now, that means either 'SDL' or 'Null').
     */
     void createSound();
 
     /**
       Creates an actual Console object based on the given info.
 
-      @param romfile  The full pathname of the ROM to use
+      @param romfile  The file node of the ROM to use (contains path)
       @param md5      The MD5sum of the ROM
-      @param type     The bankswitch type of the ROM
-      @param id       The additional id (if any) used by the ROM
 
-      @return  The actual Console object, otherwise NULL
-               (calling method is responsible for deleting it)
+      @return  The actual Console object, otherwise nullptr.
     */
-    Console* openConsole(const string& romfile, string& md5, string& type, string& id);
+    unique_ptr<Console> openConsole(const FilesystemNode& romfile, string& md5);
+
+    /**
+      Close and finalize any currently open console.
+    */
+    void closeConsole();
 
     /**
       Open the given ROM and return an array containing its contents.
       Also, the properties database is updated with a valid ROM name
       for this ROM (if necessary).
 
-      @param rom    The absolute pathname of the ROM file
+      @param rom    The file node of the ROM to open (contains path)
       @param md5    The md5 calculated from the ROM file
                     (will be recalculated if necessary)
       @param size   The amount of data read into the image array
 
-      @return  Pointer to the array, with size >=0 indicating valid data
-               (calling method is responsible for deleting it)
+      @return  Unique pointer to the array
     */
-    uInt8* openROM(string rom, string& md5, uInt32& size);
+    BytePtr openROM(const FilesystemNode& rom, string& md5, uInt32& size);
 
     /**
       Gets all possible info about the given console.
@@ -418,7 +561,7 @@ class OSystem
       @param console  The console to use
       @return  Some information about this console
     */
-    string getROMInfo(const Console* console);
+    string getROMInfo(const Console& console);
 
     /**
       Initializes the timing so that the mainloop is reset to its
@@ -436,13 +579,13 @@ class OSystem
       @param defaultpath  The default path to use if the settings don't exist
     */
     void validatePath(string& path, const string& setting,
-    		              const string& defaultpath);
+                      const string& defaultpath);
 
-    // Copy constructor isn't supported by this class so make it private
-    OSystem(const OSystem&);
-
-    // Assignment operator isn't supported by this class so make it private
-    OSystem& operator = (const OSystem&);
+    // Following constructors and assignment operators not supported
+    OSystem(const OSystem&) = delete;
+    OSystem(OSystem&&) = delete;
+    OSystem& operator=(const OSystem&) = delete;
+    OSystem& operator=(OSystem&&) = delete;
 };
 
 #endif

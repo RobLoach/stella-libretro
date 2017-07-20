@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Keyboard.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef KEYBOARD_HXX
@@ -28,7 +26,6 @@
   The standard Atari 2600 keyboard controller
 
   @author  Bradford W. Mott
-  @version $Id: Keyboard.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Keyboard : public Controller
 {
@@ -41,11 +38,7 @@ class Keyboard : public Controller
       @param system The system using this controller
     */
     Keyboard(Jack jack, const Event& event, const System& system);
-
-    /**
-      Destructor
-    */
-    virtual ~Keyboard();
+    virtual ~Keyboard() = default;
 
   public:
     /**
@@ -56,13 +49,13 @@ class Keyboard : public Controller
       @param pin The pin of the controller jack to write to
       @param value The value to write to the pin
     */
-    void write(DigitalPin pin, bool value);
+    void write(DigitalPin pin, bool value) override;
 
     /**
       Update the entire digital and analog pin state according to the
       events currently set.
     */
-    void update() { }
+    void update() override { }
 
   private:
     // Pre-compute the events we care about based on given port
@@ -71,6 +64,14 @@ class Keyboard : public Controller
                 myFourEvent, myFiveEvent, mySixEvent,
                 mySevenEvent, myEightEvent, myNineEvent,
                 myStarEvent, myZeroEvent, myPoundEvent;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Keyboard() = delete;
+    Keyboard(const Keyboard&) = delete;
+    Keyboard(Keyboard&&) = delete;
+    Keyboard& operator=(const Keyboard&) = delete;
+    Keyboard& operator=(Keyboard&&) = delete;
 };
 
 #endif

@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: StateManager.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef STATE_MANAGER_HXX
@@ -30,7 +28,6 @@ class OSystem;
   played back.
 
   @author  Stephen Anthony
-  @version $Id: StateManager.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class StateManager
 {
@@ -38,18 +35,40 @@ class StateManager
     /**
       Create a new statemananger class
     */
-    StateManager(OSystem* osystem);
-
-    /**
-      Destructor
-    */
-    virtual ~StateManager();
+    StateManager(OSystem& osystem);
 
   public:
+    /**
+      Answers whether the manager is in record or playback mode
+    */
+    bool isActive() const { return myActiveMode != kOffMode; }
+
+    bool toggleRecordMode();
+    bool toggleRewindMode();
+
     /**
       Updates the state of the system based on the currently active mode
     */
     void update();
+
+    /**
+      Load a state into the current system
+
+      @param slot  The state 'slot' to load state from
+    */
+    void loadState(int slot = -1);
+
+    /**
+      Save the current state from the system
+
+      @param slot  The state 'slot' to save into
+    */
+    void saveState(int slot = -1);
+
+    /**
+      Switches to the next higher state slot (circular queue style)
+    */
+    void changeState();
 
     /**
       Load a state into the current system from the given Serializer.
@@ -77,25 +96,41 @@ class StateManager
     void reset();
 
   private:
-    // Copy constructor isn't supported by this class so make it private
-    StateManager(const StateManager&);
+    enum Mode {
+      kOffMode,
+      kMoviePlaybackMode,
+      kMovieRecordMode,
+      kRewindPlaybackMode,
+      kRewindRecordMode
+    };
 
-    // Assignment operator isn't supported by this class so make it private
-    StateManager& operator = (const StateManager&);
-
-  private:
     enum {
       kVersion = 001
     };
 
     // The parent OSystem object
-    OSystem* myOSystem;
+    OSystem& myOSystem;
 
     // The current slot for load/save states
     int myCurrentSlot;
 
+    // Whether the manager is in record or playback mode
+    Mode myActiveMode;
+
     // MD5 of the currently active ROM (either in movie or rewind mode)
     string myMD5;
+
+    // Serializer classes used to save/load the eventstream
+    Serializer myMovieWriter;
+    Serializer myMovieReader;
+
+  private:
+    // Following constructors and assignment operators not supported
+    StateManager() = delete;
+    StateManager(const StateManager&) = delete;
+    StateManager(StateManager&&) = delete;
+    StateManager& operator=(const StateManager&) = delete;
+    StateManager& operator=(StateManager&&) = delete;
 };
 
 #endif

@@ -1,48 +1,57 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: PackedBitArray.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
-#ifndef PACKEDBITARRAY_HXX
-#define PACKEDBITARRAY_HXX
+#ifndef PACKED_BIT_ARRAY_HXX
+#define PACKED_BIT_ARRAY_HXX
+
+#include <bitset>
 
 #include "bspf.hxx"
-
-#define wordSize ( (sizeof(unsigned int)) * 8)
 
 class PackedBitArray
 {
   public:
-    PackedBitArray(uInt32 length);
-    ~PackedBitArray();
+    PackedBitArray() : myInitialized(false) { }
 
-    uInt32 isSet(uInt32 bit) const;
-    uInt32 isClear(uInt32 bit) const;
+    bool isSet(uInt16 bit) const   { return myBits[bit];  }
+    bool isClear(uInt16 bit) const { return !myBits[bit]; }
 
-    void set(uInt32 bit);
-    void clear(uInt32 bit);
-    void toggle(uInt32 bit);
+    void set(uInt16 bit)    { myBits[bit] = true;  }
+    void clear(uInt16 bit)  { myBits[bit] = false; }
+    void toggle(uInt16 bit) { myBits.flip(bit);    }
+
+    void initialize() { myInitialized = true; }
+    void clearAll() { myInitialized = false; myBits.reset(); }
+
+    bool isInitialized() const { return myInitialized; }
 
   private:
-    // number of unsigned ints (size/wordSize):
-    uInt32 words;
+    // The actual bits
+    std::bitset<0x10000> myBits;
 
-    // the array itself:
-    uInt32* bits;
+    // Indicates whether we should treat this bitset as initialized
+    bool myInitialized;
+
+  private:
+    // Following constructors and assignment operators not supported
+    PackedBitArray(const PackedBitArray&) = delete;
+    PackedBitArray(PackedBitArray&&) = delete;
+    PackedBitArray& operator=(const PackedBitArray&) = delete;
+    PackedBitArray& operator=(PackedBitArray&&) = delete;
 };
 
 #endif

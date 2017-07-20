@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: DebuggerParser.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include <fstream>
@@ -26,6 +24,7 @@
 #include "CpuDebug.hxx"
 #include "RiotDebug.hxx"
 #include "TIADebug.hxx"
+#include "TiaOutputWidget.hxx"
 #include "DebuggerParser.hxx"
 #include "YaccParser.hxx"
 #include "M6502.hxx"
@@ -35,9 +34,15 @@
 #include "RomWidget.hxx"
 #include "ProgressDialog.hxx"
 #include "PackedBitArray.hxx"
+#include "Vec.hxx"
 
 #include "Base.hxx"
-using namespace Common;
+using Common::Base;
+using std::hex;
+using std::dec;
+using std::setfill;
+using std::setw;
+using std::right;
 
 #ifdef CHEATCODE_SUPPORT
   #include "Cheat.hxx"
@@ -46,33 +51,23 @@ using namespace Common;
 
 #include "DebuggerParser.hxx"
 
-// Call the pointed-to method on the this object. Whew.
-#define CALL_METHOD(method) ( (this->*method)() )
-
 
 // TODO - use C++ streams instead of nasty C-strings and pointers
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 DebuggerParser::DebuggerParser(Debugger& d, Settings& s)
   : debugger(d),
-    settings(s)
+    settings(s),
+    argCount(0)
 {
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-DebuggerParser::~DebuggerParser()
-{
-  args.clear();
-  argStrings.clear();
-  watches.clear();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // main entry point: PromptWidget calls this method.
 string DebuggerParser::run(const string& command)
 {
-  /*
-    // this was our parser test code. Left for reference.
+#if 0
+  // this was our parser test code. Left for reference.
   static Expression *lastExpression;
 
   // special case: parser testing
@@ -104,22 +99,18 @@ string DebuggerParser::run(const string& command)
       commandResult = "no valid expr";
     return commandResult;
   }
-  */
+#endif
 
   string verb;
   getArgs(command, verb);
-#ifdef EXPR_REF_COUNT
-  extern int refCount;
-  cerr << "Expression count: " << refCount << endl;
-#endif
   commandResult.str("");
 
   for(int i = 0; i < kNumCommands; ++i)
   {
-    if(BSPF_equalsIgnoreCase(verb, commands[i].cmdString))
+    if(BSPF::equalsIgnoreCase(verb, commands[i].cmdString))
     {
       if(validateArgs(i))
-        CALL_METHOD(commands[i].executor);
+        commands[i].executor(this);
 
       if(commands[i].refreshRequired)
         debugger.myBaseDialog->loadConfig();
@@ -136,7 +127,7 @@ string DebuggerParser::exec(const FilesystemNode& file)
 {
   if(file.exists())
   {
-    ifstream in(file.getPath().c_str());
+    ifstream in(file.getPath());
     if(!in.is_open())
       return red("autoexec file \'" + file.getShortPath() + "\' not found");
 
@@ -168,7 +159,7 @@ void DebuggerParser::getCompletions(const char* in, StringList& completions) con
   // cerr << "Attempting to complete \"" << in << "\"" << endl;
   for(int i = 0; i < kNumCommands; ++i)
   {
-    if(BSPF_startsWithIgnoreCase(commands[i].cmdString.c_str(), in))
+    if(BSPF::startsWithIgnoreCase(commands[i].cmdString.c_str(), in))
       completions.push_back(commands[i].cmdString);
   }
 }
@@ -211,8 +202,8 @@ int DebuggerParser::decipher_arg(const string& str)
   }
 
   if(arg.substr(0, 1) == "\\") {
-    bin = true;
     dec = false;
+    bin = true;
     arg.erase(0, 1);
   } else if(arg.substr(0, 1) == "#") {
     dec = true;
@@ -224,13 +215,8 @@ int DebuggerParser::decipher_arg(const string& str)
     arg.erase(0, 1);
   }
 
-  // sanity check mutually exclusive options:
-  if(derefByte && derefWord) return -1;
-  if(lobyte && hibyte) return -1;
-  if(bin && dec) return -1;
-
   // Special cases (registers):
-  CpuState& state = (CpuState&) debugger.cpuDebug().getState();
+  const CpuState& state = static_cast<const CpuState&>(debugger.cpuDebug().getState());
   if(arg == "a") result = state.A;
   else if(arg == "x") result = state.X;
   else if(arg == "y") result = state.Y;
@@ -298,7 +284,7 @@ int DebuggerParser::decipher_arg(const string& str)
 string DebuggerParser::showWatches()
 {
   ostringstream buf;
-  for(unsigned int i = 0; i < watches.size(); i++)
+  for(uInt32 i = 0; i < watches.size(); i++)
   {
     if(watches[i] != "")
     {
@@ -326,7 +312,7 @@ string DebuggerParser::showWatches()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool DebuggerParser::getArgs(const string& command, string& verb)
 {
-  int state = kIN_COMMAND, i = 0, length = command.length();
+  int state = kIN_COMMAND, i = 0, length = int(command.length());
   string curArg = "";
   verb = "";
 
@@ -383,32 +369,17 @@ bool DebuggerParser::getArgs(const string& command, string& verb)
   if(curArg != "")
     argStrings.push_back(curArg);
 
-  argCount = argStrings.size();
-  /*
-  cerr << "verb = " << verb << endl;
-  cerr << "arguments (" << argCount << "):\n";
-  for(int x = 0; x < argCount; x++)
-    cerr << "command " << x << ": " << argStrings[x] << endl;
-  */
+  argCount = uInt32(argStrings.size());
 
-  /*
-  // Now decipher each argument, in turn.
-  for(int i=0; i<argCount; i++) {
-    int temp = decipher_arg(argStrings[i]);
-    args.push_back(temp); // value maybe -1, if not expression argument
-                          // (validate_args will decide whether that's OK, not us.)
-  }
-  */
-
-  for(int i = 0; i < argCount; i++) {
-    int err = YaccParser::parse(argStrings[i].c_str());
-    if(err) {
-      args.push_back(-1);
-    } else {
-      Expression* e = YaccParser::getResult();
-      args.push_back( e->evaluate() );
-      delete e;
+  for(uInt32 arg = 0; arg < argCount; ++arg)
+  {
+    if(!YaccParser::parse(argStrings[arg].c_str()))
+    {
+      unique_ptr<Expression> expr(YaccParser::getResult());
+      args.push_back(expr->evaluate());
     }
+    else
+      args.push_back(-1);
   }
 
   return true;
@@ -419,7 +390,7 @@ bool DebuggerParser::validateArgs(int cmd)
 {
   // cerr << "entering validateArgs(" << cmd << ")" << endl;
   bool required = commands[cmd].parmsRequired;
-  parameters *p = commands[cmd].parms;
+  parameters* p = commands[cmd].parms;
 
   if(argCount == 0)
   {
@@ -433,7 +404,7 @@ bool DebuggerParser::validateArgs(int cmd)
   }
 
   // Figure out how many arguments are required by the command
-  int count = 0, argRequiredCount = 0;
+  uInt32 count = 0, argRequiredCount = 0;
   while(*p != kARG_END_ARGS && *p != kARG_MULTI_BYTE)
   {
     count++;
@@ -445,19 +416,19 @@ bool DebuggerParser::validateArgs(int cmd)
   argRequiredCount = (*p == kARG_END_ARGS) ? count : argCount;
 
   p = commands[cmd].parms;
-  int curCount = 0;
+  uInt32 curCount = 0;
 
   do {
     if(curCount >= argCount)
       break;
 
-    int curArgInt     = args[curCount];
+    uInt32 curArgInt  = args[curCount];
     string& curArgStr = argStrings[curCount];
 
     switch(*p)
     {
       case kARG_WORD:
-        if(curArgInt < 0 || curArgInt > 0xffff)
+        if(curArgInt > 0xffff)
         {
           commandResult.str(red("invalid word argument (must be 0-$ffff)"));
           return false;
@@ -465,7 +436,7 @@ bool DebuggerParser::validateArgs(int cmd)
         break;
 
       case kARG_BYTE:
-        if(curArgInt < 0 || curArgInt > 0xff)
+        if(curArgInt > 0xff)
         {
           commandResult.str(red("invalid byte argument (must be 0-$ff)"));
           return false;
@@ -529,7 +500,7 @@ cerr << "curCount         = " << curCount << endl
 string DebuggerParser::eval()
 {
   ostringstream buf;
-  for(int i = 0; i < argCount; ++i)
+  for(uInt32 i = 0; i < argCount; ++i)
   {
     string rlabel = debugger.cartDebug().getLabel(args[i], true);
     string wlabel = debugger.cartDebug().getLabel(args[i], false);
@@ -554,7 +525,7 @@ string DebuggerParser::eval()
       buf << "$" << Base::toString(args[i], Base::F_16_4)
           << " %" << Base::toString(args[i], Base::F_2_16);
 
-    buf << " #" << (int) args[i]; 
+    buf << " #" << int(args[i]);
     if(i != argCount - 1)
       buf << endl;
   }
@@ -575,9 +546,9 @@ string DebuggerParser::trapStatus(int addr)
   else if(r)
     result += "read";
   else if(w)
-    result += "     write";
+    result += "write";
   else
-    result += "   none   ";
+    result += "none";
 
   // TODO - technically, we should determine if the label is read or write
   const string& l = debugger.cartDebug().getLabel(addr, true);
@@ -593,24 +564,24 @@ string DebuggerParser::trapStatus(int addr)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool DebuggerParser::saveScriptFile(string file)
 {
-  if( file.find_last_of('.') == string::npos ) {
+  if( file.find_last_of('.') == string::npos )
     file += ".stella";
-  }
 
-  ofstream out(file.c_str());
+  ofstream out(file);
 
   FunctionDefMap funcs = debugger.getFunctionDefMap();
-  for(FunctionDefMap::const_iterator i = funcs.begin(); i != funcs.end(); ++i)
-    out << "function " << i->first << " { " << i->second << " }" << endl;
+  for(const auto& i: funcs)
+    out << "function " << i.first << " { " << i.second << " }" << endl;
 
-  for(unsigned int i=0; i<watches.size(); i++)
-    out << "watch " << watches[i] << endl;
+  for(const auto& i: watches)
+    out << "watch " << i << endl;
 
-  for(unsigned int i=0; i<0x10000; i++)
+  for(uInt32 i = 0; i < 0x10000; ++i)
     if(debugger.breakPoint(i))
       out << "break #" << i << endl;
 
-  for(unsigned int i=0; i<0x10000; i++) {
+  for(uInt32 i = 0; i < 0x10000; ++i)
+  {
     bool r = debugger.readTrap(i);
     bool w = debugger.writeTrap(i);
 
@@ -623,12 +594,10 @@ bool DebuggerParser::saveScriptFile(string file)
   }
 
   StringList conds = debugger.cpuDebug().m6502().getCondBreakNames();
-  for(unsigned int i=0; i<conds.size(); i++)
-    out << "breakif {" << conds[i] << "}" << endl;
+  for(const auto& cond: conds)
+    out << "breakif {" << cond << "}" << endl;
 
-  bool ok = out.good();
-  out.close();
-  return ok;
+  return out.good();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -639,37 +608,7 @@ bool DebuggerParser::saveScriptFile(string file)
 // "a"
 void DebuggerParser::executeA()
 {
-  debugger.cpuDebug().setA((uInt8)args[0]);
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// "bank"
-void DebuggerParser::executeBank()
-{
-  int banks = debugger.cartDebug().bankCount();
-  if(argCount == 0)
-  {
-    commandResult << debugger.cartDebug().getCartType() << ": ";
-    if(banks < 2)
-      commandResult << red("bankswitching not supported by this cartridge");
-    else
-    {
-      commandResult << "current = " << debugger.cartDebug().getBank()
-                    << " out of " << banks << " banks";
-    }
-  }
-  else
-  {
-    if(banks == 1)
-      commandResult << red("bankswitching not supported by this cartridge");
-    else if(args[0] >= banks)
-      commandResult << red("invalid bank number (must be 0 to ")
-                    << (banks - 1) << ")";
-    else if(debugger.setBank(args[0]))
-      commandResult << "switched bank OK";
-    else
-      commandResult << red("error switching banks (bankswitching may not be supported)");
-  }
+  debugger.cpuDebug().setA(uInt8(args[0]));
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -707,7 +646,7 @@ void DebuggerParser::executeBase()
 // "break"
 void DebuggerParser::executeBreak()
 {
-  int bp;
+  uInt16 bp;
   if(argCount == 0)
     bp = debugger.cpuDebug().pc();
   else
@@ -760,11 +699,10 @@ void DebuggerParser::executeCheat()
     return;
   }
 
-  for(int arg = 0; arg < argCount; arg++)
+  for(uInt32 arg = 0; arg < argCount; ++arg)
   {
     const string& cheat = argStrings[arg];
-    const Cheat* c = debugger.myOSystem->cheat().add("DBG", cheat);
-    if(c && c->enabled())
+    if(debugger.myOSystem.cheat().add("DBG", cheat))
       commandResult << "Cheat code " << cheat << " enabled" << endl;
     else
       commandResult << red("Invalid cheat code ") << cheat << endl;
@@ -881,6 +819,13 @@ void DebuggerParser::executeData()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// "debugcolors"
+void DebuggerParser::executeDebugColors()
+{
+  commandResult << debugger.tiaDebug().debugColors();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // "define"
 void DebuggerParser::executeDefine()
 {
@@ -903,7 +848,7 @@ void DebuggerParser::executeDelfunction()
   if(debugger.delFunction(argStrings[0]))
     commandResult << "removed function " << argStrings[0];
   else
-    commandResult << "function " << argStrings[0] << " not found";
+    commandResult << "function " << argStrings[0] << " built-in or not found";
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -911,9 +856,9 @@ void DebuggerParser::executeDelfunction()
 void DebuggerParser::executeDelwatch()
 {
   int which = args[0] - 1;
-  if(which >= 0 && which < (int)watches.size())
+  if(which >= 0 && which < int(watches.size()))
   {
-    watches.remove_at(which);
+    Vec::removeAt(watches, which);
     commandResult << "removed watch";
   }
   else
@@ -945,11 +890,11 @@ void DebuggerParser::executeDisasm()
 // "dump"
 void DebuggerParser::executeDump()
 {
-  for(int i=0; i<8; i++)
+  for(int i = 0; i < 8; ++i)
   {
     int start = args[0] + i*16;
     commandResult << Base::toString(start) << ": ";
-    for(int j = 0; j < 16; j++)
+    for(int j = 0; j < 16; ++j)
     {
       commandResult << Base::toString(debugger.peek(start+j)) << " ";
       if(j == 7) commandResult << "- ";
@@ -1029,20 +974,35 @@ void DebuggerParser::executeGfx()
 // "help"
 void DebuggerParser::executeHelp()
 {
-  // Find length of longest command
-  uInt16 clen = 0;
-  for(int i = 0; i < kNumCommands; ++i)
+  if(argCount == 0)  // normal help, show all commands
   {
-    uInt16 len = commands[i].cmdString.length();
-    if(len > clen)  clen = len;
+    // Find length of longest command
+    uInt16 clen = 0;
+    for(int i = 0; i < kNumCommands; ++i)
+    {
+      uInt16 len = commands[i].cmdString.length();
+      if(len > clen)  clen = len;
+    }
+
+    commandResult << setfill(' ');
+    for(int i = 0; i < kNumCommands; ++i)
+      commandResult << setw(clen) << right << commands[i].cmdString
+                    << " - " << commands[i].description << endl;
+
+    commandResult << debugger.builtinHelp();
   }
-
-  commandResult << setfill(' ');
-  for(int i = 0; i < kNumCommands; ++i)
-    commandResult << setw(clen) << right << commands[i].cmdString
-                  << " - " << commands[i].description << endl;
-
-  commandResult << debugger.builtinHelp();
+  else  // get help for specific command
+  {
+    for(int i = 0; i < kNumCommands; ++i)
+    {
+      if(argStrings[0] == commands[i].cmdString)
+      {
+        commandResult << "  " << red(commands[i].description) << endl
+                      << commands[i].extendedDesc;
+        break;
+      }
+    }
+  }
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1055,7 +1015,7 @@ void DebuggerParser::executeJump()
   // The specific address we want may not exist (it may be part of a data section)
   // If so, scroll backward a little until we find it
   while(((line = debugger.cartDebug().addressToLine(address)) == -1) &&
-        ((address & 0xFFF) >= 0))
+        (address >= 0))
     address--;
 
   if(line >= 0 && address >= 0)
@@ -1074,9 +1034,9 @@ void DebuggerParser::executeListbreaks()
   ostringstream buf;
   int count = 0;
 
-  for(unsigned int i = 0; i < 0x10000; i++)
+  for(uInt32 i = 0; i <= 0xffff; ++i)
   {
-    if(debugger.breakpoints().isSet(i))
+    if(debugger.breakPoints().isSet(i))
     {
       buf << debugger.cartDebug().getLabel(i, true, 4) << " ";
       if(! (++count % 8) ) buf << "\n";
@@ -1096,7 +1056,7 @@ void DebuggerParser::executeListbreaks()
   if(conds.size() > 0)
   {
     commandResult << "\nbreakifs:\n";
-    for(unsigned int i = 0; i < conds.size(); i++)
+    for(uInt32 i = 0; i < conds.size(); i++)
     {
       commandResult << i << ": " << conds[i];
       if(i != (conds.size() - 1)) commandResult << endl;
@@ -1125,9 +1085,8 @@ void DebuggerParser::executeListfunctions()
 
   if(functions.size() > 0)
   {
-    FunctionDefMap::const_iterator iter;
-    for(iter = functions.begin(); iter != functions.end(); ++iter)
-      commandResult << iter->first << " -> " << iter->second << endl;
+    for(const auto& iter: functions)
+      commandResult << iter.first << " -> " << iter.second << endl;
   }
   else
     commandResult << "no user-defined functions";
@@ -1139,12 +1098,13 @@ void DebuggerParser::executeListtraps()
 {
   int count = 0;
 
-  for(unsigned int i=0; i<0x10000; i++)
+  for(uInt32 i = 0; i <= 0xffff; ++i)
   {
     if(debugger.readTrap(i) || debugger.writeTrap(i))
     {
-      commandResult << trapStatus(i) << endl;
+      commandResult << trapStatus(i) << " + mirrors" << endl;
       count++;
+      break;
     }
   }
 
@@ -1177,6 +1137,13 @@ void DebuggerParser::executeN()
     debugger.cpuDebug().toggleN();
   else if(argCount == 1)
     debugger.cpuDebug().setN(args[0]);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// "palette"
+void DebuggerParser::executePalette()
+{
+  commandResult << debugger.tiaDebug().palette();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1231,7 +1198,7 @@ void DebuggerParser::executeReset()
 {
   debugger.reset();
   debugger.rom().invalidate();
-  commandResult << "reset CPU";
+  commandResult << "reset system";
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1258,10 +1225,10 @@ void DebuggerParser::executeRiot()
 // "rom"
 void DebuggerParser::executeRom()
 {
-  int addr = args[0];
-  for(int i=1; i<argCount; i++)
+  uInt16 addr = args[0];
+  for(uInt32 i = 1; i < argCount; ++i)
   {
-    if( !(debugger.patchROM(addr++, args[i])) )
+    if(!(debugger.patchROM(addr++, args[i])))
     {
       commandResult << red("patching ROM unsupported for this cart type");
       return;
@@ -1316,7 +1283,7 @@ void DebuggerParser::executeRunTo()
   const CartDebug& cartdbg = debugger.cartDebug();
   const CartDebug::DisassemblyList& list = cartdbg.disassembly().list;
 
-  uInt32 count = 0, max_iterations = list.size();
+  uInt32 count = 0, max_iterations = uInt32(list.size());
 
   // Create a progress dialog box to show the progress searching through the
   // disassembly, since this may be a time-consuming operation
@@ -1334,7 +1301,7 @@ void DebuggerParser::executeRunTo()
     if(pcline >= 0)
     {
       const string& next = list[pcline].disasm;
-      done = (BSPF_findIgnoreCase(next, argStrings[0]) != string::npos);
+      done = (BSPF::findIgnoreCase(next, argStrings[0]) != string::npos);
     }
     // Update the progress bar
     progress.setProgress(count);
@@ -1367,8 +1334,7 @@ void DebuggerParser::executeRunToPc()
     // Update romlist to point to current PC
     int pcline = cartdbg.addressToLine(debugger.cpuDebug().pc());
     done = (pcline >= 0) && (list[pcline].address == args[0]);
-    ++count;
-  } while(!done && count < list.size());
+  } while(!done && ++count < list.size());
 
   if(done)
     commandResult
@@ -1384,7 +1350,7 @@ void DebuggerParser::executeRunToPc()
 // "s"
 void DebuggerParser::executeS()
 {
-  debugger.cpuDebug().setSP((uInt8)args[0]);
+  debugger.cpuDebug().setSP(uInt8(args[0]));
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1426,6 +1392,13 @@ void DebuggerParser::executeSaveses()
     commandResult << "saved session to file " << argStrings[0];
   else
     commandResult << red("I/O error");
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// "savesnap"
+void DebuggerParser::executeSavesnap()
+{
+  debugger.tiaOutput().saveSnapshot();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1474,46 +1447,130 @@ void DebuggerParser::executeTrace()
 // "trap"
 void DebuggerParser::executeTrap()
 {
-  uInt32 beg = args[0];
-  uInt32 end = argCount >= 2 ? args[1] : beg;
-  if(beg > end)  BSPF_swap(beg, end);
-
-  for(uInt32 i = beg; i <= end; ++i)
+  if(argCount > 2)
   {
-    debugger.toggleReadTrap(i);
-    debugger.toggleWriteTrap(i);
-    commandResult << trapStatus(i) << endl;
+    commandResult << red("Command takes one or two arguments") << endl;
+    return;
   }
+
+  uInt32 beg = args[0];
+  uInt32 end = argCount == 2 ? args[1] : beg;
+  if(beg > 0xFFFF || end > 0xFFFF)
+  {
+    commandResult << red("One or more addresses are invalid") << endl;
+    return;
+  }
+
+  for(uInt32 addr = beg; addr <= end; ++addr)
+    executeTrapRW(addr, true, true);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // "trapread"
 void DebuggerParser::executeTrapread()
 {
-  uInt32 beg = args[0];
-  uInt32 end = argCount >= 2 ? args[1] : beg;
-  if(beg > end)  BSPF_swap(beg, end);
-
-  for(uInt32 i = beg; i <= end; ++i)
+  if(argCount > 2)
   {
-    debugger.toggleReadTrap(i);
-    commandResult << trapStatus(i) << endl;
+    commandResult << red("Command takes one or two arguments") << endl;
+    return;
   }
+
+  uInt32 beg = args[0];
+  uInt32 end = argCount == 2 ? args[1] : beg;
+  if(beg > 0xFFFF || end > 0xFFFF)
+  {
+    commandResult << red("One or more addresses are invalid") << endl;
+    return;
+  }
+
+  for(uInt32 addr = beg; addr <= end; ++addr)
+    executeTrapRW(addr, true, false);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // "trapwrite"
 void DebuggerParser::executeTrapwrite()
 {
-  uInt32 beg = args[0];
-  uInt32 end = argCount >= 2 ? args[1] : beg;
-  if(beg > end)  BSPF_swap(beg, end);
-
-  for(uInt32 i = beg; i <= end; ++i)
+  if(argCount > 2)
   {
-    debugger.toggleWriteTrap(i);
-    commandResult << trapStatus(i) << endl;
+    commandResult << red("Command takes one or two arguments") << endl;
+    return;
   }
+
+  uInt32 beg = args[0];
+  uInt32 end = argCount == 2 ? args[1] : beg;
+  if(beg > 0xFFFF || end > 0xFFFF)
+  {
+    commandResult << red("One or more addresses are invalid") << endl;
+    return;
+  }
+
+  for(uInt32 addr = beg; addr <= end; ++addr)
+    executeTrapRW(addr, false, true);
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// wrapper function for trap/trapread/trapwrite commands
+void DebuggerParser::executeTrapRW(uInt32 addr, bool read, bool write)
+{
+  switch(debugger.cartDebug().addressType(addr))
+  {
+    case CartDebug::ADDR_TIA:
+    {
+      for(uInt32 i = 0; i <= 0xFFFF; ++i)
+      {
+        if((i & 0x1080) == 0x0000)
+        {
+          if(read && (i & 0x000F) == addr)
+            debugger.toggleReadTrap(i);
+          if(write && (i & 0x003F) == addr)
+            debugger.toggleWriteTrap(i);
+        }
+      }
+      break;
+    }
+    case CartDebug::ADDR_IO:
+    {
+      for(uInt32 i = 0; i <= 0xFFFF; ++i)
+      {
+        if((i & 0x1080) == 0x0080 && (i & 0x0200) != 0x0000 && (i & 0x02FF) == addr)
+        {
+          if(read)  debugger.toggleReadTrap(i);
+          if(write) debugger.toggleWriteTrap(i);
+        }
+      }
+      break;
+    }
+    case CartDebug::ADDR_ZPRAM:
+    {
+      for(uInt32 i = 0; i <= 0xFFFF; ++i)
+      {
+        if((i & 0x1080) == 0x0080 && (i & 0x0200) == 0x0000 && (i & 0x00FF) == addr)
+        {
+          if(read)  debugger.toggleReadTrap(i);
+          if(write) debugger.toggleWriteTrap(i);
+        }
+      }
+      break;
+    }
+    case CartDebug::ADDR_ROM:
+    {
+      if(addr >= 0x1000 && addr <= 0xFFFF)
+      {
+        for(uInt32 i = 0x1000; i <= 0xFFFF; ++i)
+        {
+          if((i % 0x2000 >= 0x1000) && (i & 0x0FFF) == (addr & 0x0FFF))
+          {
+            if(read)  debugger.toggleReadTrap(i);
+            if(write) debugger.toggleWriteTrap(i);
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  commandResult << trapStatus(addr) << " + mirrors" << endl;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1522,7 +1579,7 @@ void DebuggerParser::executeType()
 {
   uInt32 beg = args[0];
   uInt32 end = argCount >= 2 ? args[1] : beg;
-  if(beg > end)  BSPF_swap(beg, end);
+  if(beg > end)  std::swap(beg, end);
 
   for(uInt32 i = beg; i <= end; ++i)
   {
@@ -1580,14 +1637,14 @@ void DebuggerParser::executeWatch()
 // "x"
 void DebuggerParser::executeX()
 {
-  debugger.cpuDebug().setX((uInt8)args[0]);
+  debugger.cpuDebug().setX(uInt8(args[0]));
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // "y"
 void DebuggerParser::executeY()
 {
-  debugger.cpuDebug().setY((uInt8)args[0]);
+  debugger.cpuDebug().setY(uInt8(args[0]));
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1606,631 +1663,732 @@ void DebuggerParser::executeZ()
 DebuggerParser::Command DebuggerParser::commands[kNumCommands] = {
   {
     "a",
-    "Set Accumulator to value xx",
+    "Set Accumulator to <value>",
+    "Valid value is 0 - ff\nExample: a ff, a #10",
     true,
     true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeA
-  },
-
-  {
-    "bank",
-    "Show # of banks, or switch to bank xx",
-    false,
-    true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeBank
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeA)
   },
 
   {
     "base",
-    "Set default base (hex, dec, or bin)",
+    "Set default base to <base>",
+    "Base is hex, dec, or bin\nExample: base hex",
     true,
     true,
     { kARG_BASE_SPCL, kARG_END_ARGS },
-    &DebuggerParser::executeBase
+    std::mem_fn(&DebuggerParser::executeBase)
   },
 
   {
     "break",
-    "Set/clear breakpoint at address xx (default=PC)",
+    "Set/clear breakpoint at <address>",
+    "Command is a toggle, default is current PC\nValid address is 0 - ffff\n"
+    "Example: break, break f000",
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeBreak
+    std::mem_fn(&DebuggerParser::executeBreak)
   },
 
   {
     "breakif",
-    "Set breakpoint on condition xx",
+    "Set breakpoint on <condition>",
+    "Condition can include multiple items, see documentation\nExample: breakif _scan>100",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeBreakif
+    std::mem_fn(&DebuggerParser::executeBreakif)
   },
 
   {
     "c",
     "Carry Flag: set (0 or 1), or toggle (no arg)",
+    "Example: c, c 0, c 1",
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeC
+    std::mem_fn(&DebuggerParser::executeC)
   },
 
   {
     "cheat",
     "Use a cheat code (see manual for cheat types)",
+    "Example: cheat 0040, cheat abff00",
     false,
     false,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeCheat
+    std::mem_fn(&DebuggerParser::executeCheat)
   },
 
   {
     "clearbreaks",
     "Clear all breakpoints",
+    "Example: clearbreaks (no parameters)",
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeClearbreaks
+    std::mem_fn(&DebuggerParser::executeClearbreaks)
   },
 
   {
     "clearconfig",
     "Clear Distella config directives [bank xx]",
+    "Example: clearconfig 0, clearconfig 1",
     false,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeClearconfig
+    std::mem_fn(&DebuggerParser::executeClearconfig)
   },
 
   {
     "cleartraps",
     "Clear all traps",
+    "All traps cleared, including any mirrored ones\nExample: cleartraps (no parameters)",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeCleartraps
+    std::mem_fn(&DebuggerParser::executeCleartraps)
   },
 
   {
     "clearwatches",
     "Clear all watches",
+    "Example: clearwatches (no parameters)",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeClearwatches
+    std::mem_fn(&DebuggerParser::executeClearwatches)
   },
 
   {
     "cls",
-    "Clear prompt area of text and erase history",
+    "Clear prompt area of text",
+    "Completely clears screen, but keeps history of commands",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeCls
+    std::mem_fn(&DebuggerParser::executeCls)
   },
 
   {
     "code",
     "Mark 'CODE' range in disassembly",
+    "Start and end of range required\nExample: code f000 f010",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeCode
+    std::mem_fn(&DebuggerParser::executeCode)
   },
 
   {
     "colortest",
     "Show value xx as TIA color",
+    "Shows a color swatch for the given value\nExample: colortest 1f",
     true,
     false,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeColortest
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeColortest)
   },
 
   {
     "d",
-    "Decimal Flag: set (0 or 1), or toggle (no arg)",
+    "Carry Flag: set (0 or 1), or toggle (no arg)",
+    "Example: d, d 0, d 1",
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeD
+    std::mem_fn(&DebuggerParser::executeD)
   },
 
   {
     "data",
     "Mark 'DATA' range in disassembly",
+    "Start and end of range required\nExample: data f000 f010",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeData
+    std::mem_fn(&DebuggerParser::executeData)
+  },
+
+  {
+    "debugcolors",
+    "Show Fixed Debug Colors information",
+    "Example: debugcolors (no parameters)",
+    false,
+    false,
+    { kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeDebugColors)
   },
 
   {
     "define",
     "Define label xx for address yy",
+    "Example: define LABEL1 f100",
     true,
     true,
     { kARG_LABEL, kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDefine
+    std::mem_fn(&DebuggerParser::executeDefine)
   },
 
   {
     "delbreakif",
-    "Delete conditional breakif xx",
+    "Delete conditional breakif <xx>",
+    "Example: delbreakif 0",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDelbreakif
+    std::mem_fn(&DebuggerParser::executeDelbreakif)
   },
 
   {
     "delfunction",
     "Delete function with label xx",
+    "Example: delfunction FUNC1",
     true,
     false,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeDelfunction
+    std::mem_fn(&DebuggerParser::executeDelfunction)
   },
 
   {
     "delwatch",
-    "Delete watch xx",
+    "Delete watch <xx>",
+    "Example: delwatch 0",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDelwatch
+    std::mem_fn(&DebuggerParser::executeDelwatch)
   },
 
   {
     "disasm",
     "Disassemble address xx [yy lines] (default=PC)",
+    "Disassembles from starting address <xx> (default=PC) for <yy> lines\n"
+    "Example: disasm, disasm f000 100",
     false,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeDisasm
+    std::mem_fn(&DebuggerParser::executeDisasm)
   },
 
   {
     "dump",
-    "Dump 128 bytes of memory at address xx",
+    "Dump 128 bytes of memory at address <xx>",
+    "Example: dump f000",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeDump
+    std::mem_fn(&DebuggerParser::executeDump)
   },
 
   {
     "exec",
-    "Execute script file xx",
+    "Execute script file <xx>",
+    "Example: exec script.dat, exec auto.txt",
     true,
     true,
     { kARG_FILE, kARG_END_ARGS },
-    &DebuggerParser::executeExec
+    std::mem_fn(&DebuggerParser::executeExec)
   },
 
   {
     "exitrom",
     "Exit emulator, return to ROM launcher",
+    "Self-explanatory",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeExitRom
+    std::mem_fn(&DebuggerParser::executeExitRom)
   },
 
   {
     "frame",
-    "Advance emulation by xx frames (default=1)",
+    "Advance emulation by <xx> frames (default=1)",
+    "Example: frame, frame 100",
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeFrame
+    std::mem_fn(&DebuggerParser::executeFrame)
   },
 
   {
     "function",
     "Define function name xx for expression yy",
+    "Example: define FUNC1 { ... }",
     true,
     false,
     { kARG_LABEL, kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeFunction
+    std::mem_fn(&DebuggerParser::executeFunction)
   },
 
   {
     "gfx",
-    "Mark 'CFX' range in disassembly",
+    "Mark 'GFX' range in disassembly",
+    "Start and end of range required\nExample: gfx f000 f010",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeGfx
+    std::mem_fn(&DebuggerParser::executeGfx)
   },
 
   {
     "help",
-    "This cruft",
+    "help <command>",
+    "Show all commands, or give function for help on that command\n"
+    "Example: help, help code",
     false,
     false,
-    { kARG_END_ARGS },
-    &DebuggerParser::executeHelp
+    { kARG_LABEL, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeHelp)
   },
 
   {
     "jump",
     "Scroll disassembly to address xx",
+    "Moves disassembly listing to address <xx>\nExample: jump f400",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeJump
+    std::mem_fn(&DebuggerParser::executeJump)
   },
 
   {
     "listbreaks",
     "List breakpoints",
+    "Example: listbreaks (no parameters)",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeListbreaks
+    std::mem_fn(&DebuggerParser::executeListbreaks)
   },
 
   {
     "listconfig",
     "List Distella config directives [bank xx]",
+    "Example: listconfig 0, listconfig 1",
     false,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeListconfig
+    std::mem_fn(&DebuggerParser::executeListconfig)
   },
 
   {
     "listfunctions",
     "List user-defined functions",
+    "Example: listfunctions (no parameters)",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeListfunctions
+    std::mem_fn(&DebuggerParser::executeListfunctions)
   },
 
   {
     "listtraps",
     "List traps",
+    "Lists all traps (read and/or write)\nExample: listtraps (no parameters)",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeListtraps
+    std::mem_fn(&DebuggerParser::executeListtraps)
   },
 
   {
     "loadconfig",
     "Load Distella config file",
+    "Example: loadconfig file.cfg",
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeLoadconfig
+    std::mem_fn(&DebuggerParser::executeLoadconfig)
   },
 
   {
     "loadstate",
     "Load emulator state xx (0-9)",
+    "Example: loadstate 0, loadstate 9",
     true,
     true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeLoadstate
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeLoadstate)
   },
 
   {
     "n",
     "Negative Flag: set (0 or 1), or toggle (no arg)",
+    "Example: n, n 0, n 1",
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeN
+    std::mem_fn(&DebuggerParser::executeN)
+  },
+
+  {
+    "palette",
+    "Show current TIA palette",
+    "Example: palette (no parameters)",
+    false,
+    false,
+    { kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executePalette)
   },
 
   {
     "pc",
     "Set Program Counter to address xx",
+    "Example: pc f000",
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executePc
+    std::mem_fn(&DebuggerParser::executePc)
   },
 
   {
     "pgfx",
     "Mark 'PGFX' range in disassembly",
+    "Start and end of range required\nExample: pgfx f000 f010",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executePGfx
+    std::mem_fn(&DebuggerParser::executePGfx)
   },
 
   {
     "print",
     "Evaluate/print expression xx in hex/dec/binary",
+    "Almost anything can be printed (constants, expressions, registers)\n"
+    "Example: print pc, print f000",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executePrint
+    std::mem_fn(&DebuggerParser::executePrint)
   },
 
   {
     "ram",
     "Show ZP RAM, or set address xx to yy1 [yy2 ...]",
+    "Example: ram, ram 80 00 ...",
     false,
     true,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeRam
+    std::mem_fn(&DebuggerParser::executeRam)
   },
 
   {
     "reset",
-    "Reset 6507 to init vector (excluding TIA/RIOT)",
+    "Reset system to power-on state",
+    "System is completely reset, just as if it was just powered on",
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeReset
+    std::mem_fn(&DebuggerParser::executeReset)
   },
 
   {
     "rewind",
     "Rewind state to last step/trace/scanline/frame",
+    "Rewind currently only works in the debugger",
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeRewind
+    std::mem_fn(&DebuggerParser::executeRewind)
   },
 
   {
     "riot",
     "Show RIOT timer/input status",
+    "Display text-based output of the contents of the RIOT tab",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeRiot
+    std::mem_fn(&DebuggerParser::executeRiot)
   },
 
   {
     "rom",
     "Set ROM address xx to yy1 [yy2 ...]",
+    "What happens here depends on the current bankswitching scheme\n"
+    "Example: rom f000 00 01 ff ...",
     true,
     true,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeRom
+    std::mem_fn(&DebuggerParser::executeRom)
   },
 
   {
     "row",
     "Mark 'ROW' range in disassembly",
+    "Start and end of range required\nExample: row f000 f010",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeRow
+    std::mem_fn(&DebuggerParser::executeRow)
   },
 
   {
     "run",
     "Exit debugger, return to emulator",
+    "Self-explanatory",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeRun
+    std::mem_fn(&DebuggerParser::executeRun)
   },
 
   {
     "runto",
     "Run until string xx in disassembly",
+    "Advance until the given string is detected in the disassembly\n"
+    "Example: runto lda",
     true,
     true,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeRunTo
+    std::mem_fn(&DebuggerParser::executeRunTo)
   },
 
   {
     "runtopc",
     "Run until PC is set to value xx",
+    "Example: runtopc f200",
     true,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeRunToPc
+    std::mem_fn(&DebuggerParser::executeRunToPc)
   },
 
   {
     "s",
     "Set Stack Pointer to value xx",
+    "Accepts 8-bit value, Example: s f0",
     true,
     true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeS
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeS)
   },
 
   {
     "save",
     "Save breaks, watches, traps to file xx",
+    "Example: save commands.txt",
     true,
     false,
     { kARG_FILE, kARG_END_ARGS },
-    &DebuggerParser::executeSave
+    std::mem_fn(&DebuggerParser::executeSave)
   },
 
   {
     "saveconfig",
     "Save Distella config file",
+    "Example: saveconfig file.cfg",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeSaveconfig
+    std::mem_fn(&DebuggerParser::executeSaveconfig)
   },
 
   {
     "savedis",
     "Save Distella disassembly",
+    "Example: savedis file.asm",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeSavedisassembly
+    std::mem_fn(&DebuggerParser::executeSavedisassembly)
   },
 
   {
     "saverom",
     "Save (possibly patched) ROM",
+    "Example: savedrom file.bin",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeSaverom
+    std::mem_fn(&DebuggerParser::executeSaverom)
   },
 
   {
     "saveses",
     "Save console session to file xx",
+    "Example: saveses session.txt",
     true,
     false,
     { kARG_FILE, kARG_END_ARGS },
-    &DebuggerParser::executeSaveses
+    std::mem_fn(&DebuggerParser::executeSaveses)
+  },
+
+  {
+    "savesnap",
+    "Save current TIA image to PNG file",
+    "Save snapshot to current snapshot save directory\n"
+    "Example: savesnap (no parameters)",
+    false,
+    false,
+    { kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeSavesnap)
   },
 
   {
     "savestate",
     "Save emulator state xx (valid args 0-9)",
+    "Example: savestate 0, savestate 9",
     true,
     false,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeSavestate
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeSavestate)
   },
 
   {
     "scanline",
-    "Advance emulation by xx scanlines (default=1)",
+    "Advance emulation by <xx> scanlines (default=1)",
+    "Example: scanline, scanline 100",
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeScanline
+    std::mem_fn(&DebuggerParser::executeScanline)
   },
 
   {
     "step",
     "Single step CPU [with count xx]",
+    "Example: step, step 100",
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeStep
+    std::mem_fn(&DebuggerParser::executeStep)
   },
 
   {
     "tia",
-    "Show TIA state (NOT FINISHED YET)",
+    "Show TIA state",
+    "Display text-based output of the contents of the TIA tab",
     false,
     false,
     { kARG_END_ARGS },
-    &DebuggerParser::executeTia
+    std::mem_fn(&DebuggerParser::executeTia)
   },
 
   {
     "trace",
     "Single step CPU over subroutines [with count xx]",
+    "Example: trace, trace 100",
     false,
     true,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeTrace
+    std::mem_fn(&DebuggerParser::executeTrace)
   },
 
   {
     "trap",
-    "Trap read/write access to address(es) xx [to yy]",
+    "Trap read/write access to address(es) xx [yy]",
+    "Set a R/W trap on the given address(es) and all mirrors\n"
+    "Example: trap f000, trap f000 f100",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeTrap
+    std::mem_fn(&DebuggerParser::executeTrap)
   },
 
   {
     "trapread",
-    "Trap read access to address(es) xx [to yy]",
+    "Trap read access to address(es) xx [yy]",
+    "Set a read trap on the given address(es) and all mirrors\n"
+    "Example: trapread f000, trapread f000 f100",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeTrapread
+    std::mem_fn(&DebuggerParser::executeTrapread)
   },
 
   {
     "trapwrite",
-    "Trap write access to address(es) xx [to yy]",
+    "Trap write access to address(es) xx [yy]",
+    "Set a write trap on the given address(es) and all mirrors\n"
+    "Example: trapwrite f000, trapwrite f000 f100",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeTrapwrite
+    std::mem_fn(&DebuggerParser::executeTrapwrite)
   },
 
   {
     "type",
-    "Show disassembly type for address xx [to yy]",
+    "Show disassembly type for address xx [yy]",
+    "Example: type f000, type f000 f010",
     true,
     false,
     { kARG_WORD, kARG_MULTI_BYTE },
-    &DebuggerParser::executeType
+    std::mem_fn(&DebuggerParser::executeType)
   },
 
   {
     "uhex",
     "Toggle upper/lowercase HEX display",
+    "Note: not all hex output can be changed\n"
+    "Example: uhex (no parameters)",
     false,
     true,
     { kARG_END_ARGS },
-    &DebuggerParser::executeUHex
+    std::mem_fn(&DebuggerParser::executeUHex)
   },
 
   {
     "undef",
     "Undefine label xx (if defined)",
+    "Example: undef LABEL1",
     true,
     true,
     { kARG_LABEL, kARG_END_ARGS },
-    &DebuggerParser::executeUndef
+    std::mem_fn(&DebuggerParser::executeUndef)
   },
 
   {
     "v",
     "Overflow Flag: set (0 or 1), or toggle (no arg)",
+    "Example: v, v 0, v 1",
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeV
+    std::mem_fn(&DebuggerParser::executeV)
   },
 
   {
     "watch",
     "Print contents of address xx before every prompt",
+    "Example: watch ram_80",
     true,
     false,
     { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeWatch
+    std::mem_fn(&DebuggerParser::executeWatch)
   },
 
   {
     "x",
     "Set X Register to value xx",
+    "Valid value is 0 - ff\nExample: x ff, x #10",
     true,
     true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeX
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeX)
   },
 
   {
     "y",
     "Set Y Register to value xx",
+    "Valid value is 0 - ff\nExample: y ff, y #10",
     true,
     true,
-    { kARG_WORD, kARG_END_ARGS },
-    &DebuggerParser::executeY
+    { kARG_BYTE, kARG_END_ARGS },
+    std::mem_fn(&DebuggerParser::executeY)
   },
 
   {
     "z",
     "Zero Flag: set (0 or 1), or toggle (no arg)",
+    "Example: z, z 0, z 1",
     false,
     true,
     { kARG_BOOL, kARG_END_ARGS },
-    &DebuggerParser::executeZ
+    std::mem_fn(&DebuggerParser::executeZ)
   }
 };

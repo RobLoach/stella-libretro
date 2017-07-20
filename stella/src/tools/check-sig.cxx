@@ -6,10 +6,11 @@
 #include <cstdlib>
 #include <list>
 
+#include "../common/UniquePtr.hxx"
 using namespace std;
 
-typedef unsigned char uInt8;
-typedef unsigned int uInt32;
+using uInt8 = unsigned char;
+using uInt32 = unsigned int;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 int searchForBytes(const uInt8* image, uInt32 imagesize,
@@ -40,23 +41,27 @@ int searchForBytes(const uInt8* image, uInt32 imagesize,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 int main(int ac, char* av[])
 {
-  if(ac != 3)
+  int offset = 0;
+
+  if(ac < 3)
   {
-    cout << "usage: " << av[0] << " <filename> <hex pattern>\n";
+    cout << "usage: " << av[0] << " <filename> <hex pattern> [start address]\n";
     exit(0);
   }
+  if(ac > 3)
+    offset = atoi(av[3]);
   
   ifstream in(av[1], ios_base::binary);
   in.seekg(0, ios::end);
   int i_size = (int) in.tellg();
   in.seekg(0, ios::beg);
 
-  uInt8* image = new uInt8[i_size];
-  in.read((char*)(image), i_size);
+  unique_ptr<uInt8[]> image = make_ptr<uInt8[]>(i_size);
+  in.read((char*)(image.get()), i_size);
   in.close();
 
   int s_size = 0;
-  uInt8* sig = new uInt8[strlen(av[2])/2];
+  unique_ptr<uInt8[]> sig = make_ptr<uInt8[]>(strlen(av[2])/2);
   istringstream buf(av[2]);
 
   uInt32 c;
@@ -68,17 +73,14 @@ int main(int ac, char* av[])
 //  cerr << "sig size = " << hex << s_size << endl;
 
   list<int> locations;
-  int result = searchForBytes(image, i_size, sig, s_size, locations);
+  int result = searchForBytes(image.get()+offset, i_size-offset, sig.get(), s_size, locations);
   if(result > 0)
   {
     cout << setw(3) << result << " hits:  \'" << av[2] << "\' - \"" << av[1] << "\" @";
-    for(list<int>::iterator it = locations.begin(); it != locations.end(); ++it)
-      cout << ' ' << hex << (int)*it;
+    for(const auto& it: locations)
+      cout << ' ' << hex << (it + offset);
     cout << endl;
   }
-
-  delete[] image;
-  delete[] sig;
 
   return 0;
 }

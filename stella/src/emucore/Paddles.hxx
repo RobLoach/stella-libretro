@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Paddles.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef PADDLES_HXX
@@ -28,7 +26,6 @@
   The standard Atari 2600 pair of paddle controllers.
 
   @author  Bradford W. Mott
-  @version $Id: Paddles.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Paddles : public Controller
 {
@@ -48,18 +45,14 @@ class Paddles : public Controller
     */
     Paddles(Jack jack, const Event& event, const System& system,
             bool swappaddle, bool swapaxis, bool swapdir);
-
-    /**
-      Destructor
-    */
-    virtual ~Paddles();
+    virtual ~Paddles() = default;
 
   public:
     /**
       Update the entire digital and analog pin state according to the
       events currently set.
     */
-    void update();
+    void update() override;
 
     /**
       Determines how this controller will treat values received from the
@@ -77,8 +70,8 @@ class Paddles : public Controller
 
       @return  Whether the controller supports using the mouse
     */
-    bool setMouseControl(
-      Controller::Type xtype, int xid, Controller::Type ytype, int yid);
+    bool setMouseControl(Controller::Type xtype, int xid,
+                         Controller::Type ytype, int yid) override;
 
     /**
       Sets the sensitivity for digital emulation of paddle movement.
@@ -86,8 +79,8 @@ class Paddles : public Controller
       or digital joystick axis events); Stelladaptors or the mouse are
       not modified.
 
-      @param sensitivity  Value from 1 to 10, with larger values
-                          causing more movement
+      @param sensitivity  Value from 1 to MAX_DIGITAL_SENSE, with larger
+                          values causing more movement
     */
     static void setDigitalSensitivity(int sensitivity);
 
@@ -95,20 +88,25 @@ class Paddles : public Controller
       Sets the sensitivity for analog emulation of paddle movement
       using a mouse.
 
-      @param sensitivity  Value from 1 to 10, with larger values
-                          causing more movement
+      @param sensitivity  Value from 1 to MAX_MOUSE_SENSE, with larger
+                          values causing more movement
     */
     static void setMouseSensitivity(int sensitivity);
 
-  private:
-    // Range of values over which digital and mouse movement is scaled
-    // to paddle resistance
-    enum {
-      TRIGRANGE = 4096,
-      TRIGMAX   = 3856,
-      TRIGMIN   = 1
-    };
+    /**
+      Sets the maximum upper range for digital/mouse emulation of paddle
+      movement (ie, a value of 50 means to only use 50% of the possible
+      range of movement).  Note that this specfically does not apply to
+      Stelladaptor-like devices, which uses an absolute value range.
 
+      @param sensitivity  Value from 1 to 100, representing the percentage
+                          of the range to use
+    */
+    static void setPaddleRange(int range);
+
+    static constexpr double MAX_RESISTANCE = 1400000.0;
+
+  private:
     // Pre-compute the events we care about based on given port
     // This will eliminate test for left or right port in update()
     Event::Type myP0AxisValue, myP1AxisValue,
@@ -127,12 +125,28 @@ class Paddles : public Controller
     int myLastAxisX, myLastAxisY;
     int myAxisDigitalZero, myAxisDigitalOne;
 
-    static int _DIGITAL_SENSITIVITY, _DIGITAL_DISTANCE;
-    static int _MOUSE_SENSITIVITY;
+    // Range of values over which digital and mouse movement is scaled
+    // to paddle resistance
+    static const int TRIGMIN = 1;
+    static const int TRIGMAX = 4096;
+    static int TRIGRANGE;  // This one is variable for the upper range
+
+    static const int MAX_DIGITAL_SENSE = 20;
+    static const int MAX_MOUSE_SENSE = 20;
+    static int DIGITAL_SENSITIVITY, DIGITAL_DISTANCE;
+    static int MOUSE_SENSITIVITY;
 
     // Lookup table for associating paddle buttons with controller pins
     // Yes, this is hideously complex
     static const Controller::DigitalPin ourButtonPin[2];
+
+  private:
+    // Following constructors and assignment operators not supported
+    Paddles() = delete;
+    Paddles(const Paddles&) = delete;
+    Paddles(Paddles&&) = delete;
+    Paddles& operator=(const Paddles&) = delete;
+    Paddles& operator=(Paddles&&) = delete;
 };
 
 #endif

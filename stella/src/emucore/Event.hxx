@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Event.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef EVENT_HXX
@@ -25,7 +23,6 @@
 
 /**
   @author  Bradford W. Mott
-  @version $Id: Event.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Event
 {
@@ -42,6 +39,7 @@ class Event
       ConsoleLeftDiffA, ConsoleLeftDiffB,
       ConsoleRightDiffA, ConsoleRightDiffB,
       ConsoleSelect, ConsoleReset,
+      ConsoleLeftDiffToggle, ConsoleRightDiffToggle, ConsoleColorToggle,
 
       JoystickZeroUp, JoystickZeroDown, JoystickZeroLeft, JoystickZeroRight,
         JoystickZeroFire, JoystickZeroFire5, JoystickZeroFire9,
@@ -65,7 +63,7 @@ class Event
 
       Combo1, Combo2, Combo3, Combo4, Combo5, Combo6, Combo7, Combo8,
       Combo9, Combo10, Combo11, Combo12, Combo13, Combo14, Combo15, Combo16,
-  
+
       SALeftAxis0Value, SALeftAxis1Value,
       SARightAxis0Value, SARightAxis1Value,
 
@@ -127,6 +125,13 @@ class Event
 
     // Array of keyboard key states
     bool myKeyTable[KBDK_LAST];
+
+  private:
+    // Following constructors and assignment operators not supported
+    Event(const Event&) = delete;
+    Event(Event&&) = delete;
+    Event& operator=(const Event&) = delete;
+    Event& operator=(Event&&) = delete;
 };
 
 #endif

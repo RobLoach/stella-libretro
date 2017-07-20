@@ -42,13 +42,11 @@ print OUTFILE "//      SS   tt   eeeeee  ll   ll   aaaaa  --  \"An Atari 2600 VC
 print OUTFILE "//  SS  SS   tt   ee      ll   ll  aa  aa\n";
 print OUTFILE "//   SSSS     ttt  eeeee llll llll  aaaaa\n";
 print OUTFILE "//\n";
-print OUTFILE "// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony\n";
+print OUTFILE "// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony\n";
 print OUTFILE "// and the Stella Team\n";
 print OUTFILE "//\n";
 print OUTFILE "// See the file \"License.txt\" for information on usage and redistribution of\n";
 print OUTFILE "// this file, and for a DISCLAIMER OF ALL WARRANTIES.\n";
-print OUTFILE "//\n";
-print OUTFILE "// \$Id\$\n";
 print OUTFILE "//============================================================================\n";
 print OUTFILE "\n";
 print OUTFILE "#ifndef DEF_PROPS_HXX\n";
@@ -62,7 +60,7 @@ print OUTFILE "  regenerated and the application recompiled.\n";
 print OUTFILE "*/\n";
 print OUTFILE "\n#define DEF_PROPS_SIZE " . $setsize;
 print OUTFILE "\n\n";
-print OUTFILE "static const char* DefProps[DEF_PROPS_SIZE][" . $typesize . "] = {\n";
+print OUTFILE "static const char* const DefProps[DEF_PROPS_SIZE][" . $typesize . "] = {\n";
 
 # Walk the hash map and print each item in order of md5sum
 my $idx = 0;
@@ -71,7 +69,7 @@ for my $key ( sort keys %propset )
   print OUTFILE PropSet::build_prop_string(@{ $propset{$key} });
 
   if ($idx+1 < $setsize) {
-    print OUTFILE ", ";
+    print OUTFILE ",";
   }
   print OUTFILE "\n";
   $idx++;

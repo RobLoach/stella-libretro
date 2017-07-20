@@ -8,13 +8,11 @@
 // MM     MM 66  66 55  55 00  00 22
 // MM     MM  6666   5555   0000  222222
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Device.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef DEVICE_HXX
@@ -22,6 +20,7 @@
 
 class System;
 
+#include "Console.hxx"
 #include "Serializable.hxx"
 #include "bspf.hxx"
 
@@ -30,20 +29,12 @@ class System;
   based system.
 
   @author  Bradford W. Mott
-  @version $Id: Device.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class Device : public Serializable
 {
   public:
-    /**
-      Create a new device
-    */
-    Device() : mySystem(0) { }
-
-    /**
-      Destructor
-    */
-    virtual ~Device() { }
+    Device() : mySystem(nullptr) { }
+    virtual ~Device() = default;
 
   public:
     /**
@@ -56,8 +47,17 @@ class Device : public Serializable
     virtual void reset() = 0;
 
     /**
+      Notification method invoked by the system when the console type
+      has changed.  It may be necessary to override this method for
+      devices that want to know about console changes.
+
+      @param timing  Enum representing the new console type
+    */
+    virtual void consoleChanged(ConsoleTiming timing) { }
+
+    /**
       Notification method invoked by the system right before the
-      system resets its cycle counter to zero.  It may be necessary 
+      system resets its cycle counter to zero.  It may be necessary
       to override this method for devices that remember cycle counts.
     */
     virtual void systemCyclesReset() { }
@@ -76,7 +76,7 @@ class Device : public Serializable
       @param out  The Serializer object to use
       @return  False on any errors, else true
     */
-    virtual bool save(Serializer& out) const = 0;
+    virtual bool save(Serializer& out) const override = 0;
 
     /**
       Load the current state of this device from the given Serializer.
@@ -84,14 +84,14 @@ class Device : public Serializable
       @param in  The Serializer object to use
       @return  False on any errors, else true
     */
-    virtual bool load(Serializer& in) = 0;
+    virtual bool load(Serializer& in) override = 0;
 
     /**
       Get a descriptor for the device name (used in error checking).
 
       @return The name of the object
     */
-    virtual string name() const = 0;
+    virtual string name() const override = 0;
 
   public:
     /**
@@ -112,17 +112,30 @@ class Device : public Serializable
     virtual bool poke(uInt16 address, uInt8 value) = 0;
 
     /**
-      Query/change the given address type to use the given disassembly flags
+      Query the given address for its disassembly flags
 
       @param address The address to modify
-      @param flags A bitfield of DisasmType directives for the given address
     */
-    virtual uInt8 getAccessFlags(uInt16 address) { return 0; }
+    virtual uInt8 getAccessFlags(uInt16 address) const { return 0; }
+
+    /**
+      Change the given address type to use the given disassembly flags
+
+      @param address The address to modify
+      @param flags   A bitfield of DisasmType directives for the given address
+    */
     virtual void setAccessFlags(uInt16 address, uInt8 flags) { }
 
   protected:
     /// Pointer to the system the device is installed in or the null pointer
     System* mySystem;
+
+  private:
+    // Following constructors and assignment operators not supported
+    Device(const Device&) = delete;
+    Device(Device&&) = delete;
+    Device& operator=(const Device&) = delete;
+    Device& operator=(Device&&) = delete;
 };
 
 #endif

@@ -1,20 +1,18 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: Debugger.cxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #include "bspf.hxx"
@@ -37,10 +35,10 @@
 #include "System.hxx"
 #include "M6502.hxx"
 #include "Cart.hxx"
-#include "TIA.hxx"
 
 #include "CartDebug.hxx"
 #include "CartDebugWidget.hxx"
+#include "CartRamWidget.hxx"
 #include "CpuDebug.hxx"
 #include "RiotDebug.hxx"
 #include "TIADebug.hxx"
@@ -55,12 +53,13 @@
 #include "PackedBitArray.hxx"
 #include "YaccParser.hxx"
 
+#include "TIA.hxx"
 #include "Debugger.hxx"
 
-Debugger* Debugger::myStaticDebugger = 0;
+Debugger* Debugger::myStaticDebugger = nullptr;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-static const char* builtin_functions[][3] = {
+static const char* const builtin_functions[][3] = {
   // { "name", "definition", "help text" }
 
   // left joystick:
@@ -93,7 +92,7 @@ static const char* builtin_functions[][3] = {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Names are defined here, but processed in YaccParser
-static const char* pseudo_registers[][2] = {
+static const char* const pseudo_registers[][2] = {
   // { "name", "help text" }
 
   { "_bank", "Currently selected bank" },
@@ -110,34 +109,21 @@ static const char* pseudo_registers[][2] = {
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Debugger::Debugger(OSystem& osystem, Console& console)
-  : DialogContainer(&osystem),
+  : DialogContainer(osystem),
     myConsole(console),
     mySystem(console.system()),
-    myDialog(NULL),
-    myParser(NULL),
-    myCartDebug(NULL),
-    myCpuDebug(NULL),
-    myRiotDebug(NULL),
-    myTiaDebug(NULL),
-    myBreakPoints(NULL),
-    myReadTraps(NULL),
-    myWriteTraps(NULL),
+    myDialog(nullptr),
     myWidth(DebuggerDialog::kSmallFontMinW),
-    myHeight(DebuggerDialog::kSmallFontMinH),
-    myRewindManager(NULL)
+    myHeight(DebuggerDialog::kSmallFontMinH)
 {
   // Init parser
-  myParser = new DebuggerParser(*this, osystem.settings());
+  myParser = make_ptr<DebuggerParser>(*this, osystem.settings());
 
   // Create debugger subsystems
-  myCpuDebug  = new CpuDebug(*this, myConsole);
-  myCartDebug = new CartDebug(*this, myConsole, osystem);
-  myRiotDebug = new RiotDebug(*this, myConsole);
-  myTiaDebug  = new TIADebug(*this, myConsole);
-
-  myBreakPoints = new PackedBitArray(0x10000);
-  myReadTraps = new PackedBitArray(0x10000);
-  myWriteTraps = new PackedBitArray(0x10000);
+  myCpuDebug  = make_ptr<CpuDebug>(*this, myConsole);
+  myCartDebug = make_ptr<CartDebug>(*this, myConsole, osystem);
+  myRiotDebug = make_ptr<RiotDebug>(*this, myConsole);
+  myTiaDebug  = make_ptr<TIADebug>(*this, myConsole);
 
   // Allow access to this object from any class
   // Technically this violates pure OO programming, but since I know
@@ -147,37 +133,26 @@ Debugger::Debugger(OSystem& osystem, Console& console)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Debugger::~Debugger()
-{
-  delete myParser;
-  delete myCartDebug;
-  delete myCpuDebug;
-  delete myRiotDebug;
-  delete myTiaDebug;
-  delete myBreakPoints;
-  delete myReadTraps;
-  delete myWriteTraps;
-  delete myRewindManager;
-
-  myStaticDebugger = 0;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Debugger::initialize()
 {
-  // Get the dialog size
-  const GUI::Size& size = myOSystem->settings().getSize("dbg.res");
-  myWidth = BSPF_max(size.w, 0);
-  myHeight = BSPF_max(size.h, 0);
-  myWidth = BSPF_max(myWidth, (uInt32)DebuggerDialog::kSmallFontMinW);
-  myHeight = BSPF_max(myHeight, (uInt32)DebuggerDialog::kSmallFontMinH);
-  myOSystem->settings().setValue("dbg.res", GUI::Size(myWidth, myHeight));
+  const GUI::Size& s = myOSystem.settings().getSize("dbg.res");
+  const GUI::Size& d = myOSystem.frameBuffer().desktopSize();
+  myWidth = s.w;  myHeight = s.h;
 
-  delete myBaseDialog;  myBaseDialog = myDialog = NULL;
-  myDialog = new DebuggerDialog(myOSystem, this, 0, 0, myWidth, myHeight);
+  // The debugger dialog is resizable, within certain bounds
+  // We check those bounds now
+  myWidth  = std::max(myWidth,  uInt32(DebuggerDialog::kSmallFontMinW));
+  myHeight = std::max(myHeight, uInt32(DebuggerDialog::kSmallFontMinH));
+  myWidth  = std::min(myWidth,  uInt32(d.w));
+  myHeight = std::min(myHeight, uInt32(d.h));
+
+  myOSystem.settings().setValue("dbg.res", GUI::Size(myWidth, myHeight));
+
+  delete myBaseDialog;  myBaseDialog = myDialog = nullptr;
+  myDialog = new DebuggerDialog(myOSystem, *this, 0, 0, myWidth, myHeight);
   myBaseDialog = myDialog;
 
-  myRewindManager = new RewindManager(*myOSystem, myDialog->rewindButton());
+  myRewindManager = make_ptr<RewindManager>(myOSystem, myDialog->rewindButton());
   myCartDebug->setDebugWidget(&(myDialog->cartDebug()));
 }
 
@@ -185,13 +160,13 @@ void Debugger::initialize()
 FBInitStatus Debugger::initializeVideo()
 {
   string title = string("Stella ") + STELLA_VERSION + ": Debugger mode";
-  return myOSystem->frameBuffer().initialize(title, myWidth, myHeight);
+  return myOSystem.frameBuffer().createDisplay(title, myWidth, myHeight);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Debugger::start(const string& message, int address)
 {
-  if(myOSystem->eventHandler().enterDebugMode())
+  if(myOSystem.eventHandler().enterDebugMode())
   {
     // This must be done *after* we enter debug mode,
     // so the message isn't erased
@@ -209,7 +184,7 @@ bool Debugger::start(const string& message, int address)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Debugger::startWithFatalError(const string& message)
 {
-  if(myOSystem->eventHandler().enterDebugMode())
+  if(myOSystem.eventHandler().enterDebugMode())
   {
     // This must be done *after* we enter debug mode,
     // so the dialog is properly shown
@@ -223,9 +198,9 @@ bool Debugger::startWithFatalError(const string& message)
 void Debugger::quit(bool exitrom)
 {
   if(exitrom)
-    myOSystem->eventHandler().handleEvent(Event::LauncherMode, 1);
+    myOSystem.eventHandler().handleEvent(Event::LauncherMode, 1);
   else
-    myOSystem->eventHandler().leaveDebugMode();
+    myOSystem.eventHandler().leaveDebugMode();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -234,12 +209,12 @@ string Debugger::autoExec()
   ostringstream buf;
 
   // autoexec.stella is always run
-  FilesystemNode autoexec(myOSystem->baseDir() + "autoexec.stella");
+  FilesystemNode autoexec(myOSystem.baseDir() + "autoexec.stella");
   buf << "autoExec():" << endl
       << myParser->exec(autoexec) << endl;
 
   // Also, "romname.stella" if present
-  FilesystemNode romname(myOSystem->romFile().getPathWithExt(".stella"));
+  FilesystemNode romname(myOSystem.romFile().getPathWithExt(".stella"));
   buf << myParser->exec(romname) << endl;
 
   // Init builtins
@@ -247,9 +222,11 @@ string Debugger::autoExec()
   {
     // TODO - check this for memory leaks
     int res = YaccParser::parse(builtin_functions[i][1]);
-    if(res != 0) cerr << "ERROR in builtin function!" << endl;
-    Expression* exp = YaccParser::getResult();
-    addFunction(builtin_functions[i][0], builtin_functions[i][1], exp, true);
+    if(res == 0)
+      addFunction(builtin_functions[i][0], builtin_functions[i][1],
+                  YaccParser::getResult(), true);
+    else
+      cerr << "ERROR in builtin function!" << endl;
   }
   return buf.str();
 }
@@ -276,7 +253,9 @@ const string Debugger::invIfChanged(int reg, int oldReg)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Debugger::reset()
 {
-  myCpuDebug->setPC(dpeek(0xfffc));
+  unlockBankswitchState();
+  mySystem.reset();
+  lockBankswitchState();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -287,7 +266,7 @@ string Debugger::setRAM(IntArray& args)
 {
   ostringstream buf;
 
-  int count = args.size();
+  int count = int(args.size());
   int address = args[0];
   for(int i = 1; i < count; ++i)
     mySystem.poke(address++, args[i]);
@@ -299,6 +278,26 @@ string Debugger::setRAM(IntArray& args)
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void Debugger::saveState(int state)
+{
+  mySystem.clearDirtyPages();
+
+  unlockBankswitchState();
+  myOSystem.state().saveState(state);
+  lockBankswitchState();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+void Debugger::loadState(int state)
+{
+  mySystem.clearDirtyPages();
+
+  unlockBankswitchState();
+  myOSystem.state().loadState(state);
+  lockBankswitchState();
+}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 int Debugger::step()
 {
   saveOldState();
@@ -307,7 +306,7 @@ int Debugger::step()
   int cyc = mySystem.cycles();
 
   unlockBankswitchState();
-  myOSystem->console().tia().updateScanlineByStep();
+  myOSystem.console().tia().updateScanlineByStep().flushLineCache();
   lockBankswitchState();
 
   return mySystem.cycles() - cyc;
@@ -336,7 +335,7 @@ int Debugger::trace()
     int targetPC = myCpuDebug->pc() + 3; // return address
 
     unlockBankswitchState();
-    myOSystem->console().tia().updateScanlineByTrace(targetPC);
+    myOSystem.console().tia().updateScanlineByTrace(targetPC).flushLineCache();
     lockBankswitchState();
 
     return mySystem.cycles() - cyc;
@@ -346,68 +345,57 @@ int Debugger::trace()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Debugger::toggleBreakPoint(int bp)
+void Debugger::toggleBreakPoint(uInt16 bp)
 {
-  mySystem.m6502().setBreakPoints(myBreakPoints);
-  if(bp < 0) bp = myCpuDebug->pc();
-  myBreakPoints->toggle(bp);
+  breakPoints().initialize();
+  breakPoints().toggle(bp);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Debugger::setBreakPoint(int bp, bool set)
+void Debugger::setBreakPoint(uInt16 bp, bool set)
 {
-  mySystem.m6502().setBreakPoints(myBreakPoints);
-  if(bp < 0) bp = myCpuDebug->pc();
-  if(set)
-    myBreakPoints->set(bp);
-  else
-    myBreakPoints->clear(bp);
+  breakPoints().initialize();
+  if(set) breakPoints().set(bp);
+  else    breakPoints().clear(bp);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Debugger::breakPoint(int bp)
+bool Debugger::breakPoint(uInt16 bp)
 {
-  if(bp < 0) bp = myCpuDebug->pc();
-  return myBreakPoints->isSet(bp) != 0;
+  return breakPoints().isSet(bp);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Debugger::toggleReadTrap(int t)
+void Debugger::toggleReadTrap(uInt16 t)
 {
-  mySystem.m6502().setTraps(myReadTraps, myWriteTraps);
-  myReadTraps->toggle(t);
+  readTraps().initialize();
+  readTraps().toggle(t);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Debugger::toggleWriteTrap(int t)
+void Debugger::toggleWriteTrap(uInt16 t)
 {
-  mySystem.m6502().setTraps(myReadTraps, myWriteTraps);
-  myWriteTraps->toggle(t);
+  writeTraps().initialize();
+  writeTraps().toggle(t);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Debugger::toggleTrap(int t)
+void Debugger::toggleTrap(uInt16 t)
 {
   toggleReadTrap(t);
   toggleWriteTrap(t);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Debugger::readTrap(int t)
+bool Debugger::readTrap(uInt16 t)
 {
-  return myReadTraps->isSet(t) != 0;
+  return readTraps().isInitialized() && readTraps().isSet(t);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Debugger::writeTrap(int t)
+bool Debugger::writeTrap(uInt16 t)
 {
-  return myWriteTraps->isSet(t) != 0;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-int Debugger::cycles()
-{
-  return mySystem.cycles();
+  return writeTraps().isInitialized() && writeTraps().isSet(t);
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -419,10 +407,12 @@ void Debugger::nextScanline(int lines)
   unlockBankswitchState();
   while(lines)
   {
-    myOSystem->console().tia().updateScanline();
+    myOSystem.console().tia().updateScanline();
     --lines;
   }
   lockBankswitchState();
+
+  myOSystem.console().tia().flushLineCache();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -434,7 +424,7 @@ void Debugger::nextFrame(int frames)
   unlockBankswitchState();
   while(frames)
   {
-    myOSystem->console().tia().update();
+    myOSystem.console().tia().update();
     --frames;
   }
   lockBankswitchState();
@@ -455,19 +445,14 @@ bool Debugger::rewindState()
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Debugger::clearAllBreakPoints()
 {
-  delete myBreakPoints;
-  myBreakPoints = new PackedBitArray(0x10000);
-  mySystem.m6502().setBreakPoints(NULL);
+  breakPoints().clearAll();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-void Debugger::clearAllTraps() 
+void Debugger::clearAllTraps()
 {
-  delete myReadTraps;
-  delete myWriteTraps;
-  myReadTraps = new PackedBitArray(0x10000);
-  myWriteTraps = new PackedBitArray(0x10000);
-  mySystem.m6502().setTraps(NULL, NULL);
+  readTraps().clearAll();
+  writeTraps().clearAll();
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -477,20 +462,7 @@ string Debugger::showWatches()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Debugger::setBank(int bank)
-{
-  if(myConsole.cartridge().bankCount() > 1)
-  {
-    myConsole.cartridge().unlockBank();
-    bool status = myConsole.cartridge().bank(bank);
-    myConsole.cartridge().lockBank();
-    return status;
-  }
-  return false;
-}
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Debugger::patchROM(int addr, int value)
+bool Debugger::patchROM(uInt16 addr, uInt8 value)
 {
   return myConsole.cartridge().patch(addr, value);
 }
@@ -519,7 +491,7 @@ void Debugger::setStartState()
   // Save initial state, but don't add it to the rewind list
   saveOldState(false);
 
-  // Set the 're-disassemble' flag, but don't do it until the next scheduled time 
+  // Set the 're-disassemble' flag, but don't do it until the next scheduled time
   myDialog->rom().invalidate(false);
 }
 
@@ -532,7 +504,7 @@ void Debugger::setQuitState()
   // execute one instruction on quit. If we're
   // sitting at a breakpoint/trap, this will get us past it.
   // Somehow this feels like a hack to me, but I don't know why
-  //	if(myBreakPoints->isSet(myCpuDebug->pc()))
+  //	if(breakPoints().isSet(myCpuDebug->pc()))
   mySystem.m6502().execute(1);
 }
 
@@ -540,9 +512,8 @@ void Debugger::setQuitState()
 bool Debugger::addFunction(const string& name, const string& definition,
                            Expression* exp, bool builtin)
 {
-  functions.insert(make_pair(name, exp));
-  if(!builtin)
-    functionDefs.insert(make_pair(name, definition));
+  myFunctions.emplace(name, unique_ptr<Expression>(exp));
+  myFunctionDefs.emplace(name, definition);
 
   return true;
 }
@@ -550,45 +521,43 @@ bool Debugger::addFunction(const string& name, const string& definition,
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 bool Debugger::delFunction(const string& name)
 {
-  FunctionMap::iterator iter = functions.find(name);
-  if(iter == functions.end())
+  const auto& iter = myFunctions.find(name);
+  if(iter == myFunctions.end())
     return false;
 
-  functions.erase(name);
-  delete iter->second;
+  // We never want to delete built-in functions
+  for(int i = 0; builtin_functions[i][0] != 0; ++i)
+    if(name == builtin_functions[i][0])
+      return false;
 
-  FunctionDefMap::iterator def_iter = functionDefs.find(name);
-  if(def_iter == functionDefs.end())
+  myFunctions.erase(name);
+
+  const auto& def_iter = myFunctionDefs.find(name);
+  if(def_iter == myFunctionDefs.end())
     return false;
 
-  functionDefs.erase(name);
+  myFunctionDefs.erase(name);
   return true;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-const Expression* Debugger::getFunction(const string& name) const
+const Expression& Debugger::getFunction(const string& name) const
 {
-  FunctionMap::const_iterator iter = functions.find(name);
-  if(iter == functions.end())
-    return 0;
-  else
-    return iter->second;
+  const auto& iter = myFunctions.find(name);
+  return iter != myFunctions.end() ? *(iter->second.get()) : EmptyExpression;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const string& Debugger::getFunctionDef(const string& name) const
 {
-  FunctionDefMap::const_iterator iter = functionDefs.find(name);
-  if(iter == functionDefs.end())
-    return EmptyString;
-  else
-    return iter->second;
+  const auto& iter = myFunctionDefs.find(name);
+  return iter != myFunctionDefs.end() ? iter->second : EmptyString;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 const FunctionDefMap Debugger::getFunctionDefMap() const
 {
-  return functionDefs;
+  return myFunctionDefs;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -606,13 +575,13 @@ string Debugger::builtinHelp() const
     if(len > i_maxlen)  i_maxlen = len;
   }
 
-  buf << setfill(' ') << endl << "Built-in functions:" << endl;
+  buf << std::setfill(' ') << endl << "Built-in functions:" << endl;
   for(int i = 0; builtin_functions[i][0] != 0; ++i)
   {
-    buf << setw(c_maxlen) << left << builtin_functions[i][0]
-        << setw(2) << right << "{"
-        << setw(i_maxlen) << left << builtin_functions[i][1]
-        << setw(4) << "}"
+    buf << std::setw(c_maxlen) << std::left << builtin_functions[i][0]
+        << std::setw(2) << std::right << "{"
+        << std::setw(i_maxlen) << std::left << builtin_functions[i][1]
+        << std::setw(4) << "}"
         << builtin_functions[i][2]
         << endl;
   }
@@ -628,9 +597,9 @@ string Debugger::builtinHelp() const
   buf << endl << "Pseudo-registers:" << endl;
   for(int i = 0; pseudo_registers[i][0] != 0; ++i)
   {
-    buf << setw(c_maxlen) << left << pseudo_registers[i][0]
-        << setw(2) << " "
-        << setw(i_maxlen) << left << pseudo_registers[i][1]
+    buf << std::setw(c_maxlen) << std::left << pseudo_registers[i][0]
+        << std::setw(2) << " "
+        << std::setw(i_maxlen) << std::left << pseudo_registers[i][1]
         << endl;
   }
 
@@ -640,16 +609,15 @@ string Debugger::builtinHelp() const
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void Debugger::getCompletions(const char* in, StringList& list) const
 {
-  FunctionMap::const_iterator iter;
-  for(iter = functions.begin(); iter != functions.end(); ++iter)
+  for(const auto& iter: myFunctions)
   {
-    const char* l = iter->first.c_str();
-    if(BSPF_equalsIgnoreCase(l, in))
+    const char* l = iter.first.c_str();
+    if(BSPF::startsWithIgnoreCase(l, in))
       list.push_back(l);
   }
 
   for(int i = 0; pseudo_registers[i][0] != 0; ++i)
-    if(BSPF_equalsIgnoreCase(pseudo_registers[i][0], in))
+    if(BSPF::startsWithIgnoreCase(pseudo_registers[i][0], in))
       list.push_back(pseudo_registers[i][0]);
 }
 
@@ -675,7 +643,7 @@ Debugger::RewindManager::RewindManager(OSystem& system, ButtonWidget& button)
     myTop(0)
 {
   for(int i = 0; i < MAX_SIZE; ++i)
-    myStateList[i] = (Serializer*) NULL;
+    myStateList[i] = nullptr;
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -689,11 +657,11 @@ Debugger::RewindManager::~RewindManager()
 bool Debugger::RewindManager::addState()
 {
   // Create a new Serializer object if we need one
-  if(myStateList[myTop] == NULL)
+  if(myStateList[myTop] == nullptr)
     myStateList[myTop] = new Serializer();
   Serializer& s = *(myStateList[myTop]);
 
-  if(s.isValid())
+  if(s)
   {
     s.reset();
     if(myOSystem.state().saveState(s) && myOSystem.console().tia().saveDisplay(s))
@@ -732,7 +700,7 @@ bool Debugger::RewindManager::rewindState()
 }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-bool Debugger::RewindManager::isEmpty()
+bool Debugger::RewindManager::empty()
 {
   return mySize == 0;
 }
@@ -741,7 +709,7 @@ bool Debugger::RewindManager::isEmpty()
 void Debugger::RewindManager::clear()
 {
   for(int i = 0; i < MAX_SIZE; ++i)
-    if(myStateList[i] != NULL)
+    if(myStateList[i] != nullptr)
       myStateList[i]->reset();
 
   myTop = mySize = 0;

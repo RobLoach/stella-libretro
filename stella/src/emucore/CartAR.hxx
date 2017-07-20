@@ -1,26 +1,23 @@
 //============================================================================
 //
-//   SSSS    tt          lll  lll       
-//  SS  SS   tt           ll   ll        
-//  SS     tttttt  eeee   ll   ll   aaaa 
+//   SSSS    tt          lll  lll
+//  SS  SS   tt           ll   ll
+//  SS     tttttt  eeee   ll   ll   aaaa
 //   SSSS    tt   ee  ee  ll   ll      aa
 //      SS   tt   eeeeee  ll   ll   aaaaa  --  "An Atari 2600 VCS Emulator"
 //  SS  SS   tt   ee      ll   ll  aa  aa
 //   SSSS     ttt  eeeee llll llll  aaaaa
 //
-// Copyright (c) 1995-2014 by Bradford W. Mott, Stephen Anthony
+// Copyright (c) 1995-2017 by Bradford W. Mott, Stephen Anthony
 // and the Stella Team
 //
 // See the file "License.txt" for information on usage and redistribution of
 // this file, and for a DISCLAIMER OF ALL WARRANTIES.
-//
-// $Id: CartAR.hxx 2838 2014-01-17 23:34:03Z stephena $
 //============================================================================
 
 #ifndef CARTRIDGEAR_HXX
 #define CARTRIDGEAR_HXX
 
-class M6502;
 class System;
 
 #include "bspf.hxx"
@@ -30,16 +27,15 @@ class System;
 #endif
 
 /**
-  This is the cartridge class for Arcadia (aka Starpath) Supercharger 
-  games.  Christopher Salomon provided most of the technical details 
+  This is the cartridge class for Arcadia (aka Starpath) Supercharger
+  games.  Christopher Salomon provided most of the technical details
   used in creating this class.  A good description of the Supercharger
   is provided in the Cuttle Cart's manual.
 
-  The Supercharger has four 2K banks.  There are three banks of RAM 
+  The Supercharger has four 2K banks.  There are three banks of RAM
   and one bank of ROM.  All 6K of the RAM can be read and written.
 
   @author  Bradford W. Mott
-  @version $Id: CartAR.hxx 2838 2014-01-17 23:34:03Z stephena $
 */
 class CartridgeAR : public Cartridge
 {
@@ -53,25 +49,21 @@ class CartridgeAR : public Cartridge
       @param size      The size of the ROM image
       @param settings  A reference to the various settings (read-only)
     */
-    CartridgeAR(const uInt8* image, uInt32 size, const Settings& settings);
-
-    /**
-      Destructor
-    */
-    virtual ~CartridgeAR();
+    CartridgeAR(const BytePtr& image, uInt32 size, const Settings& settings);
+    virtual ~CartridgeAR() = default;
 
   public:
     /**
       Reset device to its power-on state
     */
-    void reset();
+    void reset() override;
 
     /**
       Notification method invoked by the system right before the
       system resets its cycle counter to zero.  It may be necessary
       to override this method for devices that remember cycle counts.
     */
-    void systemCyclesReset();
+    void systemCyclesReset() override;
 
     /**
       Install cartridge in the specified system.  Invoked by the system
@@ -79,24 +71,24 @@ class CartridgeAR : public Cartridge
 
       @param system The system the device should install itself in
     */
-    void install(System& system);
+    void install(System& system) override;
 
     /**
       Install pages for the specified bank in the system.
 
       @param bank The bank that should be installed in the system
     */
-    bool bank(uInt16 bank);
+    bool bank(uInt16 bank) override;
 
     /**
       Get the current bank.
     */
-    uInt16 bank() const;
+    uInt16 getBank() const override;
 
     /**
       Query the number of banks supported by the cartridge.
     */
-    uInt16 bankCount() const;
+    uInt16 bankCount() const override;
 
     /**
       Patch the cartridge ROM.
@@ -105,7 +97,7 @@ class CartridgeAR : public Cartridge
       @param value    The value to place into the address
       @return    Success or failure of the patch operation
     */
-    bool patch(uInt16 address, uInt8 value);
+    bool patch(uInt16 address, uInt8 value) override;
 
     /**
       Access the internal ROM image for this cartridge.
@@ -113,7 +105,7 @@ class CartridgeAR : public Cartridge
       @param size  Set to the size of the internal ROM image data
       @return  A pointer to the internal ROM image data
     */
-    const uInt8* getImage(int& size) const;
+    const uInt8* getImage(int& size) const override;
 
     /**
       Save the current state of this cart to the given Serializer.
@@ -121,7 +113,7 @@ class CartridgeAR : public Cartridge
       @param out  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool save(Serializer& out) const;
+    bool save(Serializer& out) const override;
 
     /**
       Load the current state of this cart from the given Serializer.
@@ -129,14 +121,14 @@ class CartridgeAR : public Cartridge
       @param in  The Serializer object to use
       @return  False on any errors, else true
     */
-    bool load(Serializer& in);
+    bool load(Serializer& in) override;
 
     /**
       Get a descriptor for the device name (used in error checking).
 
       @return The name of the object
     */
-    string name() const { return "CartridgeAR"; }
+    string name() const override { return "CartridgeAR"; }
 
   #ifdef DEBUGGER_SUPPORT
     /**
@@ -144,7 +136,7 @@ class CartridgeAR : public Cartridge
       of the cart.
     */
     CartDebugWidget* debugWidget(GuiObject* boss, const GUI::Font& lfont,
-        const GUI::Font& nfont, int x, int y, int w, int h)
+        const GUI::Font& nfont, int x, int y, int w, int h) override
     {
       return new CartridgeARWidget(boss, lfont, nfont, x, y, w, h, *this);
     }
@@ -156,7 +148,7 @@ class CartridgeAR : public Cartridge
 
       @return The byte at the specified address
     */
-    uInt8 peek(uInt16 address);
+    uInt8 peek(uInt16 address) override;
 
     /**
       Change the byte at the specified address to the given value
@@ -165,7 +157,7 @@ class CartridgeAR : public Cartridge
       @param value The value to be stored at the address
       @return  True if the poke changed the device address space, else false
     */
-    bool poke(uInt16 address, uInt8 value);
+    bool poke(uInt16 address, uInt8 value) override;
 
   private:
     /**
@@ -174,8 +166,8 @@ class CartridgeAR : public Cartridge
       @param address The address to modify
       @param flags A bitfield of DisasmType directives for the given address
     */
-    uInt8 getAccessFlags(uInt16 address);
-    void setAccessFlags(uInt16 address, uInt8 flags);
+    uInt8 getAccessFlags(uInt16 address) const override;
+    void setAccessFlags(uInt16 address, uInt8 flags) override;
 
     // Handle a change to the bank configuration
     bool bankConfiguration(uInt8 configuration);
@@ -190,9 +182,6 @@ class CartridgeAR : public Cartridge
     void initializeROM();
 
   private:
-    // Pointer to the 6502 processor in the system
-    M6502* my6502;
-
     // Indicates the offset within the image for the corresponding bank
     uInt32 myImageOffset[2];
 
@@ -205,8 +194,8 @@ class CartridgeAR : public Cartridge
     // Size of the ROM image
     uInt32 mySize;
 
-    // All of the 8448 byte loads associated with the game 
-    uInt8* myLoadImages;
+    // All of the 8448 byte loads associated with the game
+    BytePtr myLoadImages;
 
     // Indicates how many 8448 loads there are
     uInt8 myNumberOfLoadImages;
@@ -229,6 +218,7 @@ class CartridgeAR : public Cartridge
     // Indicates if a write is pending or not
     bool myWritePending;
 
+    // Indicates which bank is currently active
     uInt16 myCurrentBank;
 
     // Fake SC-BIOS code to simulate the Supercharger load bars
@@ -237,6 +227,14 @@ class CartridgeAR : public Cartridge
     // Default 256-byte header to use if one isn't included in the ROM
     // This data comes from z26
     static const uInt8 ourDefaultHeader[256];
+
+  private:
+    // Following constructors and assignment operators not supported
+    CartridgeAR() = delete;
+    CartridgeAR(const CartridgeAR&) = delete;
+    CartridgeAR(CartridgeAR&&) = delete;
+    CartridgeAR& operator=(const CartridgeAR&) = delete;
+    CartridgeAR& operator=(CartridgeAR&&) = delete;
 };
 
 #endif
