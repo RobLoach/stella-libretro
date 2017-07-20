@@ -2,6 +2,35 @@ INCFLAGS := -I. -I$(CORE_DIR) -I$(CORE_DIR)/src -I$(CORE_DIR)/stubs -I$(CORE_DIR
 
 SOURCES_CXX := $(CORE_DIR)/src/common/Base.cxx \
 	$(CORE_DIR)/src/common/SoundSDL.cxx \
+	$(CORE_DIR)/src/emucore/AmigaMouse.cxx \
+	$(CORE_DIR)/src/emucore/AtariMouse.cxx \
+	$(CORE_DIR)/src/emucore/Cart3EPlus.cxx \
+	$(CORE_DIR)/src/emucore/CartBUS.cxx \
+	$(CORE_DIR)/src/emucore/CartCDF.cxx \
+	$(CORE_DIR)/src/emucore/CartCVPlus.cxx \
+	$(CORE_DIR)/src/emucore/CartDASH.cxx \
+	$(CORE_DIR)/src/emucore/CartDetector.cxx \
+	$(CORE_DIR)/src/emucore/CartMDM.cxx \
+	$(CORE_DIR)/src/emucore/CartWD.cxx \
+	$(CORE_DIR)/src/emucore/EventHandler.cxx \
+	$(CORE_DIR)/src/emucore/EventJoyHandler.cxx \
+	$(CORE_DIR)/src/emucore/FBSurface.cxx \
+	$(CORE_DIR)/src/emucore/FSNode.cxx \
+	$(CORE_DIR)/src/emucore/FrameBuffer.cxx \
+	$(CORE_DIR)/src/emucore/OSystem.cxx \
+	$(CORE_DIR)/src/emucore/TIASurface.cxx \
+	$(CORE_DIR)/src/emucore/TrakBall.cxx \
+	$(CORE_DIR)/src/emucore/tia/Background.cxx \
+	$(CORE_DIR)/src/emucore/tia/Ball.cxx \
+	$(CORE_DIR)/src/emucore/tia/DrawCounterDecodes.cxx \
+	$(CORE_DIR)/src/emucore/tia/Player.cxx \
+	$(CORE_DIR)/src/emucore/tia/FrameManager.cxx \
+	$(CORE_DIR)/src/emucore/tia/LatchedInput.cxx \
+	$(CORE_DIR)/src/emucore/tia/Missile.cxx \
+	$(CORE_DIR)/src/emucore/tia/VblankManager.cxx \
+	$(CORE_DIR)/src/emucore/tia/TIA.cxx \
+	$(CORE_DIR)/src/emucore/tia/PaddleReader.cxx \
+	$(CORE_DIR)/src/emucore/tia/Playfield.cxx \
 	$(CORE_DIR)/src/emucore/AtariVox.cxx \
 	$(CORE_DIR)/src/emucore/Booster.cxx \
 	$(CORE_DIR)/src/emucore/Cart.cxx \
