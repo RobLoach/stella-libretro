@@ -1,7 +1,7 @@
-INCFLAGS := -I. -I$(CORE_DIR) -I$(CORE_DIR)/src -I$(CORE_DIR)/stubs -I$(CORE_DIR)/src/emucore -I$(CORE_DIR)/src/common -I$(CORE_DIR)/src/gui
+INCFLAGS := -I. -I$(CORE_DIR) -I$(CORE_DIR)/src -I$(CORE_DIR)/stubs -I$(CORE_DIR)/src/emucore -I$(CORE_DIR)/src/common -I$(CORE_DIR)/src/gui -I$(CORE_DIR)/src/common/tv_filters -I$(CORE_DIR)/src/emucore/tia
 
 SOURCES_CXX := $(CORE_DIR)/src/common/Base.cxx \
-	$(CORE_DIR)/src/common/SoundSDL.cxx \
+	$(CORE_DIR)/src/common/SoundSDL2.cxx \
 	$(CORE_DIR)/src/emucore/AmigaMouse.cxx \
 	$(CORE_DIR)/src/emucore/AtariMouse.cxx \
 	$(CORE_DIR)/src/emucore/Cart3EPlus.cxx \
