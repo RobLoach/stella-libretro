@@ -30,6 +30,11 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
    system_platform = win
 endif
 
+prefix := /usr
+libdir := $(prefix)/lib
+
+LIBRETRO_INSTALL_DIR := libretro
+
 TARGET_NAME := stella
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")
@@ -63,9 +68,14 @@ ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
 endif
 
-   CC = clang -arch armv7 -isysroot $(IOSSDK)
-   CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
-ifeq ($(platform),ios9)
+ifeq ($(platform),ios-arm64)
+	CC = cc -arch arm64 -isysroot $(IOSSDK)
+	CXX = clang++ -arch arm64 -isysroot $(IOSSDK)
+else
+	CC = cc -arch armv7 -isysroot $(IOSSDK)
+	CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
+endif
+ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
    SHARED += -miphoneos-version-min=8.0
    CC     +=  -miphoneos-version-min=8.0
    CXX    +=  -miphoneos-version-min=8.0
@@ -126,6 +136,13 @@ else ifeq ($(platform), wiiu)
 	FLAGS += -DGEKKO -DWIIU -DHW_RVL -mwup -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST
 	FLAGS += -U__INT32_TYPE__ -U __UINT32_TYPE__ -D__INT32_TYPE__=int
    STATIC_LINKING = 1
+
+# Nintendo Switch (libtransistor)
+else ifeq ($(platform), switch)
+	EXT=a
+        TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
+        include $(LIBTRANSISTOR_HOME)/libtransistor.mk
+        STATIC_LINKING=1
 
 else ifeq ($(platform), sncps3)
    TARGET := $(TARGET_NAME)_libretro_ps3.a
@@ -215,6 +232,38 @@ else ifeq ($(platform), gcw0)
 	FLAGS += -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float
 	fpic := -fPIC
 
+# Windows MSVC 2003 Xbox 1
+else ifeq ($(platform), xbox1_msvc2003)
+TARGET := $(TARGET_NAME)_libretro_xdk1.lib
+MSVCBINDIRPREFIX = $(XDK)/xbox/bin/vc71
+CC  = "$(MSVCBINDIRPREFIX)/CL.exe"
+CXX  = "$(MSVCBINDIRPREFIX)/CL.exe"
+LD   = "$(MSVCBINDIRPREFIX)/lib.exe"
+
+export INCLUDE := $(XDK)/xbox/include
+export LIB := $(XDK)/xbox/lib
+PSS_STYLE :=2
+CFLAGS   += -D_XBOX -D_XBOX1
+CXXFLAGS += -D_XBOX -D_XBOX1
+STATIC_LINKING=1
+HAS_GCC := 0
+# Windows MSVC 2010 Xbox 360
+else ifeq ($(platform), xbox360_msvc2010)
+TARGET := $(TARGET_NAME)_libretro_xdk360.lib
+MSVCBINDIRPREFIX = $(XEDK)/bin/win32
+CC  = "$(MSVCBINDIRPREFIX)/cl.exe"
+CXX  = "$(MSVCBINDIRPREFIX)/cl.exe"
+LD   = "$(MSVCBINDIRPREFIX)/lib.exe"
+
+export INCLUDE := $(XEDK)/include/xbox
+export LIB := $(XEDK)/lib/xbox
+PSS_STYLE :=2
+FLAGS += -DMSB_FIRST
+CFLAGS   += -D_XBOX -D_XBOX360
+CXXFLAGS += -D_XBOX -D_XBOX360
+STATIC_LINKING=1
+HAS_GCC := 0
+
 # Windows MSVC 2010 x64
 else ifeq ($(platform), windows_msvc2010_x64)
 	CC  = cl.exe
@@ -282,6 +331,26 @@ PSS_STYLE :=2
 LDFLAGS += -DLL
 CFLAGS += -D_CRT_SECURE_NO_DEPRECATE
 
+# Windows MSVC 2003 x86
+else ifeq ($(platform), windows_msvc2003_x86)
+	CC  = cl.exe
+	CXX = cl.exe
+
+PATH := $(shell IFS=$$'\n'; cygpath "$(VS71COMNTOOLS)../../Vc7/bin"):$(PATH)
+PATH := $(PATH):$(shell IFS=$$'\n'; cygpath "$(VS71COMNTOOLS)../IDE")
+INCLUDE := $(shell IFS=$$'\n'; cygpath "$(VS71COMNTOOLS)../../Vc7/include")
+LIB := $(shell IFS=$$'\n'; cygpath -w "$(VS71COMNTOOLS)../../Vc7/lib")
+BIN := $(shell IFS=$$'\n'; cygpath "$(VS71COMNTOOLS)../../Vc7/bin")
+
+WindowsSdkDir := $(INETSDK)
+
+export INCLUDE := $(INCLUDE);$(INETSDK)/Include;src/drivers/libretro/msvc/msvc-2005
+export LIB := $(LIB);$(WindowsSdkDir);$(INETSDK)/Lib
+TARGET := $(TARGET_NAME)_libretro.dll
+PSS_STYLE :=2
+LDFLAGS += -DLL
+CFLAGS += -D_CRT_SECURE_NO_DEPRECATE
+
 # Windows
 else
    TARGET := $(TARGET_NAME)_libretro.dll
@@ -307,10 +376,38 @@ include Makefile.common
 
 OBJECTS := $(SOURCES_CXX:.cxx=.o)
 
-ifeq ($(DEBUG),1)
-FLAGS += -O0 -g
+ifeq ($(DEBUG), 1)
+ifneq (,$(findstring msvc,$(platform)))
+	ifeq ($(STATIC_LINKING),1)
+	CFLAGS += -MTd
+	CXXFLAGS += -MTd
 else
-FLAGS += -O2 -DNDEBUG
+	CFLAGS += -MDd
+	CXXFLAGS += -MDd
+endif
+
+CFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+CXXFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+	else
+	CFLAGS += -O0 -g -DDEBUG
+	CXXFLAGS += -O0 -g -DDEBUG
+endif
+else
+ifneq (,$(findstring msvc,$(platform)))
+ifeq ($(STATIC_LINKING),1)
+	CFLAGS += -MT
+	CXXFLAGS += -MT
+else
+	CFLAGS += -MD
+	CXXFLAGS += -MD
+endif
+
+CFLAGS += -O2 -DNDEBUG
+CXXFLAGS += -O2 -DNDEBUG
+else
+	CFLAGS += -O2 -DNDEBUG
+	CXXFLAGS += -O2 -DNDEBUG
+endif
 endif
 
 ifeq (,$(findstring msvc,$(platform)))
@@ -349,7 +446,12 @@ LINKOUT  = -o
 ifneq (,$(findstring msvc,$(platform)))
 	OBJOUT = -Fo
 	LINKOUT = -out:
+ifeq ($(STATIC_LINKING),1)
+	LD ?= lib.exe
+	STATIC_LINKING=0
+else
 	LD = link.exe
+endif
 else
 	LD = $(CXX)
 endif
@@ -381,5 +483,11 @@ endif
 clean:
 	rm -f $(TARGET) $(OBJECTS)
 
-.PHONY: clean
+install:
+	install -D -m 755 $(TARGET) $(DESTDIR)$(libdir)/$(LIBRETRO_INSTALL_DIR)/$(TARGET)
+
+uninstall:
+	rm $(DESTDIR)$(libdir)/$(LIBRETRO_INSTALL_DIR)/$(TARGET)
+
+.PHONY: clean install uninstall
 endif
